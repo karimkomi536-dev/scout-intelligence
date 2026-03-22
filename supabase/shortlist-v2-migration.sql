@@ -7,6 +7,19 @@
 
 -- ── 1. CREATE all tables first ───────────────────────────────────────────────
 
+-- Base shortlists table (created first — shortlist_groups/shares depend on nothing yet)
+CREATE TABLE IF NOT EXISTS shortlists (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        uuid        REFERENCES auth.users(id) ON DELETE CASCADE,
+  player_id      uuid        REFERENCES players(id) ON DELETE CASCADE,
+  notes          text,
+  tags           jsonb       NOT NULL DEFAULT '[]'::jsonb,
+  position_index integer     NOT NULL DEFAULT 0,
+  list_id        uuid,                         -- FK to shortlist_groups added below
+  created_at     timestamptz DEFAULT now(),
+  UNIQUE(user_id, player_id)
+);
+
 CREATE TABLE IF NOT EXISTS shortlist_groups (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid        REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -23,14 +36,31 @@ CREATE TABLE IF NOT EXISTS shortlist_shares (
 );
 
 
--- ── 2. ALTER existing shortlists table ───────────────────────────────────────
+-- ── 2. Add FK from shortlists.list_id → shortlist_groups (now that it exists) ──
 
-ALTER TABLE shortlists ADD COLUMN IF NOT EXISTS list_id        uuid    REFERENCES shortlist_groups(id) ON DELETE CASCADE;
+-- Add list_id FK if column exists but constraint doesn't yet
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'shortlists_list_id_fkey'
+      AND table_name = 'shortlists'
+  ) THEN
+    ALTER TABLE shortlists
+      ADD CONSTRAINT shortlists_list_id_fkey
+      FOREIGN KEY (list_id) REFERENCES shortlist_groups(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+
+-- ── 3. ADD COLUMN for any pre-existing shortlists table (no-op if already present) ──
+
 ALTER TABLE shortlists ADD COLUMN IF NOT EXISTS tags           jsonb   NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE shortlists ADD COLUMN IF NOT EXISTS position_index integer NOT NULL DEFAULT 0;
+ALTER TABLE shortlists ADD COLUMN IF NOT EXISTS list_id        uuid;
 
 
--- ── 3. Indexes ────────────────────────────────────────────────────────────────
+-- ── 4. Indexes ────────────────────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_shortlists_list_id        ON shortlists (list_id);
 CREATE INDEX IF NOT EXISTS idx_shortlists_position       ON shortlists (list_id, position_index);
@@ -38,35 +68,32 @@ CREATE INDEX IF NOT EXISTS idx_shortlist_shares_token    ON shortlist_shares (to
 CREATE INDEX IF NOT EXISTS idx_shortlist_shares_list_id  ON shortlist_shares (list_id);
 
 
--- ── 4. Enable RLS ─────────────────────────────────────────────────────────────
+-- ── 5. Enable RLS ─────────────────────────────────────────────────────────────
 
+ALTER TABLE shortlists       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shortlist_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shortlist_shares ENABLE ROW LEVEL SECURITY;
 
 
--- ── 5. Policies — shortlist_groups ───────────────────────────────────────────
-
-DROP POLICY IF EXISTS "shortlist_groups: owner all"  ON shortlist_groups;
-DROP POLICY IF EXISTS "shortlist_groups: share read" ON shortlist_groups;
-
-CREATE POLICY "shortlist_groups: owner all" ON shortlist_groups
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
--- Public read when a share token exists for this group
--- shortlist_shares already exists at this point, so the EXISTS subquery is valid
-CREATE POLICY "shortlist_groups: share read" ON shortlist_groups
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM shortlist_shares WHERE list_id = shortlist_groups.id)
-  );
-
-
 -- ── 6. Policies — shortlists ─────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "shortlists: owner select" ON shortlists;
+DROP POLICY IF EXISTS "shortlists: owner insert" ON shortlists;
 DROP POLICY IF EXISTS "shortlists: owner update" ON shortlists;
+DROP POLICY IF EXISTS "shortlists: owner delete" ON shortlists;
 DROP POLICY IF EXISTS "shortlists: share read"   ON shortlists;
+
+CREATE POLICY "shortlists: owner select" ON shortlists
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "shortlists: owner insert" ON shortlists
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "shortlists: owner update" ON shortlists
   FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "shortlists: owner delete" ON shortlists
+  FOR DELETE USING (auth.uid() = user_id);
 
 CREATE POLICY "shortlists: share read" ON shortlists
   FOR SELECT USING (
@@ -75,12 +102,26 @@ CREATE POLICY "shortlists: share read" ON shortlists
   );
 
 
--- ── 7. Policies — shortlist_shares ───────────────────────────────────────────
+-- ── 7. Policies — shortlist_groups ───────────────────────────────────────────
 
-DROP POLICY IF EXISTS "shortlist_shares: owner all"    ON shortlist_shares;
-DROP POLICY IF EXISTS "shortlist_shares: public read"  ON shortlist_shares;
+DROP POLICY IF EXISTS "shortlist_groups: owner all"  ON shortlist_groups;
+DROP POLICY IF EXISTS "shortlist_groups: share read" ON shortlist_groups;
 
--- Owner can manage their shares
+CREATE POLICY "shortlist_groups: owner all" ON shortlist_groups
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Public read when a share token exists for this group
+CREATE POLICY "shortlist_groups: share read" ON shortlist_groups
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM shortlist_shares WHERE list_id = shortlist_groups.id)
+  );
+
+
+-- ── 8. Policies — shortlist_shares ───────────────────────────────────────────
+
+DROP POLICY IF EXISTS "shortlist_shares: owner all"   ON shortlist_shares;
+DROP POLICY IF EXISTS "shortlist_shares: public read" ON shortlist_shares;
+
 CREATE POLICY "shortlist_shares: owner all" ON shortlist_shares
   FOR ALL USING (
     auth.uid() IN (SELECT user_id FROM shortlist_groups WHERE id = list_id)
@@ -88,7 +129,7 @@ CREATE POLICY "shortlist_shares: owner all" ON shortlist_shares
     auth.uid() IN (SELECT user_id FROM shortlist_groups WHERE id = list_id)
   );
 
--- Anon can read by token (128-bit random token — enumeration not practical)
+-- Anon can read by token (128-bit random — enumeration not practical)
 CREATE POLICY "shortlist_shares: public read" ON shortlist_shares
   FOR SELECT USING (true);
 
@@ -96,8 +137,8 @@ CREATE POLICY "shortlist_shares: public read" ON shortlist_shares
 -- =============================================================================
 -- VERIFICATION
 -- =============================================================================
--- SELECT * FROM shortlist_groups LIMIT 5;
 -- SELECT column_name, data_type FROM information_schema.columns
 --   WHERE table_name IN ('shortlists','shortlist_groups','shortlist_shares')
 --   ORDER BY table_name, ordinal_position;
+-- SELECT * FROM shortlist_groups LIMIT 5;
 -- =============================================================================
