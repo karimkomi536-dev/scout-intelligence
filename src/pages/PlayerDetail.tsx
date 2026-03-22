@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Scale, CheckCircle } from 'lucide-react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel, getRadarAxes } from '../utils/scoring'
+import { useCompare } from '../contexts/CompareContext'
 import type { Player } from '../types/player'
 
 const labelColors: Record<string, string> = {
@@ -60,6 +61,7 @@ function ScoreRing({ score }: { score: number }) {
 export default function PlayerDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { isSelected, toggle, ids: compareIds } = useCompare()
   const [player, setPlayer] = useState<Player | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -132,9 +134,18 @@ export default function PlayerDetail() {
             {player.team}{player.competition ? ` · ${player.competition}` : ''}{player.age ? ` · Age ${player.age}` : ''}
             {player.nationality ? ` · ${player.nationality}` : ''}{player.foot ? ` · ${player.foot} foot` : ''}
           </p>
-          <span style={{ background: labelColor + '22', color: labelColor, fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '6px' }}>
-            {label}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ background: labelColor + '22', color: labelColor, fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '6px' }}>
+              {label}
+            </span>
+            <button
+              onClick={() => player && (compareIds.length < 3 || isSelected(player.id)) && toggle(player.id)}
+              disabled={compareIds.length >= 3 && !isSelected(player?.id ?? '')}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: isSelected(player?.id ?? '') ? '#10F09022' : '#1f2937', border: `1px solid ${isSelected(player?.id ?? '') ? '#10F090' : '#374151'}`, borderRadius: '7px', color: isSelected(player?.id ?? '') ? '#10F090' : '#9ca3af', fontSize: '12px', fontWeight: 600, padding: '4px 12px', cursor: 'pointer' }}
+            >
+              {isSelected(player?.id ?? '') ? <><CheckCircle size={13} /> Dans le comparateur</> : <><Scale size={13} /> Comparer</>}
+            </button>
+          </div>
         </div>
 
         {/* Score ring */}

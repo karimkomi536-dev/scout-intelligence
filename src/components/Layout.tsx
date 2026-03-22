@@ -1,10 +1,12 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut, Scale } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import CompareBar from './CompareBar'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/players', icon: Users, label: 'Players' },
+  { to: '/compare', icon: Scale, label: 'Compare' },
   { to: '/shortlist', icon: Bookmark, label: 'Shortlist' },
   { to: '/newsletter', icon: Newspaper, label: 'Newsletter' },
   { to: '/upload', icon: Upload, label: 'Upload' },
@@ -154,6 +156,7 @@ export default function Layout() {
       }}>
         <Outlet />
       </main>
+      <CompareBar />
     </div>
   )
 }

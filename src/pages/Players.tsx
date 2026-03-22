@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { PlusCircle, CheckCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel } from '../utils/scoring'
 import { usePlayerFilters } from '../hooks/usePlayerFilters'
+import { useCompare } from '../contexts/CompareContext'
 import type { Player } from '../types/player'
 
 type PlayerWithScore = Player & { _score: number }
@@ -26,6 +28,7 @@ const FOOT_OPTIONS = [
 export default function Players() {
   const navigate = useNavigate()
   const { filters, set, reset, hasActiveFilters } = usePlayerFilters()
+  const { isSelected, toggle, ids: compareIds } = useCompare()
 
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
@@ -232,6 +235,7 @@ export default function Players() {
                 <th style={{ textAlign: 'left', padding: '14px 12px' }}>Championnat</th>
                 <th style={{ textAlign: 'left', padding: '14px 12px' }}>Score</th>
                 <th style={{ textAlign: 'left', padding: '14px 12px' }}>Label</th>
+                <th style={{ padding: '14px 12px', width: '44px' }}></th>
               </tr>
             </thead>
             <tbody>
@@ -265,6 +269,15 @@ export default function Players() {
                       <span style={{ background: `${labelColor}22`, color: labelColor, fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '4px' }}>
                         {label}
                       </span>
+                    </td>
+                    <td style={{ padding: '14px 12px' }} onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => compareIds.length < 3 || isSelected(player.id) ? toggle(player.id) : undefined}
+                        title={isSelected(player.id) ? 'Retirer du comparateur' : compareIds.length >= 3 ? 'Max 3 joueurs' : 'Ajouter au comparateur'}
+                        style={{ background: 'none', border: 'none', cursor: compareIds.length >= 3 && !isSelected(player.id) ? 'not-allowed' : 'pointer', color: isSelected(player.id) ? '#10F090' : '#374151', opacity: compareIds.length >= 3 && !isSelected(player.id) ? 0.4 : 1, padding: 2 }}
+                      >
+                        {isSelected(player.id) ? <CheckCircle size={16} /> : <PlusCircle size={16} />}
+                      </button>
                     </td>
                   </tr>
                 )

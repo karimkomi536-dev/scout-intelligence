@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { CompareProvider } from './contexts/CompareContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Landing from './pages/Landing'
@@ -8,12 +9,14 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Players from './pages/Players'
 import PlayerDetail from './pages/PlayerDetail'
+import Compare from './pages/Compare'
 import Shortlist from './pages/Shortlist'
 import NL from './pages/NL'
 import Upload from './pages/Upload'
 
 function App() {
   return (
+    <CompareProvider>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -36,6 +39,7 @@ function App() {
             <Route path="dashboard"  element={<Dashboard />} />
             <Route path="players"    element={<Players />} />
             <Route path="players/:id" element={<PlayerDetail />} />
+            <Route path="compare"    element={<Compare />} />
             <Route path="shortlist"  element={<Shortlist />} />
             <Route path="newsletter" element={<NL />} />
             <Route path="upload"     element={<Upload />} />
@@ -46,6 +50,7 @@ function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </CompareProvider>
   )
 }
 
