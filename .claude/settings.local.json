@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \"git rm --cached --ignore-unmatch .env\" --prune-empty --tag-name-filter cat -- --all)",
+      "Bash(find /c/Users/Karim/scout-intelligence -name *.sql -type f)",
+      "Bash(grep -rn supabase. /c/Users/Karim/scout-intelligence/src --include=*.ts --include=*.tsx)",
+      "Bash(grep -E \"\\\\.\\(env|config|json\\)$\")",
+      "Bash(find /c/Users/Karim/scout-intelligence -maxdepth 2 -name *env* -o -name vite*)"
+    ]
+  }
+}
