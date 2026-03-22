@@ -11,6 +11,7 @@ import Players from './pages/Players'
 import PlayerDetail from './pages/PlayerDetail'
 import Compare from './pages/Compare'
 import Shortlist from './pages/Shortlist'
+import SharedShortlist from './pages/SharedShortlist'
 import NL from './pages/NL'
 import Upload from './pages/Upload'
 
@@ -26,6 +27,9 @@ function App() {
           {/* Auth */}
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* Public share view */}
+          <Route path="/shortlist/:token" element={<SharedShortlist />} />
 
           {/* App — protégée par ProtectedRoute */}
           <Route

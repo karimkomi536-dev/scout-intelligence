@@ -1,9 +1,10 @@
-soccerdata>=1.7.0
+# soccerdata requires Python <3.13 — removed, fallback scraper (pandas.read_html) is used instead
+# To install manually on Python <3.13: pip install "soccerdata>=1.5.0,<2.0.0"
 pandas>=2.1.0
 numpy>=1.26.0
 requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=5.1.0
-supabase>=2.3.0
+supabase>=2.3.0,<2.20.0
 python-dotenv>=1.0.0
 tqdm>=4.66.0
