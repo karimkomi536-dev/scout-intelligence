@@ -1,7 +1,7 @@
 # VIZION — Todo
 
 ## En cours
-- [ ] P2·00 — Scraper FBref
+- [ ] P2·01 — Import CSV joueurs
 
 ## Terminé
 - [x] P0·01 — Purger .env de l'historique Git
@@ -11,6 +11,7 @@
 - [x] P1·02 — Schema multi-tenant (organizations, profiles, user_organizations)
 - [x] P1·03 — Landing Page
 - [x] P1·04 — Waitlist form
+- [x] P2·00 — Scraper FBref
 
 ## À faire
 - [ ] P2·00 — Scraper FBref
