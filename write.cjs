@@ -1,4 +1,6 @@
+const fs = require('fs')
 
+fs.writeFileSync('src/pages/NewsletterPage.tsx', `
 const sections = [
   { title: '🔥 Top Performers', players: [
     { name: 'Lamine Yamal', team: 'Barcelona', score: 94, summary: '2 goals, 1 assist.' },
@@ -44,3 +46,6 @@ export default function NewsletterPage() {
     </div>
   )
 }
+`)
+
+console.log('NewsletterPage written!')
