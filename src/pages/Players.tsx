@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const labelColors = {
@@ -11,6 +12,7 @@ const labelColors = {
 }
 
 export default function Players() {
+  const navigate = useNavigate()
   const [players, setPlayers] = useState([])
   const [search, setSearch] = useState('')
   const [pos, setPos] = useState('ALL')
@@ -71,7 +73,7 @@ export default function Players() {
             </thead>
             <tbody>
               {filtered.map(player => (
-                <tr key={player.id} style={{ borderBottom: '1px solid #1f2937' }}>
+                <tr key={player.id} onClick={() => navigate(`/players/${player.id}`)} style={{ borderBottom: '1px solid #1f2937', cursor: 'pointer' }}>
                   <td style={{ padding: '16px 24px', fontWeight: '500' }}>{player.name}</td>
                   <td style={{ padding: '16px', color: '#9ca3af' }}>{player.age}</td>
                   <td style={{ padding: '16px', color: '#9ca3af' }}>{player.team}</td>

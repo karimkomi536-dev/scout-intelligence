@@ -16,3 +16,9 @@ Variables VITE_* = publiques (bundle JS). Service role key = jamais dans VITE_*
 
 [2026-03-22] | npm scripts avec "python" → erreur sur Windows ("py" requis) |
 Sur Windows, utiliser "py" au lieu de "python" dans les scripts npm
+
+[2026-03-22] | Unicode box-drawing chars → UnicodeEncodeError sur terminal Windows (cp1252) |
+Toujours set PYTHONIOENCODING=utf-8 avant d'invoquer un script Python avec des caractères non-ASCII. Ou utiliser uniquement ASCII dans les print().
+
+[2026-03-22] | scraper FBref → StatsBomb fallback retourne données 2015-16, pas 2023-24 |
+StatsBomb open data gratuit couvre seulement certaines saisons historiques. Pour données récentes, soccerdata (Python <3.13) ou scraping direct FBref sont nécessaires.

@@ -11,10 +11,9 @@
 - [x] P1·02 — Schema multi-tenant (organizations, profiles, user_organizations)
 - [x] P1·03 — Landing Page
 - [x] P1·04 — Waitlist form
-- [x] P2·00 — Scraper FBref
+- [x] P2·00 — Scraper FBref (dry-run OK : 90 joueurs, 3 ligues via StatsBomb)
 
 ## À faire
-- [ ] P2·00 — Scraper FBref
 - [ ] P2·01 — Import CSV joueurs
 - [ ] P2·02 — Page détail joueur
 - [ ] P2·03 — Scoring par position

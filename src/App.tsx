@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Players from './pages/Players'
+import PlayerDetail from './pages/PlayerDetail'
 import Shortlist from './pages/Shortlist'
 import NL from './pages/NL'
 import Upload from './pages/Upload'
@@ -34,6 +35,7 @@ function App() {
           >
             <Route path="dashboard"  element={<Dashboard />} />
             <Route path="players"    element={<Players />} />
+            <Route path="players/:id" element={<PlayerDetail />} />
             <Route path="shortlist"  element={<Shortlist />} />
             <Route path="newsletter" element={<NL />} />
             <Route path="upload"     element={<Upload />} />

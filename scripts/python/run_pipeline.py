@@ -155,9 +155,9 @@ def run(args: argparse.Namespace) -> None:
 
 def _print_header(leagues: list[str], args: argparse.Namespace) -> None:
     print()
-    print("╔══════════════════════════════════════════╗")
-    print("║  VIZION — FBref → Supabase Pipeline      ║")
-    print("╚══════════════════════════════════════════╝")
+    print("==========================================")
+    print("  VIZION -- FBref -> Supabase Pipeline")
+    print("==========================================")
     print(f"  Leagues  : {', '.join(leagues)}")
     print(f"  Season   : {args.season}")
     print(f"  Max/league: {args.max_per_league}")
