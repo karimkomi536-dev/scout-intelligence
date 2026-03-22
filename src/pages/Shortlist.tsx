@@ -304,8 +304,19 @@ function ShareModal({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+function isFatal(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  // RLS infinite recursion (Supabase/PostgREST error codes)
+  if (error.code === 'PGRST301') return true
+  if (error.message?.includes('recursion')) return true
+  // Rate limit or server error — stop retrying
+  if (error.code === '429' || error.code === '500') return true
+  return false
+}
+
 export default function Shortlist() {
   const { user } = useAuth()
+  const [fatalError, setFatalError] = useState(false)
   const [groups, setGroups] = useState<ShortlistGroup[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [entries, setEntries] = useState<ShortlistEntry[]>([])
@@ -324,39 +335,48 @@ export default function Shortlist() {
   // ── Load groups on mount ────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!user) return
+    if (!user || fatalError) return
     supabase.from('shortlist_groups').select('*')
       .eq('user_id', user.id).order('created_at')
       .then(({ data, error }) => {
-        if (error) console.error('shortlist_groups:', error.message)
+        if (error) {
+          console.error('shortlist_groups:', error.message, error.code)
+          if (isFatal(error)) { setFatalError(true); setLoadingGroups(false); return }
+        }
         const g = (data as ShortlistGroup[]) ?? []
         setGroups(g)
         if (g.length > 0) setActiveId(g[0].id)
         setLoadingGroups(false)
       })
-  }, [user])
+  }, [user, fatalError])
 
   // ── Load entries for active group ───────────────────────────────────────────
 
   useEffect(() => {
-    if (!activeId) { setEntries([]); return }
+    if (!activeId || fatalError) { setEntries([]); return }
     setLoadingEntries(true)
     supabase.from('shortlists')
       .select('*, players(*)')
       .eq('list_id', activeId)
       .order('position_index')
       .then(({ data, error }) => {
-        if (error) console.error('shortlists:', error.message)
+        if (error) {
+          console.error('shortlists:', error.message, error.code)
+          if (isFatal(error)) { setFatalError(true); setLoadingEntries(false); return }
+        }
         setEntries((data as ShortlistEntry[]) ?? [])
         setLoadingEntries(false)
       })
     // Load share if any
     supabase.from('shortlist_shares').select('*').eq('list_id', activeId).maybeSingle()
       .then(({ data, error }) => {
-        if (error) console.error('shortlist_shares:', error.message)
+        if (error) {
+          console.error('shortlist_shares:', error.message, error.code)
+          if (isFatal(error)) { setFatalError(true); return }
+        }
         setShare(data as ShortlistShare | null)
       })
-  }, [activeId])
+  }, [activeId, fatalError])
 
   // ── Group mutations ─────────────────────────────────────────────────────────
 
@@ -428,6 +448,15 @@ export default function Shortlist() {
 
   const activeGroup = groups.find(g => g.id === activeId)
   const playerIds = entries.map(e => e.player_id)
+
+  if (fatalError) return (
+    <div style={{ background: '#1f1515', border: '1px solid #7f1d1d', borderRadius: '12px', padding: '24px', color: '#fca5a5' }}>
+      <strong>Erreur de chargement.</strong> Un problème est survenu avec la base de données (récursion RLS ou rate limit).{' '}
+      <button onClick={() => window.location.reload()} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit' }}>
+        Rechargez la page
+      </button>{' '}ou vérifiez que la migration SQL a bien été exécutée dans Supabase.
+    </div>
+  )
 
   if (loadingGroups) return <p style={{ color: '#6b7280' }}>Chargement…</p>
 
