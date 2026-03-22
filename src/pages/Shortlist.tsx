@@ -327,7 +327,8 @@ export default function Shortlist() {
     if (!user) return
     supabase.from('shortlist_groups').select('*')
       .eq('user_id', user.id).order('created_at')
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('shortlist_groups:', error.message)
         const g = (data as ShortlistGroup[]) ?? []
         setGroups(g)
         if (g.length > 0) setActiveId(g[0].id)
@@ -344,13 +345,17 @@ export default function Shortlist() {
       .select('*, players(*)')
       .eq('list_id', activeId)
       .order('position_index')
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('shortlists:', error.message)
         setEntries((data as ShortlistEntry[]) ?? [])
         setLoadingEntries(false)
       })
     // Load share if any
     supabase.from('shortlist_shares').select('*').eq('list_id', activeId).maybeSingle()
-      .then(({ data }) => setShare(data as ShortlistShare | null))
+      .then(({ data, error }) => {
+        if (error) console.error('shortlist_shares:', error.message)
+        setShare(data as ShortlistShare | null)
+      })
   }, [activeId])
 
   // ── Group mutations ─────────────────────────────────────────────────────────

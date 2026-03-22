@@ -19,15 +19,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Initialise depuis la session stockée (localStorage)
+    // getSession() is the authoritative source for initial state.
+    // We set loading=false only after it resolves so ProtectedRoute
+    // never sees loading=false with a stale null user.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    // Écoute les changements d'état (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // onAuthStateChange handles post-init events (login, logout, token refresh).
+    // We intentionally skip INITIAL_SESSION to avoid a race where it fires
+    // with a briefly-null session after getSession() has already resolved.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
       setSession(session)
       setUser(session?.user ?? null)
     })
