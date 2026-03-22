@@ -5,6 +5,8 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
+import { calculateScore, getScoreLabel, getRadarAxes } from '../utils/scoring'
+import type { Player } from '../types/player'
 
 const labelColors: Record<string, string> = {
   'ELITE':        '#10F090',
@@ -58,7 +60,7 @@ function ScoreRing({ score }: { score: number }) {
 export default function PlayerDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [player, setPlayer] = useState<any>(null)
+  const [player, setPlayer] = useState<Player | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -67,7 +69,7 @@ export default function PlayerDetail() {
     supabase.from('players').select('*').eq('id', id).single()
       .then(({ data, error: err }) => {
         if (err || !data) setError('Player not found.')
-        else setPlayer(data)
+        else setPlayer(data as Player)
         setLoading(false)
       })
   }, [id])
@@ -80,22 +82,21 @@ export default function PlayerDetail() {
     </div>
   )
 
+  const score = calculateScore(player)
+  const label = getScoreLabel(score)
+
   const radarData = player.individual_stats
-    ? [
-        { stat: 'Technique', value: player.individual_stats.technique ?? 0 },
-        { stat: 'Physical',  value: player.individual_stats.physical  ?? 0 },
-        { stat: 'Pace',      value: player.individual_stats.pace      ?? 0 },
-        { stat: 'Mental',    value: player.individual_stats.mental    ?? 0 },
-        { stat: 'Tactical',  value: player.individual_stats.tactical  ?? 0 },
-        { stat: 'Potential', value: player.individual_stats.potential ?? 0 },
-      ]
+    ? getRadarAxes(player.primary_position).map(axis => ({
+        stat: axis,
+        value: player.individual_stats![axis.toLowerCase() as keyof typeof player.individual_stats] ?? 0,
+      }))
     : []
 
   const initials = (player.name || '?')
     .split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
 
   const posColor = positionColors[player.primary_position] || '#6b7280'
-  const labelColor = labelColors[player.scout_label] || '#6b7280'
+  const labelColor = labelColors[label] || '#6b7280'
 
   function fmt(v: any, decimals = 1) {
     const n = Number(v)
@@ -132,13 +133,13 @@ export default function PlayerDetail() {
             {player.nationality ? ` · ${player.nationality}` : ''}{player.foot ? ` · ${player.foot} foot` : ''}
           </p>
           <span style={{ background: labelColor + '22', color: labelColor, fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '6px' }}>
-            {player.scout_label}
+            {label}
           </span>
         </div>
 
         {/* Score ring */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-          <ScoreRing score={player.scout_score} />
+          <ScoreRing score={score} />
           <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scout Score</p>
         </div>
       </div>

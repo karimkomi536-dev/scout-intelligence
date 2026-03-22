@@ -1,19 +1,20 @@
-
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { calculateScore, getScoreLabel } from '../utils/scoring'
+import type { Player } from '../types/player'
 
-const labelColors = {
-  'ELITE': '#3b82f6',
-  'TOP PROSPECT': '#22c55e',
-  'INTERESTING': '#eab308',
-  'TO MONITOR': '#f97316',
-  'LOW PRIORITY': '#6b7280'
+const labelColors: Record<string, string> = {
+  'ELITE':        '#10F090',
+  'TOP PROSPECT': '#3b82f6',
+  'INTERESTING':  '#eab308',
+  'TO MONITOR':   '#f97316',
+  'LOW PRIORITY': '#6b7280',
 }
 
 export default function Players() {
   const navigate = useNavigate()
-  const [players, setPlayers] = useState([])
+  const [players, setPlayers] = useState<Player[]>([])
   const [search, setSearch] = useState('')
   const [pos, setPos] = useState('ALL')
   const [minScore, setMinScore] = useState(0)
@@ -21,16 +22,18 @@ export default function Players() {
 
   useEffect(() => {
     supabase.from('players').select('*').then(({ data }) => {
-      setPlayers(data || [])
+      setPlayers((data as Player[]) || [])
       setLoading(false)
     })
   }, [])
 
-  const filtered = players.filter(p =>
-    p.name?.toLowerCase().includes(search.toLowerCase()) &&
-    (pos === 'ALL' || p.primary_position === pos) &&
-    (p.scout_score || 0) >= minScore
-  )
+  const filtered = players
+    .map(p => ({ ...p, _score: calculateScore(p) }))
+    .filter(p =>
+      p.name?.toLowerCase().includes(search.toLowerCase()) &&
+      (pos === 'ALL' || p.primary_position === pos) &&
+      p._score >= minScore
+    )
 
   return (
     <div style={{ color: 'white' }}>
@@ -84,13 +87,13 @@ export default function Players() {
                   <td style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ width: '64px', background: '#1f2937', borderRadius: '999px', height: '6px' }}>
-                        <div style={{ background: '#3b82f6', width: (player.scout_score || 0) + '%', height: '6px', borderRadius: '999px' }} />
+                        <div style={{ background: '#3b82f6', width: player._score + '%', height: '6px', borderRadius: '999px' }} />
                       </div>
-                      <span style={{ fontWeight: 'bold' }}>{player.scout_score}</span>
+                      <span style={{ fontWeight: 'bold' }}>{player._score}</span>
                     </div>
                   </td>
                   <td style={{ padding: '16px' }}>
-                    <span style={{ background: labelColors[player.scout_label] || '#6b7280', color: 'white', fontSize: '12px', padding: '4px 8px', borderRadius: '4px' }}>{player.scout_label}</span>
+                    {(() => { const label = getScoreLabel(player._score); return <span style={{ background: labelColors[label] || '#6b7280', color: '#08091A', fontSize: '12px', fontWeight: 600, padding: '4px 8px', borderRadius: '4px' }}>{label}</span> })()}
                   </td>
                 </tr>
               ))}
