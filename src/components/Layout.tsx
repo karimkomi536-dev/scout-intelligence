@@ -32,10 +32,10 @@ export default function Layout() {
       }}>
         <div style={{ marginBottom: '32px' }}>
           <h1 style={{ fontSize: '18px', fontWeight: 'bold', color: '#3b82f6' }}>
-            ⚽ Scout Intelligence
+            ⚽ VIZION
           </h1>
           <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
-            Football Scouting SaaS
+            Football Scouting Intelligence
           </p>
         </div>
         {navItems.map(({ to, icon: Icon, label }) => (
