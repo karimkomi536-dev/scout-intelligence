@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Scale, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Scale, CheckCircle, FileDown, Loader2 } from 'lucide-react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel, getRadarAxes } from '../utils/scoring'
 import { useCompare } from '../contexts/CompareContext'
+import { PlayerPDFReport } from '../components/PlayerPDFReport'
+import { exportPlayerPDF } from '../utils/exportPDF'
 import type { Player } from '../types/player'
+import type { ScoutNote } from '../components/PlayerPDFReport'
 
 const labelColors: Record<string, string> = {
   'ELITE':        '#10F090',
@@ -65,6 +68,9 @@ export default function PlayerDetail() {
   const [player, setPlayer] = useState<Player | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [notes, setNotes] = useState<ScoutNote[]>([])
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const reportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!id) return
@@ -74,7 +80,26 @@ export default function PlayerDetail() {
         else setPlayer(data as Player)
         setLoading(false)
       })
+    // Fetch last 3 scout notes — gracefully ignores if table doesn't exist
+    supabase.from('notes').select('id, content, created_at')
+      .eq('player_id', id).order('created_at', { ascending: false }).limit(3)
+      .then(({ data }) => { if (data) setNotes(data as ScoutNote[]) })
   }, [id])
+
+  async function handleExportPDF() {
+    if (!reportRef.current || !player) return
+    setPdfLoading(true)
+    try {
+      // Small delay so recharts SVG finishes painting inside the hidden template
+      await new Promise(resolve => setTimeout(resolve, 400))
+      await exportPlayerPDF(reportRef.current, player.name)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+      alert('Erreur lors de la génération du PDF. Veuillez réessayer.')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
 
   if (loading) return <p style={{ color: '#6b7280', padding: '32px' }}>Loading...</p>
   if (error || !player) return (
@@ -107,13 +132,25 @@ export default function PlayerDetail() {
 
   return (
     <div style={{ color: 'white', maxWidth: '960px' }}>
-      {/* Back */}
-      <button
-        onClick={() => navigate('/players')}
-        style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', marginBottom: '24px', padding: 0 }}
-      >
-        <ArrowLeft size={16} /> Back to players
-      </button>
+      {/* Hidden PDF template — always in DOM so recharts renders */}
+      <PlayerPDFReport ref={reportRef} player={player} notes={notes} />
+
+      {/* Back + Export */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <button
+          onClick={() => navigate('/players')}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: 0 }}
+        >
+          <ArrowLeft size={16} /> Back to players
+        </button>
+        <button
+          onClick={handleExportPDF}
+          disabled={pdfLoading}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: pdfLoading ? '#1f2937' : '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: pdfLoading ? '#6b7280' : '#e2e8f0', fontSize: '13px', fontWeight: 600, padding: '8px 16px', cursor: pdfLoading ? 'not-allowed' : 'pointer' }}
+        >
+          {pdfLoading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Génération…</> : <><FileDown size={14} /> Exporter PDF</>}
+        </button>
+      </div>
 
       {/* Header card */}
       <div style={{ background: '#111827', borderRadius: '16px', padding: '28px', marginBottom: '20px', display: 'flex', gap: '28px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
