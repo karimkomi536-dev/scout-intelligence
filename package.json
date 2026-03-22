@@ -8,9 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "scrape:all": "cd scripts/python && python run_pipeline.py --all",
-    "scrape:ligue1": "cd scripts/python && python run_pipeline.py --league \"Ligue 1\"",
-    "scrape:dry": "cd scripts/python && python run_pipeline.py --all --dry-run"
+    "scrape:all": "cd scripts/python && py run_pipeline.py --all",
+    "scrape:ligue1": "cd scripts/python && py run_pipeline.py --league \"Ligue 1\"",
+    "scrape:dry": "cd scripts/python && py run_pipeline.py --all --dry-run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.3",
