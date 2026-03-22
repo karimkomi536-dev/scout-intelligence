@@ -19,25 +19,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // getSession() is the authoritative source for initial state.
-    // We set loading=false only after it resolves so ProtectedRoute
-    // never sees loading=false with a stale null user.
+    let mounted = true
+
+    // Source autoritaire : getSession
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+      if (mounted) {
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+      }
     })
 
-    // onAuthStateChange handles post-init events (login, logout, token refresh).
-    // We intentionally skip INITIAL_SESSION to avoid a race where it fires
-    // with a briefly-null session after getSession() has already resolved.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') return
-      setSession(session)
-      setUser(session?.user ?? null)
-    })
+    // Listener uniquement pour les changements post-init
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) return
+        if (event === 'INITIAL_SESSION') return
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setSession(session)
+          setUser(session?.user ?? null)
+        }
+        if (event === 'SIGNED_OUT') {
+          setSession(null)
+          setUser(null)
+        }
+      }
+    )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
