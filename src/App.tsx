@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
@@ -15,11 +16,14 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Routes publiques */}
-          <Route path="/login" element={<Login />} />
+          {/* Landing — publique, redirige vers /dashboard si déjà connecté */}
+          <Route path="/" element={<Landing />} />
+
+          {/* Auth */}
+          <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Routes protégées — redirige vers /login si non authentifié */}
+          {/* App — protégée par ProtectedRoute */}
           <Route
             path="/"
             element={
@@ -28,16 +32,15 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="players" element={<Players />} />
-            <Route path="shortlist" element={<Shortlist />} />
+            <Route path="dashboard"  element={<Dashboard />} />
+            <Route path="players"    element={<Players />} />
+            <Route path="shortlist"  element={<Shortlist />} />
             <Route path="newsletter" element={<NL />} />
-            <Route path="upload" element={<Upload />} />
+            <Route path="upload"     element={<Upload />} />
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -1,7 +1,7 @@
 # VIZION — Todo
 
 ## En cours
-- [ ] P1·03 — Landing Page
+- [ ] P1·04 — Waitlist form
 
 ## Terminé
 - [x] P0·01 — Purger .env de l'historique Git
@@ -9,9 +9,9 @@
 - [x] P0·03 — README
 - [x] P1·01 — Auth Supabase (login/register/protected routes)
 - [x] P1·02 — Schema multi-tenant (organizations, profiles, user_organizations)
+- [x] P1·03 — Landing Page
 
 ## À faire
-- [ ] P1·03 — Landing Page
 - [ ] P1·04 — Waitlist form
 - [ ] P2·00 — Scraper FBref
 - [ ] P2·01 — Import CSV joueurs
