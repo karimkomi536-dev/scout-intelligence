@@ -1,11 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { Session, User, AuthError } from '@supabase/supabase-js'
+import type { User, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
 interface AuthContextType {
   user: User | null
-  session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signOut: () => Promise<void>
@@ -15,7 +14,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -24,7 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Source autoritaire : getSession
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted) {
-        setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
       }
@@ -36,11 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mounted) return
         if (event === 'INITIAL_SESSION') return
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          setSession(session)
           setUser(session?.user ?? null)
         }
         if (event === 'SIGNED_OUT') {
-          setSession(null)
           setUser(null)
         }
       }
@@ -62,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )
