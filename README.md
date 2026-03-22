@@ -1,73 +1,100 @@
-# React + TypeScript + Vite
+# VIZION — Football Scouting Intelligence
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Currently, two official plugins are available:
+A modern scouting platform for football analysts and recruitment departments. VIZION centralises player data, automates scout scoring, and surfaces actionable insights — so your staff spends less time in spreadsheets and more time on the pitch.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Screenshot
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+<!-- Add a screenshot of the app here -->
+![VIZION Dashboard](docs/screenshot.png)
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Features
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Player database** — filterable table with position, team, competition, and scout score
+- **Scout scoring engine** — automated ELITE / TOP PROSPECT / INTERESTING / TO MONITOR / LOW PRIORITY labels
+- **Personal shortlists** — each scout manages their own watchlist independently
+- **Dashboard overview** — at-a-glance stats on pool composition and label distribution
+- **CSV export** — one-click export of shortlists for reporting
+- **Secure by default** — Row Level Security on all Supabase tables, `.env`-based config
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 19 + TypeScript |
+| Build | Vite 8 |
+| Styling | Tailwind CSS 3 |
+| Routing | React Router v7 |
+| Data fetching | TanStack Query v5 |
+| Charts | Recharts |
+| Backend / DB | Supabase (PostgreSQL + Auth + RLS) |
+| Deployment | Vercel |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- A [Supabase](https://supabase.com) project with the `players` table created
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/karimkomi536-dev/scout-intelligence.git
+cd scout-intelligence
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment variables
+cp .env.example .env
+# Edit .env and fill in your Supabase credentials
+
+# 4. Start the development server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app will be available at `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Environment Variables
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| Variable | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Public anon key (safe for the browser) |
+| `VITE_SUPABASE_SERVICE_ROLE_KEY` | Service role key — **never expose client-side** |
+
+See [`.env.example`](.env.example) for the full template.
+
+---
+
+## Live App
+
+[scout-intelligence-ten.vercel.app](https://vizion.vercel.app) *(link to be updated)*
+
+---
+
+## Roadmap
+
+- [ ] **Authentication** — scout accounts with role-based access (scout / head of recruitment / admin)
+- [ ] **Player profiles** — dedicated page with full stats, match history, and scouting notes
+- [ ] **Upload pipeline** — bulk import via CSV or StatsBomb / Wyscout API integration
+- [ ] **AI scouting reports** — automated report generation from raw match data
+
+---
+
+## License
+
+MIT © 2026 Karim
