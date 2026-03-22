@@ -5,6 +5,7 @@ import {
   Database, BarChart2, Share2,
   CheckCircle, ArrowRight, Zap, Shield, Users
 } from 'lucide-react'
+import WaitlistForm from '../components/WaitlistForm'
 
 // ─── Palette ────────────────────────────────────────────────────────────────
 const C = {
@@ -479,6 +480,32 @@ function Pricing() {
   )
 }
 
+// ─── Waitlist ────────────────────────────────────────────────────────────────
+function Waitlist() {
+  return (
+    <section style={{
+      padding: '100px 48px',
+      borderTop: `1px solid ${C.border}`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      textAlign: 'center',
+    }}>
+      <SectionLabel>Accès anticipé</SectionLabel>
+      <h2 style={{
+        fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: '800',
+        letterSpacing: '-0.02em', color: C.text, marginBottom: '16px',
+        maxWidth: '560px',
+      }}>
+        Restez informé des nouvelles fonctionnalités
+      </h2>
+      <p style={{ color: C.muted, fontSize: '16px', marginBottom: '40px', maxWidth: '440px' }}>
+        Inscrivez-vous pour recevoir les mises à jour produit, les nouvelles
+        intégrations et les offres réservées aux clubs partenaires.
+      </p>
+      <WaitlistForm source="landing-section" />
+    </section>
+  )
+}
+
 // ─── CTA Final ───────────────────────────────────────────────────────────────
 function CTAFinal() {
   return (
@@ -584,6 +611,7 @@ export default function Landing() {
       <Features />
       <SocialProof />
       <Pricing />
+      <Waitlist />
       <CTAFinal />
       <Footer />
     </div>
