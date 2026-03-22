@@ -13,3 +13,6 @@ Toujours vérifier qu'une table existe avant de l'altérer avec IF EXISTS
 
 [2026-03-22] | service_role key dans variable VITE_* → clé admin exposée publiquement |
 Variables VITE_* = publiques (bundle JS). Service role key = jamais dans VITE_*
+
+[2026-03-22] | npm scripts avec "python" → erreur sur Windows ("py" requis) |
+Sur Windows, utiliser "py" au lieu de "python" dans les scripts npm
