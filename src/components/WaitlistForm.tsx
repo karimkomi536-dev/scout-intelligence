@@ -38,13 +38,20 @@ export default function WaitlistForm({ source = 'landing' }: Props) {
       .insert({ email: email.trim(), name: name.trim() || null, source })
 
     if (error) {
+      // Log the real error so it's visible in the browser console
+      console.error('[WaitlistForm] Supabase error:', error.code, error.message, error.details)
+
       if (error.code === '23505') {
-        // Unique violation — email déjà inscrit
+        // Unique violation — email already registered
         setState('success')
         setMessage('Vous êtes déjà sur la liste !')
+      } else if (error.code === '42P01') {
+        // Table does not exist — run supabase/waitlist.sql in Supabase SQL Editor
+        setState('error')
+        setMessage('La table waitlist n\'existe pas encore. Exécute supabase/waitlist.sql dans Supabase.')
       } else {
         setState('error')
-        setMessage('Une erreur est survenue. Réessayez dans un instant.')
+        setMessage(`Erreur : ${error.message}`)
       }
       return
     }
