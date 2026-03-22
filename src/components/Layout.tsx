@@ -1,5 +1,6 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bookmark, Newspaper, Upload } from 'lucide-react'
+import { LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -10,6 +11,12 @@ const navItems = [
 ]
 
 export default function Layout() {
+  const { user, signOut } = useAuth()
+
+  // Affiche l'email ou la partie locale si l'email est long
+  const displayName = user?.email?.split('@')[0] ?? 'Scout'
+  const displayEmail = user?.email ?? ''
+
   return (
     <div style={{
       display: 'flex',
@@ -30,6 +37,7 @@ export default function Layout() {
         gap: '8px',
         height: '100vh'
       }}>
+        {/* Logo */}
         <div style={{ marginBottom: '32px' }}>
           <h1 style={{ fontSize: '18px', fontWeight: 'bold', color: '#3b82f6' }}>
             ⚽ VIZION
@@ -38,6 +46,8 @@ export default function Layout() {
             Football Scouting Intelligence
           </p>
         </div>
+
+        {/* Nav */}
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -60,6 +70,80 @@ export default function Layout() {
             {label}
           </NavLink>
         ))}
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* User block */}
+        <div style={{
+          borderTop: '1px solid #1f2937',
+          paddingTop: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: '#1d4ed8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '13px',
+              fontWeight: '700',
+              color: 'white',
+              flexShrink: 0,
+            }}>
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: '600', color: 'white', margin: 0, textTransform: 'capitalize' }}>
+                {displayName}
+              </p>
+              <p style={{
+                fontSize: '11px',
+                color: '#6b7280',
+                margin: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {displayEmail}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={signOut}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 12px',
+              backgroundColor: 'transparent',
+              border: '1px solid #1f2937',
+              borderRadius: '8px',
+              color: '#9ca3af',
+              fontSize: '13px',
+              cursor: 'pointer',
+              width: '100%',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1f2937'
+              ;(e.currentTarget as HTMLButtonElement).style.color = 'white'
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
+              ;(e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'
+            }}
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
+        </div>
       </aside>
 
       <main style={{
