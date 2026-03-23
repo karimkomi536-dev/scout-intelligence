@@ -304,17 +304,13 @@ function ShareModal({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-function isFatal(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false
-  // RLS infinite recursion — seule vraie erreur fatale non-récupérable
-  if (error.message?.includes('recursion')) return true
-  if (error.message?.includes('infinite')) return true
-  return false
-}
-
 export default function Shortlist() {
   const { user } = useAuth()
-  const [fatalError, setFatalError] = useState(false)
+
+  // Ref (pas state) : ne déclenche pas de re-render → pas de boucle infinie
+  const hasError = useRef(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
   const [groups, setGroups] = useState<ShortlistGroup[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [entries, setEntries] = useState<ShortlistEntry[]>([])
@@ -322,7 +318,7 @@ export default function Shortlist() {
   const [showShare, setShowShare] = useState(false)
   const [loadingGroups, setLoadingGroups] = useState(true)
   const [loadingEntries, setLoadingEntries] = useState(false)
-  const [editingName, setEditingName] = useState<string | null>(null) // group id being renamed
+  const [editingName, setEditingName] = useState<string | null>(null)
   const [nameInput, setNameInput] = useState('')
 
   const sensors = useSensors(
@@ -333,25 +329,31 @@ export default function Shortlist() {
   // ── Load groups on mount ────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!user || fatalError) return
+    if (!user) return
+    if (hasError.current) return
     supabase.from('shortlist_groups').select('*')
       .eq('user_id', user.id).order('created_at')
       .then(({ data, error }) => {
         if (error) {
           console.error('shortlist_groups:', error.message, error.code)
-          if (isFatal(error)) { setFatalError(true); setLoadingGroups(false); return }
+          if (hasError.current) return
+          hasError.current = true
+          setErrorMsg('Erreur de chargement des listes. Rechargez la page.')
+          setLoadingGroups(false)
+          return
         }
         const g = (data as ShortlistGroup[]) ?? []
         setGroups(g)
         if (g.length > 0) setActiveId(g[0].id)
         setLoadingGroups(false)
       })
-  }, [user, fatalError])
+  }, [user])
 
   // ── Load entries for active group ───────────────────────────────────────────
 
   useEffect(() => {
-    if (!activeId || fatalError) { setEntries([]); return }
+    if (!activeId) { setEntries([]); return }
+    if (hasError.current) return
     setLoadingEntries(true)
     supabase.from('shortlists')
       .select('*, players(*)')
@@ -360,21 +362,24 @@ export default function Shortlist() {
       .then(({ data, error }) => {
         if (error) {
           console.error('shortlists:', error.message, error.code)
-          if (isFatal(error)) { setFatalError(true); setLoadingEntries(false); return }
+          if (hasError.current) return
+          hasError.current = true
+          setErrorMsg('Erreur de chargement des joueurs.')
+          setLoadingEntries(false)
+          return
         }
         setEntries((data as ShortlistEntry[]) ?? [])
         setLoadingEntries(false)
       })
-    // Load share if any
     supabase.from('shortlist_shares').select('*').eq('list_id', activeId).maybeSingle()
       .then(({ data, error }) => {
         if (error) {
           console.error('shortlist_shares:', error.message, error.code)
-          if (isFatal(error)) { setFatalError(true); return }
+          // non-fatal : share est optionnel
         }
         setShare(data as ShortlistShare | null)
       })
-  }, [activeId, fatalError])
+  }, [activeId])
 
   // ── Group mutations ─────────────────────────────────────────────────────────
 
@@ -447,12 +452,12 @@ export default function Shortlist() {
   const activeGroup = groups.find(g => g.id === activeId)
   const playerIds = entries.map(e => e.player_id)
 
-  if (fatalError) return (
+  if (errorMsg) return (
     <div style={{ background: '#1f1515', border: '1px solid #7f1d1d', borderRadius: '12px', padding: '24px', color: '#fca5a5' }}>
-      <strong>Erreur de chargement.</strong> Un problème est survenu avec la base de données (récursion RLS ou rate limit).{' '}
+      <strong>{errorMsg}</strong>{' '}
       <button onClick={() => window.location.reload()} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit' }}>
         Rechargez la page
-      </button>{' '}ou vérifiez que la migration SQL a bien été exécutée dans Supabase.
+      </button>
     </div>
   )
 
