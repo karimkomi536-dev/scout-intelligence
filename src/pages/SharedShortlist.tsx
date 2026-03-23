@@ -63,19 +63,14 @@ export default function SharedShortlist() {
         return
       }
 
-      // 3. Load group
-      const { data: grp, error: grpErr } = await supabase
+      // 3. Load group name (may fail for anon if RLS blocks it — graceful fallback)
+      const { data: grp } = await supabase
         .from('shortlist_groups')
         .select('*')
         .eq('id', share.list_id)
-        .single()
+        .maybeSingle()
 
-      if (grpErr || !grp) {
-        setError('Liste introuvable.')
-        setLoading(false)
-        return
-      }
-      setGroup(grp as ShortlistGroup)
+      setGroup(grp as ShortlistGroup | null)
 
       // 4. Load entries + player data
       const { data: rows, error: rowsErr } = await supabase

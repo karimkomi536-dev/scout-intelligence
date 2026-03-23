@@ -110,12 +110,20 @@ DROP POLICY IF EXISTS "shortlist_groups: share read" ON shortlist_groups;
 CREATE POLICY "shortlist_groups: owner all" ON shortlist_groups
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
--- NOTE: "share read" policy intentionally omitted here.
--- It creates infinite RLS recursion:
---   shortlist_groups: share read → EXISTS on shortlist_shares
---   shortlist_shares: owner all → EXISTS on shortlist_groups → loop
--- Public read for shared lists will be handled via a SECURITY DEFINER
--- function when SharedShortlist page is implemented.
+-- Public read via SECURITY DEFINER function (avoids RLS recursion).
+-- The function queries shortlist_shares bypassing RLS, so no cross-reference loop.
+CREATE OR REPLACE FUNCTION public.shortlist_group_is_shared(group_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (SELECT 1 FROM shortlist_shares WHERE list_id = group_id);
+$$;
+
+DROP POLICY IF EXISTS "shortlist_groups: share read" ON shortlist_groups;
+CREATE POLICY "shortlist_groups: share read" ON shortlist_groups
+  FOR SELECT USING (public.shortlist_group_is_shared(id));
 
 
 -- ── 8. Policies — shortlist_shares ───────────────────────────────────────────
