@@ -1,7 +1,7 @@
 # VIZION — Todo
 
 ## En cours
-- [ ] Shortlist v2 — débug SQL/RLS (boucle infinie résolue côté front, fix RLS policies en attente d'exécution dans Supabase)
+- [ ] SharedShortlist.tsx — vue publique read-only à /shortlist/:token
 
 ## Terminé
 - [x] P0·01 — Purger .env de l'historique Git
@@ -23,6 +23,4 @@
 - [x] Shortlist — guard isFatal() contre boucle infinie 429/RLS recursion
 
 ## À faire
-- [ ] Exécuter le SQL fix RLS dans Supabase (voir message précédent — policy shortlist_shares: owner all)
-- [ ] SharedShortlist.tsx — vue publique read-only à /shortlist/:token
-- [ ] Créer src/pages/SharedShortlist.tsx et l'enregistrer dans App.tsx
+- [ ] SharedShortlist.tsx — créer src/pages/SharedShortlist.tsx et route publique dans App.tsx

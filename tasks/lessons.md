@@ -31,3 +31,9 @@ Ordre obligatoire dans un fichier SQL : (1) CREATE TABLE toutes les tables, (2) 
 
 [2026-03-23] | Supabase onAuthStateChange INITIAL_SESSION → déconnexion race condition |
 Ne jamais agir sur l'event INITIAL_SESSION dans onAuthStateChange. Utiliser getSession() comme source autoritaire pour l'init, avec un flag `mounted` pour éviter les setState post-unmount.
+
+[2026-03-23] | useEffect([user]) → boucle infinie sur TOKEN_REFRESHED |
+Supabase recrée un nouvel objet User à chaque TOKEN_REFRESHED. [user] compare par référence → l'effet se re-déclenche à chaque refresh de token → boucle. Toujours utiliser [user?.id] (string primitive, stable) comme dépendance.
+
+[2026-03-23] | useState dans useEffect deps pour bloquer une boucle → ça re-boucle |
+Utiliser useRef (pas useState) comme guard anti-boucle dans les useEffect. Un ref.current = true n'est pas dans les deps et ne cause pas de re-render. Un state dans les deps relance l'effet quand il change.
