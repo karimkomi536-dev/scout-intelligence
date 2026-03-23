@@ -122,11 +122,12 @@ CREATE POLICY "shortlist_groups: share read" ON shortlist_groups
 DROP POLICY IF EXISTS "shortlist_shares: owner all"   ON shortlist_shares;
 DROP POLICY IF EXISTS "shortlist_shares: public read" ON shortlist_shares;
 
+-- EXISTS + JOIN direct évite la récursion RLS (IN (SELECT ...) la déclenchait)
 CREATE POLICY "shortlist_shares: owner all" ON shortlist_shares
   FOR ALL USING (
-    auth.uid() IN (SELECT user_id FROM shortlist_groups WHERE id = list_id)
+    EXISTS (SELECT 1 FROM shortlist_groups g WHERE g.id = list_id AND g.user_id = auth.uid())
   ) WITH CHECK (
-    auth.uid() IN (SELECT user_id FROM shortlist_groups WHERE id = list_id)
+    EXISTS (SELECT 1 FROM shortlist_groups g WHERE g.id = list_id AND g.user_id = auth.uid())
   );
 
 -- Anon can read by token (128-bit random — enumeration not practical)

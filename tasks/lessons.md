@@ -22,3 +22,12 @@ Toujours set PYTHONIOENCODING=utf-8 avant d'invoquer un script Python avec des c
 
 [2026-03-22] | scraper FBref → StatsBomb fallback retourne données 2015-16, pas 2023-24 |
 StatsBomb open data gratuit couvre seulement certaines saisons historiques. Pour données récentes, soccerdata (Python <3.13) ou scraping direct FBref sont nécessaires.
+
+[2026-03-23] | RLS policies avec références croisées → récursion infinie PostgREST (PGRST301) |
+Éviter les policies RLS qui se référencent mutuellement (A→B→A). Si nécessaire, réécrire avec EXISTS + JOIN direct plutôt que IN (SELECT ...) pour briser la récursion. Ajouter un guard isFatal() côté front pour stopper toute boucle de retry.
+
+[2026-03-23] | SQL migration : CREATE TABLE dans le mauvais ordre → "relation does not exist" |
+Ordre obligatoire dans un fichier SQL : (1) CREATE TABLE toutes les tables, (2) ALTER TABLE, (3) CREATE INDEX, (4) ENABLE RLS, (5) DROP/CREATE POLICY. Les policies qui référencent d'autres tables doivent être créées APRÈS ces tables.
+
+[2026-03-23] | Supabase onAuthStateChange INITIAL_SESSION → déconnexion race condition |
+Ne jamais agir sur l'event INITIAL_SESSION dans onAuthStateChange. Utiliser getSession() comme source autoritaire pour l'init, avec un flag `mounted` pour éviter les setState post-unmount.

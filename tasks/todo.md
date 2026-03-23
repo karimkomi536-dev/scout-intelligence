@@ -1,7 +1,7 @@
 # VIZION — Todo
 
 ## En cours
-- [ ] P2·01 — Import CSV joueurs
+- [ ] Shortlist v2 — débug SQL/RLS (boucle infinie résolue côté front, fix RLS policies en attente d'exécution dans Supabase)
 
 ## Terminé
 - [x] P0·01 — Purger .env de l'historique Git
@@ -12,9 +12,17 @@
 - [x] P1·03 — Landing Page
 - [x] P1·04 — Waitlist form
 - [x] P2·00 — Scraper FBref (dry-run OK : 90 joueurs, 3 ligues via StatsBomb)
+- [x] P2·01 — Import CSV / scrape:all → 90 joueurs importés dans Supabase
+- [x] P2·02 — Page détail joueur (score ring, stat cards, radar chart)
+- [x] P2·03 — Scoring par position (scoring.ts, position weights, 4 fonctions)
+- [x] P2·04 — Filtres avancés avec URL sync (usePlayerFilters hook, server-side Supabase)
+- [x] Comparateur (/compare) — CompareContext, CompareBar, Compare.tsx, boutons dans Players/PlayerDetail
+- [x] Export PDF — jsPDF + html2canvas, PlayerPDFReport (off-screen), watermark CONFIDENTIEL
+- [x] Shortlist v2 — tags, groupes/onglets, drag-and-drop (dnd-kit), share links
+- [x] AuthContext — fix INITIAL_SESSION race condition, suppression session state
+- [x] Shortlist — guard isFatal() contre boucle infinie 429/RLS recursion
 
 ## À faire
-- [ ] P2·01 — Import CSV joueurs
-- [ ] P2·02 — Page détail joueur
-- [ ] P2·03 — Scoring par position
-- [ ] P2·04 — Filtres avancés
+- [ ] Exécuter le SQL fix RLS dans Supabase (voir message précédent — policy shortlist_shares: owner all)
+- [ ] SharedShortlist.tsx — vue publique read-only à /shortlist/:token
+- [ ] Créer src/pages/SharedShortlist.tsx et l'enregistrer dans App.tsx
