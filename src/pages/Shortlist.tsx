@@ -347,7 +347,8 @@ export default function Shortlist() {
         if (g.length > 0) setActiveId(g[0].id)
         setLoadingGroups(false)
       })
-  }, [user])
+  // user?.id (string) — stable même quand Supabase recrée l'objet User sur TOKEN_REFRESHED
+  }, [user?.id])
 
   // ── Load entries for active group ───────────────────────────────────────────
 
