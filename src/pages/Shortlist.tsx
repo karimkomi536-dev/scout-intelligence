@@ -306,11 +306,9 @@ function ShareModal({
 
 function isFatal(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false
-  // RLS infinite recursion (Supabase/PostgREST error codes)
-  if (error.code === 'PGRST301') return true
+  // RLS infinite recursion — seule vraie erreur fatale non-récupérable
   if (error.message?.includes('recursion')) return true
-  // Rate limit or server error — stop retrying
-  if (error.code === '429' || error.code === '500') return true
+  if (error.message?.includes('infinite')) return true
   return false
 }
 
