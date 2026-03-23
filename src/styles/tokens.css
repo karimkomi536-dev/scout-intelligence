@@ -1,0 +1,66 @@
+/* ============================================================================
+   VIZION — Design Tokens
+   Premium navy dark system with neon accents
+   ============================================================================ */
+
+:root {
+  /* ── Backgrounds ─────────────────────────────────────────────────────────── */
+  --bg-base:        #0A0E1B;   /* html/body */
+  --bg-sidebar:     #0D1525;   /* sidebar */
+  --bg-surface:     #111A2E;   /* cards, panels */
+  --bg-surface-2:   #162035;   /* nested surfaces */
+  --bg-input:       rgba(255, 255, 255, 0.04);
+  --bg-hover:       rgba(255, 255, 255, 0.05);
+
+  /* ── Borders ─────────────────────────────────────────────────────────────── */
+  --border-subtle:  rgba(255, 255, 255, 0.07);
+  --border-input:   rgba(255, 255, 255, 0.10);
+  --border-focus:   #4D7FFF;
+
+  /* ── Accents ─────────────────────────────────────────────────────────────── */
+  --accent-green:   #00C896;   /* VIZION primary */
+  --accent-blue:    #4D7FFF;   /* electric blue */
+  --accent-cyan:    #22D4E8;   /* chart cyan */
+  --accent-purple:  #9B6DFF;
+  --accent-amber:   #F5A623;
+
+  /* ── Text ────────────────────────────────────────────────────────────────── */
+  --text-primary:   #E2EAF4;
+  --text-secondary: #8BA3C0;
+  --text-muted:     #5A7090;
+  --text-disabled:  #2E3D52;
+
+  /* ── Glows ───────────────────────────────────────────────────────────────── */
+  --glow-blue:      0 0 20px rgba(77, 127, 255, 0.30);
+  --glow-blue-lg:   0 0 40px rgba(77, 127, 255, 0.20);
+  --glow-green:     0 0 20px rgba(0, 200, 150, 0.30);
+  --glow-green-lg:  0 0 40px rgba(0, 200, 150, 0.20);
+  --glow-cyan:      0 0 20px rgba(34, 212, 232, 0.25);
+  --glow-purple:    0 0 20px rgba(155, 109, 255, 0.25);
+  --glow-amber:     0 0 20px rgba(245, 166, 35, 0.20);
+
+  /* ── Score label colours ─────────────────────────────────────────────────── */
+  --label-elite:       #00C896;
+  --label-elite-glow:  rgba(0, 200, 150, 0.25);
+  --label-prospect:    #4D7FFF;
+  --label-prospect-glow: rgba(77, 127, 255, 0.25);
+  --label-interesting: #F5A623;
+  --label-interesting-glow: rgba(245, 166, 35, 0.20);
+  --label-monitor:     #9B6DFF;
+  --label-monitor-glow: rgba(155, 109, 255, 0.20);
+  --label-low:         #4A5A70;
+
+  /* ── Radius ──────────────────────────────────────────────────────────────── */
+  --radius-card:    12px;
+  --radius-input:   8px;
+  --radius-badge:   6px;
+  --radius-btn:     8px;
+
+  /* ── Typography ──────────────────────────────────────────────────────────── */
+  --font-ui:    'Inter', system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Transitions ─────────────────────────────────────────────────────────── */
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+}

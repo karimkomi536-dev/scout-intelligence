@@ -1,0 +1,208 @@
+/* ============================================================================
+   VIZION — Component Classes
+   Reusable utility classes built on design tokens
+   ============================================================================ */
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: box-shadow var(--transition-base), background var(--transition-fast);
+}
+.btn-primary:hover {
+  box-shadow: var(--glow-blue);
+  background: #5f8fff;
+}
+.btn-primary:active {
+  transform: translateY(1px);
+}
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--accent-blue);
+  border: 1px solid rgba(77, 127, 255, 0.40);
+  border-radius: var(--radius-btn);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-fast);
+}
+.btn-secondary:hover {
+  background: rgba(77, 127, 255, 0.10);
+  border-color: var(--accent-blue);
+  box-shadow: var(--glow-blue);
+}
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  transition: box-shadow var(--transition-base);
+}
+.card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.40);
+}
+
+/* ── Score / Label badges ────────────────────────────────────────────────────── */
+
+.badge-elite {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 200, 150, 0.12);
+  color: var(--label-elite);
+  border: 1px solid rgba(0, 200, 150, 0.30);
+  box-shadow: 0 0 8px var(--label-elite-glow);
+  border-radius: var(--radius-badge);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.badge-prospect {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(77, 127, 255, 0.12);
+  color: var(--label-prospect);
+  border: 1px solid rgba(77, 127, 255, 0.30);
+  box-shadow: 0 0 8px var(--label-prospect-glow);
+  border-radius: var(--radius-badge);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.badge-interesting {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(245, 166, 35, 0.12);
+  color: var(--label-interesting);
+  border: 1px solid rgba(245, 166, 35, 0.30);
+  box-shadow: 0 0 8px var(--label-interesting-glow);
+  border-radius: var(--radius-badge);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.badge-monitor {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(155, 109, 255, 0.12);
+  color: var(--label-monitor);
+  border: 1px solid rgba(155, 109, 255, 0.30);
+  box-shadow: 0 0 8px var(--label-monitor-glow);
+  border-radius: var(--radius-badge);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.badge-low {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(74, 90, 112, 0.18);
+  color: var(--label-low);
+  border: 1px solid rgba(74, 90, 112, 0.35);
+  border-radius: var(--radius-badge);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+/* ── Input field ─────────────────────────────────────────────────────────────── */
+
+.input-field {
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-input);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: 9px 14px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  width: 100%;
+}
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+.input-field:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(77, 127, 255, 0.15);
+}
+
+/* ── Glow utilities ──────────────────────────────────────────────────────────── */
+
+.glow-blue   { box-shadow: var(--glow-blue); }
+.glow-green  { box-shadow: var(--glow-green); }
+.glow-cyan   { box-shadow: var(--glow-cyan); }
+.glow-purple { box-shadow: var(--glow-purple); }
+
+/* ── Mono numbers (stats, scores, timestamps) ────────────────────────────────── */
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
