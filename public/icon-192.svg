@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#0A0E1B"/>
+  <rect width="192" height="192" rx="40" fill="url(#bg)"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="192" y2="192" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#111A2E"/>
+      <stop offset="100%" stop-color="#0A0E1B"/>
+    </linearGradient>
+    <linearGradient id="zap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00C896"/>
+      <stop offset="100%" stop-color="#22D4E8"/>
+    </linearGradient>
+  </defs>
+  <!-- Lightning bolt -->
+  <path d="M108 28 L72 100 H96 L84 164 L128 80 H104 Z" fill="url(#zap)"/>
+  <!-- VZ text -->
+  <text x="96" y="178" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#5A7090" text-anchor="middle" letter-spacing="3">VIZION</text>
+</svg>
