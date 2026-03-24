@@ -58,3 +58,35 @@ body {
   0%, 100% { box-shadow: 0 0 10px rgba(77, 127, 255, 0.20); }
   50%       { box-shadow: 0 0 24px rgba(77, 127, 255, 0.45); }
 }
+
+/* ── iPhone safe areas ────────────────────────────────────────────────────── */
+:root {
+  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left,   0px);
+  --safe-right:  env(safe-area-inset-right,  0px);
+}
+
+/* ── iOS touch optimizations ─────────────────────────────────────────────── */
+
+/* Empêche le zoom iOS sur les inputs (doit être >= 16px) */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+/* Touch feedback : supprime le flash bleu natif, améliore la réactivité */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scroll fluide iOS (momentum scrolling) */
+main {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Minimum touch target Apple HIG (44×44px) — ne surcharge pas les boutons
+   déjà stylés avec une hauteur explicite */
+button:not([style*="height"]):not([style*="width"]) {
+  min-height: 44px;
+}
