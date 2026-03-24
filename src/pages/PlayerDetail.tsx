@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useIsMobile } from '../hooks/useIsMobile'
 import {
   ArrowLeft, Scale, CheckCircle, FileDown, Loader2, Heart, Sparkles, Send,
 } from 'lucide-react'
@@ -88,44 +89,45 @@ function flagFor(nationality: string | null): string {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function ScoreRingLarge({ score, color }: { score: number; color: string }) {
+function ScoreRingLarge({ score, color, size = 120 }: { score: number; color: string; size?: number }) {
   const [animated, setAnimated] = useState(false)
   useEffect(() => {
     const t = setTimeout(() => setAnimated(true), 200)
     return () => clearTimeout(t)
   }, [])
 
-  const r = 50
+  const r = size === 90 ? 37 : 50
+  const cx = size / 2
   const circ = 2 * Math.PI * r
   const fill = ((score ?? 0) / 100) * circ
 
   return (
-    <svg width={120} height={120} viewBox="0 0 120 120">
-      <circle cx={60} cy={60} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={8} />
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={8} />
       <circle
-        cx={60} cy={60} r={r} fill="none"
+        cx={cx} cy={cx} r={r} fill="none"
         stroke={color} strokeWidth={8}
         strokeDasharray={circ}
         strokeDashoffset={animated ? circ - fill : circ}
         strokeLinecap="round"
-        transform="rotate(-90 60 60)"
+        transform={`rotate(-90 ${cx} ${cx})`}
         style={{
           transition: 'stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1)',
           filter: `drop-shadow(0 0 8px ${color})`,
         }}
       />
       <text
-        x={60} y={57}
+        x={cx} y={cx - 3}
         textAnchor="middle"
         fill="var(--text-primary)"
-        fontSize={30}
+        fontSize={size === 90 ? 22 : 30}
         fontWeight={700}
         fontFamily="var(--font-mono)"
       >
         {score ?? '—'}
       </text>
       <text
-        x={60} y={74}
+        x={cx} y={cx + 13}
         textAnchor="middle"
         fill="var(--text-muted)"
         fontSize={10}
@@ -219,6 +221,7 @@ export default function PlayerDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { isSelected, toggle, ids: compareIds } = useCompare()
+  const isMobile = useIsMobile()
 
   const [player, setPlayer] = useState<Player | null>(null)
   const [loading, setLoading] = useState(true)
@@ -376,11 +379,15 @@ export default function PlayerDetail() {
         </button>
 
         {/* Hero content */}
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex', gap: '24px', alignItems: isMobile ? 'center' : 'flex-start',
+          flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row',
+        }}>
 
-          {/* Avatar 96px */}
+          {/* Avatar — 72px mobile / 96px desktop */}
           <div style={{
-            width: 96, height: 96, borderRadius: '50%', flexShrink: 0,
+            width: isMobile ? 72 : 96, height: isMobile ? 72 : 96, borderRadius: '50%', flexShrink: 0,
+            alignSelf: isMobile ? 'center' : 'flex-start',
             background: `radial-gradient(circle at 35% 35%, ${posColor}55, ${posColor}22)`,
             border: `2px solid ${posColor}55`,
             boxShadow: `0 0 24px ${posColor}50, 0 0 8px ${posColor}30`,
@@ -392,14 +399,14 @@ export default function PlayerDetail() {
           </div>
 
           {/* Player info */}
-          <div style={{ flex: 1, minWidth: '200px' }}>
+          <div style={{ flex: 1, minWidth: '200px', textAlign: isMobile ? 'center' : 'left' }}>
             {/* Name */}
-            <h1 style={{ fontSize: '32px', fontWeight: 700, margin: '0 0 8px', lineHeight: 1.1, color: 'var(--text-primary)' }}>
+            <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: 700, margin: '0 0 8px', lineHeight: 1.1, color: 'var(--text-primary)' }}>
               {player.name}
             </h1>
 
             {/* Line 1: position + club + nationality */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px', justifyContent: isMobile ? 'center' : 'flex-start' }}>
               <span style={{
                 background: `${posColor}22`, color: posColor,
                 fontSize: '11px', fontWeight: 700, padding: '3px 10px',
@@ -420,7 +427,7 @@ export default function PlayerDetail() {
             </div>
 
             {/* Line 2: age + foot + league */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '20px', justifyContent: isMobile ? 'center' : 'flex-start' }}>
               {player.age && (
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                   <span style={{ color: 'var(--text-secondary)', marginRight: '4px' }}>Âge</span>{player.age}
@@ -439,7 +446,7 @@ export default function PlayerDetail() {
             </div>
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
 
               {/* Shortlist */}
               <button
@@ -514,8 +521,8 @@ export default function PlayerDetail() {
           </div>
 
           {/* Score ring + label */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <ScoreRingLarge score={score} color={labelColor} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0, alignSelf: isMobile ? 'center' : 'flex-start' }}>
+            <ScoreRingLarge score={score} color={labelColor} size={isMobile ? 90 : 120} />
             <span style={{
               fontSize: '11px', fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase',
               color: labelColor, fontFamily: 'var(--font-mono)',
@@ -532,7 +539,7 @@ export default function PlayerDetail() {
 
       {/* ── STATS SECTION ─────────────────────────────────────────────────────── */}
       {radarData.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
 
           {/* Radar chart */}
           <div style={{
@@ -548,7 +555,7 @@ export default function PlayerDetail() {
               Profil joueur
             </p>
             <div style={{ filter: `drop-shadow(0 0 10px ${posColor}50)` }}>
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={isMobile ? 280 : 260}>
                 <RadarChart data={radarData} margin={{ top: 14, right: 24, bottom: 14, left: 24 }}>
                   <PolarGrid stroke="rgba(255,255,255,0.07)" />
                   <PolarAngleAxis dataKey="stat" tick={CustomRadarTick as any} />
@@ -610,7 +617,7 @@ export default function PlayerDetail() {
           Statistiques brutes
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px' }}>
           {[
             { label: 'Matchs',           value: fmt(player.appearances, 0) },
             { label: 'Minutes',          value: fmt(player.minutes_played, 0) },

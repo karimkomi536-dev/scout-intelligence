@@ -1,10 +1,12 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
-  Scale, Settings, Zap,
+  Scale, Settings, Zap, Bell, Search,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import CompareBar from './CompareBar'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 // ── Nav config ────────────────────────────────────────────────────────────────
 
@@ -15,6 +17,13 @@ const NAV_ITEMS = [
   { to: '/shortlist',  icon: Bookmark,         label: 'Shortlist' },
   { to: '/newsletter', icon: Newspaper,        label: 'Newsletter' },
   { to: '/upload',     icon: Upload,           label: 'Import'    },
+]
+
+const BOTTOM_NAV_ITEMS = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/players',   icon: Users,           label: 'Joueurs'   },
+  { to: '/shortlist', icon: Bookmark,        label: 'Shortlist' },
+  { to: '/compare',   icon: Scale,           label: 'Compare'   },
 ]
 
 const PAGE_TITLES: Record<string, string> = {
@@ -44,11 +53,18 @@ function formatDate() {
   return new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
+function isActiveCheck(to: string, pathname: string) {
+  return pathname.startsWith(to)
+}
+
 // ── Layout ────────────────────────────────────────────────────────────────────
 
 export default function Layout() {
   const { user, signOut } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
+  const isMobile = useIsMobile()
+  const [showProfileSheet, setShowProfileSheet] = useState(false)
 
   const displayName = user?.email?.split('@')[0] ?? 'Scout'
   const displayEmail = user?.email ?? ''
@@ -62,231 +78,427 @@ export default function Layout() {
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: 'var(--bg-base)' }}>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SIDEBAR
+          SIDEBAR — desktop only
       ══════════════════════════════════════════════════════════════════════ */}
-      <aside style={{
-        width: '260px',
-        minWidth: '260px',
-        height: '100vh',
-        backgroundColor: 'var(--bg-sidebar)',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
+      {!isMobile && (
+        <aside style={{
+          width: '260px',
+          minWidth: '260px',
+          height: '100vh',
+          backgroundColor: 'var(--bg-sidebar)',
+          borderRight: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
 
-        {/* ── ZONE 1 : Logo ──────────────────────────────────────────────── */}
-        <div style={{ padding: '22px 20px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Zap size={18} color="var(--accent-green)" fill="var(--accent-green)" />
-            <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-              VIZION
-            </span>
-          </div>
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '10px',
-            color: 'var(--text-muted)',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-          }}>
-            Football Scouting
-          </span>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginTop: '16px' }} />
-        </div>
-
-        {/* ── ZONE 2 : User card ─────────────────────────────────────────── */}
-        <div style={{ padding: '0 12px 4px' }}>
-          <div style={{
-            background: 'rgba(255,255,255,0.03)',
-            borderRadius: '10px',
-            padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            border: '1px solid rgba(255,255,255,0.05)',
-          }}>
-            {/* Avatar */}
-            <div style={{
-              width: '38px', height: '38px', borderRadius: '50%',
-              background: avatarGradient(displayName),
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0,
+          {/* ── ZONE 1 : Logo ──────────────────────────────────────────────── */}
+          <div style={{ padding: '22px 20px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <Zap size={18} color="var(--accent-green)" fill="var(--accent-green)" />
+              <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                VIZION
+              </span>
+            </div>
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
             }}>
-              {initials}
-            </div>
-
-            {/* Name + email */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {displayName}
-              </p>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {displayEmail}
-              </p>
-            </div>
-
-            {/* Settings icon */}
-            <button
-              title="Paramètres"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', flexShrink: 0, display: 'flex' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              <Settings size={14} />
-            </button>
+              Football Scouting
+            </span>
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginTop: '16px' }} />
           </div>
-        </div>
 
-        {/* ── ZONE 3 : Navigation ────────────────────────────────────────── */}
-        <nav style={{ flex: 1, padding: '16px 12px 8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <p style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '10px',
-            color: 'var(--text-muted)',
-            letterSpacing: '0.15em',
-            textTransform: 'uppercase',
-            padding: '0 8px 8px',
-          }}>
-            Menu
-          </p>
+          {/* ── ZONE 2 : User card ─────────────────────────────────────────── */}
+          <div style={{ padding: '0 12px 4px' }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              border: '1px solid rgba(255,255,255,0.05)',
+            }}>
+              <div style={{
+                width: '38px', height: '38px', borderRadius: '50%',
+                background: avatarGradient(displayName),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0,
+              }}>
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {displayName}
+                </p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {displayEmail}
+                </p>
+              </div>
+              <button
+                title="Paramètres"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', flexShrink: 0, display: 'flex' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                <Settings size={14} />
+              </button>
+            </div>
+          </div>
 
-          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
+          {/* ── ZONE 3 : Navigation ────────────────────────────────────────── */}
+          <nav style={{ flex: 1, padding: '16px 12px 8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <p style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              padding: '0 8px 8px',
+            }}>
+              Menu
+            </p>
+
+            {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                style={({ isActive }) => ({
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontSize: '13.5px',
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                  background: isActive ? 'rgba(77,127,255,0.12)' : 'transparent',
+                  borderLeft: isActive ? '2px solid var(--accent-blue)' : '2px solid transparent',
+                  transition: 'all 150ms ease',
+                })}
+                onMouseEnter={e => {
+                  const el = e.currentTarget
+                  if (!el.getAttribute('aria-current')) {
+                    el.style.background = 'rgba(255,255,255,0.04)'
+                    el.style.color = 'var(--text-primary)'
+                  }
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget
+                  if (!el.getAttribute('aria-current')) {
+                    el.style.background = 'transparent'
+                    el.style.color = 'var(--text-secondary)'
+                  }
+                }}
+              >
+                <Icon size={16} strokeWidth={isActiveCheck(to, location.pathname) ? 2.2 : 1.8} />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* ── ZONE 4 : Footer ────────────────────────────────────────────── */}
+          <div style={{ padding: '12px 12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{
+              background: 'rgba(245,166,35,0.08)',
+              border: '1px solid rgba(245,166,35,0.20)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}>
+              <Zap size={14} color="#F5A623" fill="#F5A623" style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '11px', fontWeight: 600, color: '#F5A623', margin: 0 }}>Plan Free</p>
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>Passer à Pro →</p>
+              </div>
+            </div>
+            <button
+              onClick={signOut}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '9px 12px',
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.07)',
                 borderRadius: '8px',
-                textDecoration: 'none',
-                fontSize: '13.5px',
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                background: isActive ? 'rgba(77,127,255,0.12)' : 'transparent',
-                borderLeft: isActive ? '2px solid var(--accent-blue)' : '2px solid transparent',
+                color: 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                width: '100%',
                 transition: 'all 150ms ease',
-              })}
+              }}
               onMouseEnter={e => {
-                const el = e.currentTarget
-                if (!el.getAttribute('aria-current')) {
-                  el.style.background = 'rgba(255,255,255,0.04)'
-                  el.style.color = 'var(--text-primary)'
-                }
+                e.currentTarget.style.background = 'rgba(239,68,68,0.08)'
+                e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'
+                e.currentTarget.style.color = '#ef4444'
               }}
               onMouseLeave={e => {
-                const el = e.currentTarget
-                if (!el.getAttribute('aria-current')) {
-                  el.style.background = 'transparent'
-                  el.style.color = 'var(--text-secondary)'
-                }
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'
+                e.currentTarget.style.color = 'var(--text-muted)'
               }}
             >
-              <Icon size={16} strokeWidth={isActiveCheck(to, location.pathname) ? 2.2 : 1.8} />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* ── ZONE 4 : Footer ────────────────────────────────────────────── */}
-        <div style={{ padding: '12px 12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-
-          {/* Plan badge — free tier CTA */}
-          <div style={{
-            background: 'rgba(245,166,35,0.08)',
-            border: '1px solid rgba(245,166,35,0.20)',
-            borderRadius: '10px',
-            padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}>
-            <Zap size={14} color="#F5A623" fill="#F5A623" style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '11px', fontWeight: 600, color: '#F5A623', margin: 0 }}>Plan Free</p>
-              <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>Passer à Pro →</p>
-            </div>
+              <LogOut size={14} />
+              Se déconnecter
+            </button>
           </div>
-
-          {/* Logout */}
-          <button
-            onClick={signOut}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '9px 12px',
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: '8px',
-              color: 'var(--text-muted)',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              width: '100%',
-              transition: 'all 150ms ease',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(239,68,68,0.08)'
-              e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'
-              e.currentTarget.style.color = '#ef4444'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'
-              e.currentTarget.style.color = 'var(--text-muted)'
-            }}
-          >
-            <LogOut size={14} />
-            Se déconnecter
-          </button>
-        </div>
-      </aside>
+        </aside>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           MAIN AREA
       ══════════════════════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-        {/* Top bar */}
-        <header style={{
-          height: '60px',
-          minHeight: '60px',
-          backgroundColor: 'var(--bg-base)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          padding: '0 28px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              {pageTitle}
-            </h2>
-          </div>
+        {/* ── Top bar ────────────────────────────────────────────────────── */}
+        {isMobile ? (
+          /* Mobile top bar */
+          <header style={{
+            height: '56px',
+            minHeight: '56px',
+            backgroundColor: 'var(--bg-sidebar)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 16px',
+            flexShrink: 0,
+          }}>
+            <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '4px' }}>
+              <Search size={18} />
+            </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
-            {formatDate()}
-          </div>
-        </header>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Zap size={14} color="var(--accent-green)" fill="var(--accent-green)" />
+              <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                VIZION
+              </span>
+            </div>
+
+            <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '4px', position: 'relative' }}>
+              <Bell size={18} />
+              {/* Notification dot */}
+              <span style={{
+                position: 'absolute', top: '2px', right: '2px',
+                width: '7px', height: '7px', borderRadius: '50%',
+                background: '#00C896', border: '1.5px solid var(--bg-sidebar)',
+              }} />
+            </button>
+          </header>
+        ) : (
+          /* Desktop top bar */
+          <header style={{
+            height: '60px',
+            minHeight: '60px',
+            backgroundColor: 'var(--bg-base)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            padding: '0 28px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                {pageTitle}
+              </h2>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
+              {formatDate()}
+            </div>
+          </header>
+        )}
 
         {/* Content */}
         <main style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '28px',
+          padding: isMobile
+            ? '16px 16px calc(80px + env(safe-area-inset-bottom))'
+            : '28px',
         }}>
           <Outlet />
         </main>
       </div>
 
+      {/* ══════════════════════════════════════════════════════════════════════
+          BOTTOM NAVIGATION — mobile only
+      ══════════════════════════════════════════════════════════════════════ */}
+      {isMobile && (
+        <>
+          <nav style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '64px',
+            paddingBottom: 'env(safe-area-inset-bottom)',
+            backgroundColor: '#0D1525',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex',
+            alignItems: 'stretch',
+            zIndex: 80,
+          }}>
+            {BOTTOM_NAV_ITEMS.map(({ to, icon: Icon, label }) => {
+              const active = location.pathname.startsWith(to)
+              return (
+                <button
+                  key={to}
+                  onClick={() => navigate(to)}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: active ? '#00C896' : '#5A7090',
+                    padding: '8px 0',
+                    position: 'relative',
+                    transition: 'color 150ms ease',
+                  }}
+                >
+                  {/* Active indicator dot */}
+                  {active && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '6px',
+                      width: '4px', height: '4px',
+                      borderRadius: '50%',
+                      background: '#00C896',
+                      boxShadow: '0 0 6px #00C896',
+                    }} />
+                  )}
+                  <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+                  {active && (
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      letterSpacing: '0.02em',
+                      lineHeight: 1,
+                    }}>
+                      {label}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+
+            {/* Profile button */}
+            <button
+              onClick={() => setShowProfileSheet(v => !v)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: showProfileSheet ? '#00C896' : '#5A7090',
+                padding: '8px 0',
+                transition: 'color 150ms ease',
+              }}
+            >
+              <div style={{
+                width: '24px', height: '24px', borderRadius: '50%',
+                background: showProfileSheet ? avatarGradient(displayName) : 'rgba(255,255,255,0.10)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '9px', fontWeight: 700, color: 'white',
+                border: showProfileSheet ? '1.5px solid #00C896' : '1.5px solid transparent',
+                transition: 'all 150ms',
+              }}>
+                {initials}
+              </div>
+              {showProfileSheet && (
+                <span style={{ fontSize: '10px', fontWeight: 600, lineHeight: 1 }}>Profil</span>
+              )}
+            </button>
+          </nav>
+
+          {/* Profile sheet */}
+          {showProfileSheet && (
+            <>
+              <div
+                onClick={() => setShowProfileSheet(false)}
+                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 85 }}
+              />
+              <div style={{
+                position: 'fixed',
+                bottom: 'calc(64px + env(safe-area-inset-bottom))',
+                left: '12px',
+                right: '12px',
+                zIndex: 86,
+                background: '#0D1525',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: '16px',
+                padding: '20px',
+                animation: 'fadeIn 0.18s ease',
+              }}>
+                {/* User info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{
+                    width: '44px', height: '44px', borderRadius: '50%',
+                    background: avatarGradient(displayName),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '15px', fontWeight: 700, color: 'white',
+                  }}>
+                    {initials}
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                      {displayName}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {displayEmail}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '16px' }} />
+                {/* Plan badge */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.20)',
+                  borderRadius: '10px', padding: '10px 12px', marginBottom: '12px',
+                }}>
+                  <Zap size={13} color="#F5A623" fill="#F5A623" />
+                  <div>
+                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#F5A623' }}>Plan Free</p>
+                    <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>Passer à Pro →</p>
+                  </div>
+                </div>
+                {/* Logout */}
+                <button
+                  onClick={() => { setShowProfileSheet(false); signOut() }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    width: '100%', padding: '10px 14px',
+                    background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)',
+                    borderRadius: '8px', color: '#ef4444',
+                    fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  <LogOut size={14} /> Se déconnecter
+                </button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
       <CompareBar />
     </div>
   )
-}
-
-// helper — check active outside NavLink render prop
-function isActiveCheck(to: string, pathname: string) {
-  return pathname.startsWith(to)
 }

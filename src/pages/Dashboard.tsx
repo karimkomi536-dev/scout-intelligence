@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Star, TrendingUp, Eye, ArrowRight, Upload, Bookmark } from 'lucide-react'
+import { useIsMobile } from '../hooks/useIsMobile'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -167,6 +168,7 @@ function KpiCard({ label, value, icon: Icon, color, glow, delta }: {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const isMobile = useIsMobile()
   const [players, setPlayers] = useState<Player[]>([])
   const [recent, setRecent] = useState<RecentEntry[]>([])
   const [thisMonth, setThisMonth] = useState(0)
@@ -253,9 +255,9 @@ export default function Dashboard() {
     <div style={{ color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.02em' }}>
             Bonjour, {greeting} 👋
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, textTransform: 'capitalize' }}>
@@ -268,18 +270,21 @@ export default function Dashboard() {
             display: 'flex', alignItems: 'center', gap: '7px',
             background: 'var(--accent-blue)', color: 'white',
             border: 'none', borderRadius: '8px',
-            fontSize: '13px', fontWeight: 600, padding: '10px 18px',
+            fontSize: '13px', fontWeight: 600,
+            padding: isMobile ? '9px 12px' : '10px 18px',
             cursor: 'pointer', transition: 'box-shadow 200ms ease',
+            flexShrink: 0,
           }}
           onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 20px rgba(77,127,255,0.4)')}
           onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
         >
-          <Upload size={14} /> Importer des joueurs
+          <Upload size={14} />
+          {!isMobile && 'Importer des joueurs'}
         </button>
       </div>
 
       {/* ── KPI cards ───────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: '14px' }}>
         <KpiCard label="Total Joueurs"  value={players.length}          icon={Users}      color="#4D7FFF" glow="rgba(77,127,255,0.3)"   delta={monthDelta} />
         <KpiCard label="Elite"          value={countByLabel('ELITE')}   icon={Star}       color="#00C896" glow="rgba(0,200,150,0.3)"    />
         <KpiCard label="Top Prospect"   value={countByLabel('TOP PROSPECT')} icon={TrendingUp} color="#4D7FFF" glow="rgba(77,127,255,0.25)" />
@@ -287,7 +292,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Main row : Area chart + Top 5 ───────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: '14px' }}>
 
         {/* Area chart */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '22px' }}>
@@ -304,7 +309,7 @@ export default function Dashboard() {
               LIVE
             </span>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={isMobile ? 200 : 220}>
             <AreaChart data={areaData} margin={{ left: -10, right: 10, top: 4, bottom: 0 }}>
               <defs>
                 <linearGradient id="gElite" x1="0" y1="0" x2="0" y2="1">
@@ -347,7 +352,7 @@ export default function Dashboard() {
               Voir tous →
             </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '2px' : '6px' }}>
             {top5.map((p, i) => {
               const meta = LABEL_META[p._label] ?? LABEL_META['LOW PRIORITY']
               const initials = p.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
@@ -376,7 +381,7 @@ export default function Dashboard() {
                     <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>{p.primary_position} · {p.team}</p>
                   </div>
                   <ScoreRing score={p._score} color={meta.color} />
-                  <ArrowRight size={12} color="var(--text-disabled)" />
+                  {!isMobile && <ArrowRight size={12} color="var(--text-disabled)" />}
                 </div>
               )
             })}
@@ -385,7 +390,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Bottom row : Donut + Activity ───────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
 
         {/* Donut */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '22px' }}>
