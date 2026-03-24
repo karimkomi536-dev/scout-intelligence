@@ -37,3 +37,8 @@ Supabase recrée un nouvel objet User à chaque TOKEN_REFRESHED. [user] compare 
 
 [2026-03-23] | useState dans useEffect deps pour bloquer une boucle → ça re-boucle |
 Utiliser useRef (pas useState) comme guard anti-boucle dans les useEffect. Un ref.current = true n'est pas dans les deps et ne cause pas de re-render. Un state dans les deps relance l'effet quand il change.
+
+[2026-03-24] | Mobile responsive | Toujours lire les fichiers avant d'éditer.
+Vérifier compatibilité plugins avec version Vite avant npm install (vite-plugin-pwa incompatible Vite 8 → manifest.json manuel dans /public).
+Utiliser Write au lieu de Edit pour les fichiers volumineux ou lorsqu'un Edit échoue.
+Tester npm run build avant de pusher — les warnings @tailwind dans VS Code CSS sont normaux (pas des erreurs de build).

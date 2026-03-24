@@ -21,6 +21,7 @@
 - [x] Shortlist v2 — tags, groupes/onglets, drag-and-drop (dnd-kit), share links
 - [x] AuthContext — fix INITIAL_SESSION race condition, suppression session state
 - [x] Shortlist — guard isFatal() contre boucle infinie 429/RLS recursion
+- [x] Mobile PWA + Responsive — manifest.json, iOS meta tags, sidebar drawer, safe areas, bottom nav
 
 ## À faire
 - [ ] SharedShortlist.tsx — créer src/pages/SharedShortlist.tsx et route publique dans App.tsx
