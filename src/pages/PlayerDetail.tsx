@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Scale, CheckCircle, FileDown, Loader2 } from 'lucide-react'
+import {
+  ArrowLeft, Scale, CheckCircle, FileDown, Loader2, Heart, Sparkles, Send,
+} from 'lucide-react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
 } from 'recharts'
@@ -12,105 +14,307 @@ import { exportPlayerPDF } from '../utils/exportPDF'
 import type { Player } from '../types/player'
 import type { ScoutNote } from '../components/PlayerPDFReport'
 
-const labelColors: Record<string, string> = {
-  'ELITE':        '#10F090',
-  'TOP PROSPECT': '#3b82f6',
-  'INTERESTING':  '#eab308',
-  'TO MONITOR':   '#f97316',
-  'LOW PRIORITY': '#6b7280',
+// ── Position theming ───────────────────────────────────────────────────────────
+
+type PosGroup = 'GK' | 'DEF' | 'MID' | 'ATT'
+
+function getPosGroup(pos: string): PosGroup {
+  if (pos === 'GK') return 'GK'
+  if (['CB', 'RB', 'LB'].includes(pos)) return 'DEF'
+  if (['CDM', 'CM', 'CAM'].includes(pos)) return 'MID'
+  return 'ATT'
 }
 
-const positionColors: Record<string, string> = {
-  ST: '#ef4444', RW: '#f97316', LW: '#f97316',
-  CM: '#3b82f6', CAM: '#8b5cf6', CDM: '#6366f1',
-  CB: '#22c55e', LB: '#10b981', RB: '#10b981',
-  GK: '#eab308',
+const POS_COLOR: Record<PosGroup, string> = {
+  GK:  '#F5A623',
+  DEF: '#4D7FFF',
+  MID: '#00C896',
+  ATT: '#ef4444',
 }
 
-interface StatCardProps { label: string; value: string | number; sub?: string }
-function StatCard({ label, value, sub }: StatCardProps) {
+const POS_GRADIENT: Record<PosGroup, string> = {
+  GK:  'linear-gradient(135deg, rgba(245,166,35,0.16) 0%, rgba(10,14,27,0) 65%)',
+  DEF: 'linear-gradient(135deg, rgba(77,127,255,0.16) 0%, rgba(10,14,27,0) 65%)',
+  MID: 'linear-gradient(135deg, rgba(0,200,150,0.16) 0%, rgba(10,14,27,0) 65%)',
+  ATT: 'linear-gradient(135deg, rgba(239,68,68,0.16) 0%, rgba(10,14,27,0) 65%)',
+}
+
+const LABEL_COLOR: Record<string, string> = {
+  'ELITE':        '#00C896',
+  'TOP PROSPECT': '#4D7FFF',
+  'INTERESTING':  '#F5A623',
+  'TO MONITOR':   '#9B6DFF',
+  'LOW PRIORITY': '#5A7090',
+}
+
+const AXIS_COLOR: Record<string, string> = {
+  Technique: '#4D7FFF',
+  Physical:  '#00C896',
+  Pace:      '#22D4E8',
+  Mental:    '#9B6DFF',
+  Tactical:  '#F5A623',
+  Potential: '#ec4899',
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function fmt(v: unknown, decimals = 1): string {
+  const n = Number(v)
+  return isNaN(n) || n === 0 ? '—' : n.toFixed(decimals)
+}
+
+function relativeDate(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const days = Math.floor(diff / 86_400_000)
+  if (days === 0) return "aujourd'hui"
+  if (days === 1) return 'hier'
+  if (days < 7) return `il y a ${days} j`
+  if (days < 30) return `il y a ${Math.floor(days / 7)} sem.`
+  return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+}
+
+const NATIONALITY_FLAGS: Record<string, string> = {
+  France: '🇫🇷', Spain: '🇪🇸', England: '🇬🇧', Germany: '🇩🇪', Italy: '🇮🇹',
+  Portugal: '🇵🇹', Brazil: '🇧🇷', Argentina: '🇦🇷', Netherlands: '🇳🇱',
+  Belgium: '🇧🇪', Croatia: '🇭🇷', Morocco: '🇲🇦', Senegal: '🇸🇳',
+  Nigeria: '🇳🇬', 'United States': '🇺🇸', Mexico: '🇲🇽', Japan: '🇯🇵',
+  'South Korea': '🇰🇷', Colombia: '🇨🇴', Uruguay: '🇺🇾',
+}
+
+function flagFor(nationality: string | null): string {
+  if (!nationality) return ''
+  return NATIONALITY_FLAGS[nationality] ? ` ${NATIONALITY_FLAGS[nationality]}` : ''
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function ScoreRingLarge({ score, color }: { score: number; color: string }) {
+  const [animated, setAnimated] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(true), 200)
+    return () => clearTimeout(t)
+  }, [])
+
+  const r = 50
+  const circ = 2 * Math.PI * r
+  const fill = ((score ?? 0) / 100) * circ
+
   return (
-    <div style={{ background: '#0f172a', borderRadius: '10px', padding: '16px 20px' }}>
-      <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{label}</p>
-      <p style={{ fontSize: '22px', fontWeight: 700, color: 'white' }}>{value ?? '—'}</p>
-      {sub && <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>{sub}</p>}
+    <svg width={120} height={120} viewBox="0 0 120 120">
+      <circle cx={60} cy={60} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={8} />
+      <circle
+        cx={60} cy={60} r={r} fill="none"
+        stroke={color} strokeWidth={8}
+        strokeDasharray={circ}
+        strokeDashoffset={animated ? circ - fill : circ}
+        strokeLinecap="round"
+        transform="rotate(-90 60 60)"
+        style={{
+          transition: 'stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1)',
+          filter: `drop-shadow(0 0 8px ${color})`,
+        }}
+      />
+      <text
+        x={60} y={57}
+        textAnchor="middle"
+        fill="var(--text-primary)"
+        fontSize={30}
+        fontWeight={700}
+        fontFamily="var(--font-mono)"
+      >
+        {score ?? '—'}
+      </text>
+      <text
+        x={60} y={74}
+        textAnchor="middle"
+        fill="var(--text-muted)"
+        fontSize={10}
+        fontFamily="var(--font-mono)"
+      >
+        /100
+      </text>
+    </svg>
+  )
+}
+
+interface StatBarProps {
+  label: string
+  value: number
+  color: string
+  ready: boolean
+}
+
+function StatBar({ label, value, color, ready }: StatBarProps) {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+          {label}
+        </span>
+        <span style={{ fontSize: '13px', fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>
+          {value ?? 0}
+        </span>
+      </div>
+      <div style={{
+        height: '5px',
+        borderRadius: '3px',
+        background: 'rgba(255,255,255,0.06)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%',
+          width: ready ? `${Math.min(value ?? 0, 100)}%` : '0%',
+          background: color,
+          borderRadius: '3px',
+          transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: `0 0 8px ${color}80`,
+        }} />
+      </div>
     </div>
   )
 }
 
-function ScoreRing({ score }: { score: number }) {
-  const r = 54
-  const circ = 2 * Math.PI * r
-  const fill = ((score || 0) / 100) * circ
-  const color = score >= 75 ? '#10F090' : score >= 50 ? '#3b82f6' : score >= 30 ? '#f97316' : '#6b7280'
-
+function CustomRadarTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) {
   return (
-    <svg width={140} height={140} viewBox="0 0 140 140">
-      <circle cx={70} cy={70} r={r} fill="none" stroke="#1f2937" strokeWidth={10} />
-      <circle
-        cx={70} cy={70} r={r} fill="none"
-        stroke={color} strokeWidth={10}
-        strokeDasharray={`${fill} ${circ}`}
-        strokeLinecap="round"
-        transform="rotate(-90 70 70)"
-        style={{ transition: 'stroke-dasharray 0.6s ease' }}
-      />
-      <text x={70} y={65} textAnchor="middle" fill="white" fontSize={28} fontWeight={700}>{score ?? '—'}</text>
-      <text x={70} y={83} textAnchor="middle" fill="#6b7280" fontSize={11}>/ 100</text>
-    </svg>
+    <text
+      x={x} y={y}
+      textAnchor="middle"
+      dominantBaseline="middle"
+      fill={AXIS_COLOR[payload?.value ?? ''] ?? 'var(--text-muted)'}
+      fontSize={11}
+      fontFamily="var(--font-mono)"
+      fontWeight={500}
+    >
+      {payload?.value}
+    </text>
   )
 }
+
+function NoteCard({ note }: { note: ScoutNote }) {
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: '10px',
+      padding: '14px 16px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-blue)' }}>
+          Scout
+        </span>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+          {relativeDate(note.created_at)}
+        </span>
+      </div>
+      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+        {note.content}
+      </p>
+    </div>
+  )
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export default function PlayerDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { isSelected, toggle, ids: compareIds } = useCompare()
+
   const [player, setPlayer] = useState<Player | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notes, setNotes] = useState<ScoutNote[]>([])
+  const [noteText, setNoteText] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [showNoteForm, setShowNoteForm] = useState(false)
+  const [barsReady, setBarsReady] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const reportRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!id) return
     supabase.from('players').select('*').eq('id', id).single()
       .then(({ data, error: err }) => {
-        if (err || !data) setError('Player not found.')
+        if (err || !data) setError('Joueur introuvable.')
         else setPlayer(data as Player)
         setLoading(false)
       })
-    // Fetch last 3 scout notes — gracefully ignores if table doesn't exist
     supabase.from('notes').select('id, content, created_at')
-      .eq('player_id', id).order('created_at', { ascending: false }).limit(3)
+      .eq('player_id', id).order('created_at', { ascending: false }).limit(10)
       .then(({ data }) => { if (data) setNotes(data as ScoutNote[]) })
   }, [id])
+
+  // Trigger bar animations after player loads
+  useEffect(() => {
+    if (!player) return
+    const t = setTimeout(() => setBarsReady(true), 150)
+    return () => clearTimeout(t)
+  }, [player])
 
   async function handleExportPDF() {
     if (!reportRef.current || !player) return
     setPdfLoading(true)
     try {
-      // Small delay so recharts SVG finishes painting inside the hidden template
       await new Promise(resolve => setTimeout(resolve, 400))
       await exportPlayerPDF(reportRef.current, player.name)
     } catch (err) {
       console.error('PDF export failed:', err)
-      alert('Erreur lors de la génération du PDF. Veuillez réessayer.')
+      alert('Erreur lors de la génération du PDF.')
     } finally {
       setPdfLoading(false)
     }
   }
 
-  if (loading) return <p style={{ color: '#6b7280', padding: '32px' }}>Loading...</p>
-  if (error || !player) return (
-    <div style={{ color: 'white', padding: '32px' }}>
-      <p style={{ color: '#ef4444', marginBottom: '16px' }}>{error}</p>
-      <button onClick={() => navigate('/players')} style={{ color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer' }}>← Back to players</button>
-    </div>
-  )
+  async function handleAddNote() {
+    if (!noteText.trim() || !id) return
+    setSavingNote(true)
+    const { data, error: err } = await supabase
+      .from('notes')
+      .insert({ player_id: id, content: noteText.trim() })
+      .select('id, content, created_at')
+      .single()
+    setSavingNote(false)
+    if (!err && data) {
+      setNotes(prev => [data as ScoutNote, ...prev])
+      setNoteText('')
+      setShowNoteForm(false)
+    }
+  }
 
-  const score = calculateScore(player)
-  const label = getScoreLabel(score)
+  // ── States ─────────────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', padding: '48px 0' }}>
+        <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>Chargement…</span>
+      </div>
+    )
+  }
+
+  if (error || !player) {
+    return (
+      <div style={{ padding: '48px 0' }}>
+        <p style={{ color: '#ef4444', marginBottom: '16px', fontSize: '14px' }}>{error || 'Joueur introuvable.'}</p>
+        <button
+          onClick={() => navigate('/players')}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: 0 }}
+        >
+          <ArrowLeft size={14} /> Retour aux joueurs
+        </button>
+      </div>
+    )
+  }
+
+  // ── Derived values ─────────────────────────────────────────────────────────
+
+  const score      = calculateScore(player)
+  const label      = getScoreLabel(score)
+  const posGroup   = getPosGroup(player.primary_position)
+  const posColor   = POS_COLOR[posGroup]
+  const labelColor = LABEL_COLOR[label] ?? '#5A7090'
+  const initials   = (player.name || '?').split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
 
   const radarData = player.individual_stats
     ? getRadarAxes(player.primary_position).map(axis => ({
@@ -119,135 +323,447 @@ export default function PlayerDetail() {
       }))
     : []
 
-  const initials = (player.name || '?')
-    .split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
+  const statBars = player.individual_stats
+    ? getRadarAxes(player.primary_position).map(axis => ({
+        label: axis,
+        value: (player.individual_stats![axis.toLowerCase() as keyof typeof player.individual_stats] as number) ?? 0,
+        color: AXIS_COLOR[axis] ?? posColor,
+      }))
+    : []
 
-  const posColor = positionColors[player.primary_position] || '#6b7280'
-  const labelColor = labelColors[label] || '#6b7280'
-
-  function fmt(v: any, decimals = 1) {
-    const n = Number(v)
-    return isNaN(n) || n === 0 ? '—' : n.toFixed(decimals)
-  }
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ color: 'white', maxWidth: '960px' }}>
-      {/* Hidden PDF template — always in DOM so recharts renders */}
+    <div style={{ color: 'var(--text-primary)', maxWidth: '1000px', animation: 'fadeIn 0.25s ease' }}>
+
+      {/* Hidden PDF template */}
       <PlayerPDFReport ref={reportRef} player={player} notes={notes} />
 
-      {/* Back + Export */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+      {/* ── HERO CARD ─────────────────────────────────────────────────────── */}
+      <div style={{
+        background: `var(--bg-surface)`,
+        backgroundImage: POS_GRADIENT[posGroup],
+        borderRadius: '16px',
+        border: `1px solid ${posColor}22`,
+        padding: '28px',
+        marginBottom: '20px',
+        boxShadow: `0 0 40px ${posColor}18`,
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Decorative glow orb */}
+        <div style={{
+          position: 'absolute', top: '-40px', right: '-40px',
+          width: '180px', height: '180px',
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${posColor}20, transparent 70%)`,
+          pointerEvents: 'none',
+        }} />
+
+        {/* Back button */}
         <button
           onClick={() => navigate('/players')}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: 0 }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            color: 'var(--text-muted)', background: 'none', border: 'none',
+            cursor: 'pointer', fontSize: '13px', padding: 0, marginBottom: '20px',
+            transition: 'color 150ms ease',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
         >
-          <ArrowLeft size={16} /> Back to players
+          <ArrowLeft size={14} /> Retour
         </button>
-        <button
-          onClick={handleExportPDF}
-          disabled={pdfLoading}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: pdfLoading ? '#1f2937' : '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: pdfLoading ? '#6b7280' : '#e2e8f0', fontSize: '13px', fontWeight: 600, padding: '8px 16px', cursor: pdfLoading ? 'not-allowed' : 'pointer' }}
-        >
-          {pdfLoading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Génération…</> : <><FileDown size={14} /> Exporter PDF</>}
-        </button>
-      </div>
 
-      {/* Header card */}
-      <div style={{ background: '#111827', borderRadius: '16px', padding: '28px', marginBottom: '20px', display: 'flex', gap: '28px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {/* Avatar */}
-        <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1f2937', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 700, color: '#9ca3af', flexShrink: 0 }}>
-          {initials}
-        </div>
+        {/* Hero content */}
+        <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
-        {/* Info */}
-        <div style={{ flex: 1, minWidth: '200px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
-            <h1 style={{ fontSize: '26px', fontWeight: 700, margin: 0 }}>{player.name}</h1>
-            <span style={{ background: posColor + '22', color: posColor, fontSize: '12px', fontWeight: 600, padding: '3px 10px', borderRadius: '6px' }}>
-              {player.primary_position}
-            </span>
+          {/* Avatar 96px */}
+          <div style={{
+            width: 96, height: 96, borderRadius: '50%', flexShrink: 0,
+            background: `radial-gradient(circle at 35% 35%, ${posColor}55, ${posColor}22)`,
+            border: `2px solid ${posColor}55`,
+            boxShadow: `0 0 24px ${posColor}50, 0 0 8px ${posColor}30`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '28px', fontWeight: 700, color: 'white',
+            fontFamily: 'var(--font-ui)',
+          }}>
+            {initials}
           </div>
-          <p style={{ color: '#9ca3af', fontSize: '14px', margin: '0 0 12px' }}>
-            {player.team}{player.competition ? ` · ${player.competition}` : ''}{player.age ? ` · Age ${player.age}` : ''}
-            {player.nationality ? ` · ${player.nationality}` : ''}{player.foot ? ` · ${player.foot} foot` : ''}
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ background: labelColor + '22', color: labelColor, fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '6px' }}>
+
+          {/* Player info */}
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            {/* Name */}
+            <h1 style={{ fontSize: '32px', fontWeight: 700, margin: '0 0 8px', lineHeight: 1.1, color: 'var(--text-primary)' }}>
+              {player.name}
+            </h1>
+
+            {/* Line 1: position + club + nationality */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+              <span style={{
+                background: `${posColor}22`, color: posColor,
+                fontSize: '11px', fontWeight: 700, padding: '3px 10px',
+                borderRadius: 'var(--radius-badge)', fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                border: `1px solid ${posColor}40`,
+              }}>
+                {player.primary_position}
+              </span>
+              {player.team && (
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{player.team}</span>
+              )}
+              {player.nationality && (
+                <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+                  {flagFor(player.nationality)}{player.nationality}
+                </span>
+              )}
+            </div>
+
+            {/* Line 2: age + foot + league */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
+              {player.age && (
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ color: 'var(--text-secondary)', marginRight: '4px' }}>Âge</span>{player.age}
+                </span>
+              )}
+              {player.foot && (
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ color: 'var(--text-secondary)', marginRight: '4px' }}>Pied</span>{player.foot}
+                </span>
+              )}
+              {player.competition && (
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ color: 'var(--text-secondary)', marginRight: '4px' }}>Ligue</span>{player.competition}
+                </span>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+
+              {/* Shortlist */}
+              <button
+                onClick={() => navigate('/shortlist')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: 'rgba(236,72,153,0.08)', border: '1px solid rgba(236,72,153,0.25)',
+                  borderRadius: '8px', color: '#ec4899', fontSize: '12px', fontWeight: 600,
+                  padding: '7px 14px', cursor: 'pointer', transition: 'all 150ms ease',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(236,72,153,0.16)'; e.currentTarget.style.borderColor = 'rgba(236,72,153,0.5)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(236,72,153,0.08)'; e.currentTarget.style.borderColor = 'rgba(236,72,153,0.25)' }}
+              >
+                <Heart size={13} /> Shortlist
+              </button>
+
+              {/* Comparer */}
+              <button
+                onClick={() => player && (compareIds.length < 3 || isSelected(player.id)) && toggle(player.id)}
+                disabled={compareIds.length >= 3 && !isSelected(player?.id ?? '')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: isSelected(player?.id ?? '') ? 'rgba(0,200,150,0.12)' : 'rgba(77,127,255,0.08)',
+                  border: `1px solid ${isSelected(player?.id ?? '') ? 'rgba(0,200,150,0.35)' : 'rgba(77,127,255,0.25)'}`,
+                  borderRadius: '8px',
+                  color: isSelected(player?.id ?? '') ? '#00C896' : '#4D7FFF',
+                  fontSize: '12px', fontWeight: 600,
+                  padding: '7px 14px', cursor: compareIds.length >= 3 && !isSelected(player?.id ?? '') ? 'not-allowed' : 'pointer',
+                  opacity: compareIds.length >= 3 && !isSelected(player?.id ?? '') ? 0.5 : 1,
+                  transition: 'all 150ms ease',
+                }}
+              >
+                {isSelected(player?.id ?? '') ? <><CheckCircle size={13} /> Comparateur</> : <><Scale size={13} /> Comparer</>}
+              </button>
+
+              {/* Rapport IA */}
+              <button
+                onClick={() => alert('Fonctionnalité bientôt disponible.')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: 'rgba(155,109,255,0.08)', border: '1px solid rgba(155,109,255,0.25)',
+                  borderRadius: '8px', color: '#9B6DFF', fontSize: '12px', fontWeight: 600,
+                  padding: '7px 14px', cursor: 'pointer', transition: 'all 150ms ease',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(155,109,255,0.16)'; e.currentTarget.style.borderColor = 'rgba(155,109,255,0.5)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(155,109,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(155,109,255,0.25)' }}
+              >
+                <Sparkles size={13} /> Rapport IA
+              </button>
+
+              {/* PDF */}
+              <button
+                onClick={handleExportPDF}
+                disabled={pdfLoading}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: '8px', color: pdfLoading ? 'var(--text-muted)' : 'var(--text-secondary)',
+                  fontSize: '12px', fontWeight: 600,
+                  padding: '7px 14px', cursor: pdfLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseEnter={e => { if (!pdfLoading) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+              >
+                {pdfLoading
+                  ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Génération…</>
+                  : <><FileDown size={13} /> PDF</>
+                }
+              </button>
+            </div>
+          </div>
+
+          {/* Score ring + label */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <ScoreRingLarge score={score} color={labelColor} />
+            <span style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase',
+              color: labelColor, fontFamily: 'var(--font-mono)',
+              padding: '3px 10px', borderRadius: '20px',
+              background: `${labelColor}18`,
+              border: `1px solid ${labelColor}35`,
+              boxShadow: `0 0 12px ${labelColor}25`,
+            }}>
               {label}
             </span>
-            <button
-              onClick={() => player && (compareIds.length < 3 || isSelected(player.id)) && toggle(player.id)}
-              disabled={compareIds.length >= 3 && !isSelected(player?.id ?? '')}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: isSelected(player?.id ?? '') ? '#10F09022' : '#1f2937', border: `1px solid ${isSelected(player?.id ?? '') ? '#10F090' : '#374151'}`, borderRadius: '7px', color: isSelected(player?.id ?? '') ? '#10F090' : '#9ca3af', fontSize: '12px', fontWeight: 600, padding: '4px 12px', cursor: 'pointer' }}
-            >
-              {isSelected(player?.id ?? '') ? <><CheckCircle size={13} /> Dans le comparateur</> : <><Scale size={13} /> Comparer</>}
-            </button>
           </div>
-        </div>
-
-        {/* Score ring */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-          <ScoreRing score={score} />
-          <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scout Score</p>
         </div>
       </div>
 
-      {/* Stats + Radar */}
-      <div style={{ display: 'grid', gridTemplateColumns: radarData.length ? '1fr 320px' : '1fr', gap: '20px', alignItems: 'start' }}>
-        {/* Stats grid */}
-        <div>
-          <p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Playing Time</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '20px' }}>
-            <StatCard label="Appearances" value={fmt(player.appearances, 0)} />
-            <StatCard label="Minutes Played" value={fmt(player.minutes_played, 0)} />
+      {/* ── STATS SECTION ─────────────────────────────────────────────────────── */}
+      {radarData.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+
+          {/* Radar chart */}
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: '14px',
+            padding: '24px',
+          }}>
+            <p style={{
+              fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+              textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px',
+            }}>
+              Profil joueur
+            </p>
+            <div style={{ filter: `drop-shadow(0 0 10px ${posColor}50)` }}>
+              <ResponsiveContainer width="100%" height={260}>
+                <RadarChart data={radarData} margin={{ top: 14, right: 24, bottom: 14, left: 24 }}>
+                  <PolarGrid stroke="rgba(255,255,255,0.07)" />
+                  <PolarAngleAxis dataKey="stat" tick={CustomRadarTick as any} />
+                  <Radar
+                    dataKey="value"
+                    fill={posColor}
+                    fillOpacity={0.15}
+                    stroke={posColor}
+                    strokeWidth={2}
+                    dot={{ fill: posColor, r: 3, strokeWidth: 0 }}
+                    style={{ filter: `drop-shadow(0 0 4px ${posColor})` }}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          <p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Attack</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
-            <StatCard label="Goals" value={fmt(player.goals, 0)} />
-            <StatCard label="Assists" value={fmt(player.assists, 0)} />
-            <StatCard label="xG" value={fmt(player.xg)} />
-            <StatCard label="xA" value={fmt(player.xa)} />
-            <StatCard label="Shot-Creating Actions" value={fmt(player.shot_creating_actions, 0)} />
-          </div>
-
-          <p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Defence</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
-            <StatCard label="Tackles" value={fmt(player.tackles, 0)} />
-            <StatCard label="Interceptions" value={fmt(player.interceptions, 0)} />
-            <StatCard label="Blocks" value={fmt(player.blocks, 0)} />
-            <StatCard label="Clearances" value={fmt(player.clearances, 0)} />
-            <StatCard label="Pressures" value={fmt(player.pressures, 0)} />
-            <StatCard label="Pressure Success" value={player.pressure_success_rate ? fmt(player.pressure_success_rate) + '%' : '—'} />
-          </div>
-
-          <p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Passing</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-            <StatCard label="Pass Completion" value={player.pass_completion_rate ? fmt(player.pass_completion_rate) + '%' : '—'} />
-            <StatCard label="Progressive Passes" value={fmt(player.progressive_passes, 0)} />
-            <StatCard label="Key Passes" value={fmt(player.key_passes, 0)} />
-          </div>
-        </div>
-
-        {/* Radar chart */}
-        {radarData.length > 0 && (
-          <div style={{ background: '#111827', borderRadius: '16px', padding: '24px' }}>
-            <p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Player Profile</p>
-            <ResponsiveContainer width="100%" height={280}>
-              <RadarChart data={radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
-                <PolarGrid stroke="#1f2937" />
-                <PolarAngleAxis dataKey="stat" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-                <Radar dataKey="value" fill="#3b82f6" fillOpacity={0.25} stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} />
-              </RadarChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
-              {radarData.map(({ stat, value }) => (
-                <div key={stat} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                  <span style={{ color: '#9ca3af' }}>{stat}</span>
-                  <span style={{ fontWeight: 600 }}>{value}</span>
-                </div>
+          {/* Stat bars */}
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: '14px',
+            padding: '24px',
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          }}>
+            <p style={{
+              fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+              textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '20px',
+            }}>
+              Scores par axe
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {statBars.map(({ label: axisLabel, value, color }) => (
+                <StatBar
+                  key={axisLabel}
+                  label={axisLabel}
+                  value={value}
+                  color={color}
+                  ready={barsReady}
+                />
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RAW STATS ─────────────────────────────────────────────────────────── */}
+      <div style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '14px',
+        padding: '24px',
+        marginBottom: '20px',
+      }}>
+        <p style={{
+          fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+          textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '20px',
+        }}>
+          Statistiques brutes
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+          {[
+            { label: 'Matchs',           value: fmt(player.appearances, 0) },
+            { label: 'Minutes',          value: fmt(player.minutes_played, 0) },
+            { label: 'Buts',             value: fmt(player.goals, 0) },
+            { label: 'Passes déc.',      value: fmt(player.assists, 0) },
+            { label: 'xG',               value: fmt(player.xg) },
+            { label: 'xA',               value: fmt(player.xa) },
+            { label: 'SCA',              value: fmt(player.shot_creating_actions, 0) },
+            { label: 'Tacles',           value: fmt(player.tackles, 0) },
+            { label: 'Interceptions',    value: fmt(player.interceptions, 0) },
+            { label: 'Blocs',            value: fmt(player.blocks, 0) },
+            { label: 'Dégagements',      value: fmt(player.clearances, 0) },
+            { label: 'Pressions',        value: fmt(player.pressures, 0) },
+            { label: 'Réus. pression',   value: player.pressure_success_rate ? fmt(player.pressure_success_rate) + '%' : '—' },
+            { label: 'Réus. passes',     value: player.pass_completion_rate ? fmt(player.pass_completion_rate) + '%' : '—' },
+            { label: 'Passes prog.',     value: fmt(player.progressive_passes, 0) },
+            { label: 'Passes clés',      value: fmt(player.key_passes, 0) },
+          ].map(({ label: statLabel, value }) => (
+            <div key={statLabel} style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.05)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+            }}>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
+                {statLabel}
+              </p>
+              <p style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', margin: 0 }}>
+                {value}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── SCOUT NOTES ───────────────────────────────────────────────────────── */}
+      <div style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '14px',
+        padding: '24px',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <p style={{
+            fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+            textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0,
+          }}>
+            Notes de scouting
+            {notes.length > 0 && (
+              <span style={{
+                marginLeft: '8px',
+                background: 'rgba(77,127,255,0.15)',
+                color: 'var(--accent-blue)',
+                borderRadius: '20px',
+                padding: '1px 7px',
+                fontSize: '10px',
+                fontWeight: 700,
+              }}>
+                {notes.length}
+              </span>
+            )}
+          </p>
+          <button
+            onClick={() => { setShowNoteForm(v => !v); setTimeout(() => textareaRef.current?.focus(), 50) }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: showNoteForm ? 'rgba(77,127,255,0.15)' : 'rgba(77,127,255,0.08)',
+              border: '1px solid rgba(77,127,255,0.25)',
+              borderRadius: '8px', color: 'var(--accent-blue)',
+              fontSize: '12px', fontWeight: 600, padding: '6px 12px',
+              cursor: 'pointer', transition: 'all 150ms ease',
+            }}
+          >
+            {showNoteForm ? '✕ Annuler' : '+ Ajouter'}
+          </button>
+        </div>
+
+        {/* Note form */}
+        {showNoteForm && (
+          <div style={{ marginBottom: '20px', animation: 'fadeIn 0.2s ease' }}>
+            <textarea
+              ref={textareaRef}
+              value={noteText}
+              onChange={e => {
+                setNoteText(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
+              placeholder="Observations, remarques, points d'attention…"
+              rows={3}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: '10px',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                lineHeight: 1.6,
+                padding: '12px 14px',
+                resize: 'none',
+                outline: 'none',
+                fontFamily: 'var(--font-ui)',
+                transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                marginBottom: '10px',
+                boxSizing: 'border-box',
+              }}
+              onFocus={e => {
+                e.target.style.borderColor = 'rgba(77,127,255,0.50)'
+                e.target.style.boxShadow = '0 0 0 3px rgba(77,127,255,0.12)'
+              }}
+              onBlur={e => {
+                e.target.style.borderColor = 'rgba(255,255,255,0.10)'
+                e.target.style.boxShadow = 'none'
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleAddNote}
+                disabled={!noteText.trim() || savingNote}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: noteText.trim() ? 'var(--accent-blue)' : 'rgba(77,127,255,0.20)',
+                  border: 'none', borderRadius: '8px',
+                  color: noteText.trim() ? 'white' : 'var(--text-muted)',
+                  fontSize: '13px', fontWeight: 600, padding: '8px 16px',
+                  cursor: noteText.trim() && !savingNote ? 'pointer' : 'not-allowed',
+                  transition: 'all 150ms ease',
+                }}
+              >
+                {savingNote
+                  ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Enregistrement…</>
+                  : <><Send size={13} /> Enregistrer</>
+                }
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Notes list */}
+        {notes.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {notes.map(note => <NoteCard key={note.id} note={note} />)}
+          </div>
+        ) : (
+          <div style={{
+            textAlign: 'center', padding: '32px 0',
+            color: 'var(--text-muted)', fontSize: '13px',
+          }}>
+            <p style={{ marginBottom: '4px' }}>Aucune note pour ce joueur.</p>
+            <p style={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+              Ajoutez vos observations de scouting.
+            </p>
           </div>
         )}
       </div>
