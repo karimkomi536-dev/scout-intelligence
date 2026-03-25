@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { usePlayerHistory } from '../hooks/usePlayerHistory'
 import {
   ArrowLeft, Scale, CheckCircle, FileDown, Loader2, Heart, Sparkles, Send,
+  TrendingUp, TrendingDown,
 } from 'lucide-react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel, getRadarAxes } from '../utils/scoring'
@@ -235,6 +238,8 @@ export default function PlayerDetail() {
   const reportRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const { snapshots, loading: historyLoading } = usePlayerHistory(id)
+
   useEffect(() => {
     if (!id) return
     supabase.from('players').select('*').eq('id', id).single()
@@ -333,6 +338,15 @@ export default function PlayerDetail() {
         color: AXIS_COLOR[axis] ?? posColor,
       }))
     : []
+
+  // ── Progression data ────────────────────────────────────────────────────────
+  const chartData = snapshots.map(s => ({
+    date: new Date(s.snapshot_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+    score: s.overall_score,
+  }))
+  const scoreDelta = snapshots.length >= 2
+    ? snapshots[snapshots.length - 1].overall_score - snapshots[snapshots.length - 2].overall_score
+    : null
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -520,7 +534,7 @@ export default function PlayerDetail() {
             </div>
           </div>
 
-          {/* Score ring + label */}
+          {/* Score ring + label + progression badge */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0, alignSelf: isMobile ? 'center' : 'flex-start' }}>
             <ScoreRingLarge score={score} color={labelColor} size={isMobile ? 90 : 120} />
             <span style={{
@@ -533,6 +547,24 @@ export default function PlayerDetail() {
             }}>
               {label}
             </span>
+            {/* Progression badge — shown only when delta > 5 */}
+            {scoreDelta !== null && Math.abs(scoreDelta) > 5 && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                color: scoreDelta > 0 ? '#00C896' : '#ef4444',
+                background: scoreDelta > 0 ? 'rgba(0,200,150,0.12)' : 'rgba(239,68,68,0.12)',
+                border: `1px solid ${scoreDelta > 0 ? 'rgba(0,200,150,0.30)' : 'rgba(239,68,68,0.30)'}`,
+                borderRadius: '20px',
+                padding: '3px 10px',
+              }}>
+                {scoreDelta > 0
+                  ? <TrendingUp size={11} />
+                  : <TrendingDown size={11} />
+                }
+                {scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta} pts
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -651,6 +683,77 @@ export default function PlayerDetail() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ── PROGRESSION ──────────────────────────────────────────────────────── */}
+      <div style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '14px',
+        padding: '24px',
+        marginBottom: '20px',
+      }}>
+        <p style={{
+          fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+          textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '20px',
+        }}>
+          Progression
+        </p>
+
+        {historyLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
+            <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+            <span>Chargement…</span>
+          </div>
+        ) : chartData.length < 2 ? (
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '6px' }}>
+              Données insuffisantes — revenez dans quelques semaines
+            </p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+              {chartData.length} / 2 snapshots disponibles
+            </p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -10 }}>
+              <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any}
+                axisLine={false}
+                tickLine={false}
+                tickCount={5}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: '#0D1525',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: 'var(--text-primary)',
+                }}
+                formatter={(value: number) => [value, 'Score']}
+                labelStyle={{ color: 'var(--text-muted)', marginBottom: '4px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}
+              />
+              <Line
+                type="monotone"
+                dataKey="score"
+                stroke={labelColor}
+                strokeWidth={2}
+                dot={{ fill: labelColor, r: 3, strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: labelColor, strokeWidth: 0 }}
+                style={{ filter: `drop-shadow(0 0 6px ${labelColor}80)` }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* ── SCOUT NOTES ───────────────────────────────────────────────────────── */}
