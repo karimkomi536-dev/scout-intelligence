@@ -11,7 +11,7 @@
     "scrape:all": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python run_pipeline.py --all",
     "scrape:ligue1": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python run_pipeline.py --league \"Ligue 1\"",
     "scrape:dry": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python run_pipeline.py --all --dry-run",
-    "snapshot": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python snapshot_players.py"
+    "snapshot": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python snapshot_players.py"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

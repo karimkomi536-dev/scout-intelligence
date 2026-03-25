@@ -70,7 +70,8 @@ def upsert_snapshots(snapshots: list[dict]) -> None:
 
     Uses resolution=merge-duplicates so re-running on the same day is idempotent.
     """
-    url = f"{SUPABASE_URL}/rest/v1/player_history"
+    # on_conflict tells PostgREST which columns define the upsert key
+    url = f"{SUPABASE_URL}/rest/v1/player_history?on_conflict=player_id,snapshot_date"
     headers = {
         **_BASE_HEADERS,
         "Prefer": "resolution=merge-duplicates,return=minimal",
