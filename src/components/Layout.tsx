@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
-  Scale, Settings, Zap, Bell, Menu, X,
+  Scale, Settings, Zap, Menu, X,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import CompareBar from './CompareBar'
+import NotificationBell from './NotificationBell'
 import { useIsMobile } from '../hooks/useIsMobile'
 
 // ── Nav config ────────────────────────────────────────────────────────────────
@@ -365,15 +366,7 @@ export default function Layout() {
               </span>
             </div>
 
-            <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '4px', position: 'relative' }}>
-              <Bell size={18} />
-              {/* Notification dot */}
-              <span style={{
-                position: 'absolute', top: '2px', right: '2px',
-                width: '7px', height: '7px', borderRadius: '50%',
-                background: '#00C896', border: '1.5px solid var(--bg-sidebar)',
-              }} />
-            </button>
+            <NotificationBell />
           </header>
         ) : (
           /* Desktop top bar */
@@ -393,8 +386,11 @@ export default function Layout() {
                 {pageTitle}
               </h2>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
-              {formatDate()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
+                {formatDate()}
+              </span>
+              <NotificationBell />
             </div>
           </header>
         )}
