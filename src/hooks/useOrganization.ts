@@ -46,16 +46,28 @@ export function useOrganization(): OrganizationState {
     setError(null)
 
     try {
-      // 1. Récupère l'org active depuis le profil
-      const { data: profile, error: profileError } = await supabase
+      // 1. Récupère le profil complet (select * pour éviter 406 sur colonnes manquantes)
+      const { data, error: profileError } = await supabase
         .from('profiles')
-        .select('organization_id')
+        .select('*')
         .eq('user_id', userId)
         .single()
 
-      if (profileError) throw profileError
+      console.log('Profile fetch result:', data, profileError)
 
-      const activeOrgId = profile?.organization_id
+      // PGRST116 = no rows found (user sans profil) — traiter comme plan free, ne pas crasher
+      if (profileError) {
+        if (profileError.code === 'PGRST116' || profileError.code === '406') {
+          console.log('No profile row found — defaulting to free plan')
+          setOrganization(null)
+          setRole(null)
+          setLoading(false)
+          return
+        }
+        throw profileError
+      }
+
+      const activeOrgId = data?.organization_id
 
       if (!activeOrgId) {
         // User sans org (nouveau compte, pas encore invité)
@@ -86,6 +98,7 @@ export function useOrganization(): OrganizationState {
       setOrganization(orgResult.data as Organization)
       setRole((memberResult.data?.role as OrgRole) ?? null)
     } catch (err) {
+      console.error('fetchOrganization error:', err)
       setError(err instanceof Error ? err.message : 'Failed to load organization')
       setOrganization(null)
       setRole(null)
