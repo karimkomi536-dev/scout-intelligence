@@ -112,23 +112,34 @@ export default async function handler(req: Request): Promise<Response> {
 
   const userMessage = `Génère un rapport de scouting professionnel pour ce joueur :\n\n${formatPlayerData(player)}`
 
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key':         apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type':      'application/json',
-    },
-    body: JSON.stringify({
-      model:      'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system:     SYSTEM_PROMPT,
-      messages:   [{ role: 'user', content: userMessage }],
-    }),
-  })
+  let anthropicRes: Response
+  try {
+    anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system:     SYSTEM_PROMPT,
+        messages:   [{ role: 'user', content: userMessage }],
+      }),
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('Anthropic fetch failed:', msg)
+    return new Response(JSON.stringify({ error: 'Failed to reach Anthropic API', detail: msg }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    })
+  }
 
   if (!anthropicRes.ok) {
     const err = await anthropicRes.text()
+    console.error('Anthropic API error:', anthropicRes.status, err)
     return new Response(JSON.stringify({ error: 'Anthropic API error', detail: err }), {
       status: anthropicRes.status,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
