@@ -15,6 +15,8 @@ import { calculateScore, getScoreLabel, getRadarAxes, getPosGroup } from '../uti
 import type { PosGroup } from '../utils/scoring'
 import { useScoringProfile } from '../hooks/useScoringProfile'
 import { useScoutReport } from '../hooks/useScoutReport'
+import { useSimilarPlayers } from '../hooks/useSimilarPlayers'
+import SimilarPlayers from '../components/SimilarPlayers'
 import { useCompare } from '../contexts/CompareContext'
 import { PlayerPDFReport } from '../components/PlayerPDFReport'
 import { exportPlayerPDF } from '../utils/exportPDF'
@@ -236,6 +238,7 @@ export default function PlayerDetail() {
   const { weights: scoringWeights } = useScoringProfile()
   const { report: aiReport, status: aiStatus, error: aiError, generateReport, reset: resetReport } = useScoutReport()
   const [includeInPDF, setIncludeInPDF] = useState(false)
+  const { similar, loading: similarLoading } = useSimilarPlayers(player)
 
   useEffect(() => {
     if (!id) return
@@ -1018,6 +1021,10 @@ export default function PlayerDetail() {
           </div>
         )}
       </div>
+
+      {/* ── SIMILAR PLAYERS ───────────────────────────────────────────────────── */}
+      <SimilarPlayers similar={similar} loading={similarLoading} />
+
     </div>
   )
 }
