@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import CompareBar from './CompareBar'
 import NotificationBell from './NotificationBell'
+import CommandPalette from './CommandPalette'
 import { useIsMobile } from '../hooks/useIsMobile'
 
 // ── Nav config ────────────────────────────────────────────────────────────────
@@ -260,11 +261,24 @@ export default function Layout() {
   const isMobile = useIsMobile()
   const [showProfileSheet, setShowProfileSheet] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [cmdOpen, setCmdOpen] = useState(false)
 
   // Close drawer on route change
   useEffect(() => {
     setSidebarOpen(false)
   }, [location.pathname])
+
+  // Cmd+K / Ctrl+K global shortcut
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCmdOpen(v => !v)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const displayName = user?.email?.split('@')[0] ?? 'Scout'
   const displayEmail = user?.email ?? ''
@@ -389,6 +403,39 @@ export default function Layout() {
               </h2>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={() => setCmdOpen(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  borderRadius: '8px', padding: '5px 12px',
+                  color: 'var(--text-muted)', fontSize: '12px',
+                  cursor: 'pointer', transition: 'all 150ms ease',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.07)'
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.16)'
+                  e.currentTarget.style.color = 'var(--text-primary)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'
+                  e.currentTarget.style.color = 'var(--text-muted)'
+                }}
+              >
+                Rechercher…
+                <kbd style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.14)',
+                  borderRadius: '5px', padding: '1px 6px',
+                  fontSize: '11px', fontFamily: 'var(--font-mono)',
+                  color: 'var(--text-muted)',
+                }}>
+                  ⌘K
+                </kbd>
+              </button>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
                 {formatDate()}
               </span>
@@ -580,6 +627,8 @@ export default function Layout() {
       )}
 
       <CompareBar />
+
+      {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} />}
     </div>
   )
 }
