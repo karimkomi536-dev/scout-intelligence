@@ -4,7 +4,7 @@ import { useIsMobile } from '../hooks/useIsMobile'
 import { usePlayerHistory } from '../hooks/usePlayerHistory'
 import {
   ArrowLeft, Scale, CheckCircle, FileDown, Loader2, Heart, Sparkles, Send,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, RefreshCw, FileText,
 } from 'lucide-react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel, getRadarAxes, getPosGroup } from '../utils/scoring'
 import type { PosGroup } from '../utils/scoring'
 import { useScoringProfile } from '../hooks/useScoringProfile'
+import { useScoutReport } from '../hooks/useScoutReport'
 import { useCompare } from '../contexts/CompareContext'
 import { PlayerPDFReport } from '../components/PlayerPDFReport'
 import { exportPlayerPDF } from '../utils/exportPDF'
@@ -233,6 +234,8 @@ export default function PlayerDetail() {
 
   const { snapshots, loading: historyLoading } = usePlayerHistory(id)
   const { weights: scoringWeights } = useScoringProfile()
+  const { report: aiReport, status: aiStatus, error: aiError, generateReport, reset: resetReport } = useScoutReport()
+  const [includeInPDF, setIncludeInPDF] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -348,7 +351,12 @@ export default function PlayerDetail() {
     <div style={{ color: 'var(--text-primary)', maxWidth: '1000px', animation: 'fadeIn 0.25s ease' }}>
 
       {/* Hidden PDF template */}
-      <PlayerPDFReport ref={reportRef} player={player} notes={notes} />
+      <PlayerPDFReport
+        ref={reportRef}
+        player={player}
+        notes={notes}
+        aiReport={includeInPDF ? aiReport : null}
+      />
 
       {/* ── HERO CARD ─────────────────────────────────────────────────────── */}
       <div style={{
@@ -747,6 +755,145 @@ export default function PlayerDetail() {
               />
             </LineChart>
           </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* ── RAPPORT IA ────────────────────────────────────────────────────────── */}
+      <div style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid rgba(155,109,255,0.18)',
+        borderRadius: '14px',
+        padding: '24px',
+        marginBottom: '20px',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <p style={{
+              fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+              textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0,
+            }}>
+              Rapport IA
+            </p>
+            <span style={{
+              fontSize: '9px', fontWeight: 700, color: '#9B6DFF',
+              background: 'rgba(155,109,255,0.12)', border: '1px solid rgba(155,109,255,0.25)',
+              borderRadius: '4px', padding: '2px 7px',
+              fontFamily: 'var(--font-mono)',
+            }}>
+              Pro+
+            </span>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {aiReport && (
+              <>
+                <button
+                  onClick={() => setIncludeInPDF(v => !v)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: includeInPDF ? 'rgba(0,200,150,0.12)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${includeInPDF ? 'rgba(0,200,150,0.30)' : 'rgba(255,255,255,0.10)'}`,
+                    borderRadius: '8px',
+                    color: includeInPDF ? '#00C896' : 'var(--text-muted)',
+                    fontSize: '12px', fontWeight: 600, padding: '6px 12px',
+                    cursor: 'pointer', transition: 'all 150ms ease',
+                  }}
+                >
+                  <FileText size={12} />
+                  {includeInPDF ? 'Dans le PDF ✓' : 'Inclure dans le PDF'}
+                </button>
+                <button
+                  onClick={() => { resetReport(); setIncludeInPDF(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.10)',
+                    borderRadius: '8px', color: 'var(--text-muted)',
+                    fontSize: '12px', fontWeight: 600, padding: '6px 12px',
+                    cursor: 'pointer', transition: 'all 150ms ease',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                >
+                  <RefreshCw size={12} /> Régénérer
+                </button>
+              </>
+            )}
+
+            {aiStatus !== 'success' && (
+              <button
+                onClick={() => generateReport(player)}
+                disabled={aiStatus === 'loading'}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  background: aiStatus === 'loading'
+                    ? 'rgba(155,109,255,0.08)'
+                    : 'linear-gradient(135deg, rgba(155,109,255,0.20), rgba(77,127,255,0.20))',
+                  border: '1px solid rgba(155,109,255,0.35)',
+                  borderRadius: '8px',
+                  color: aiStatus === 'loading' ? 'var(--text-muted)' : '#9B6DFF',
+                  fontSize: '13px', fontWeight: 700, padding: '8px 18px',
+                  cursor: aiStatus === 'loading' ? 'not-allowed' : 'pointer',
+                  transition: 'all 150ms ease',
+                }}
+              >
+                {aiStatus === 'loading' ? (
+                  <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Analyse en cours…</>
+                ) : (
+                  <><Sparkles size={14} /> Générer rapport IA</>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Body */}
+        {aiStatus === 'idle' && (
+          <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--text-muted)' }}>
+            <Sparkles size={28} style={{ opacity: 0.25, marginBottom: '10px' }} />
+            <p style={{ fontSize: '13px', marginBottom: '4px' }}>
+              Génère un rapport de scouting professionnel en quelques secondes.
+            </p>
+            <p style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', opacity: 0.6 }}>
+              Alimenté par Claude — analyse basée sur les stats réelles
+            </p>
+          </div>
+        )}
+
+        {aiStatus === 'loading' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '28px 0', color: 'var(--text-muted)', justifyContent: 'center' }}>
+            <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: '#9B6DFF' }} />
+            <span style={{ fontSize: '13px' }}>Analyse en cours…</span>
+          </div>
+        )}
+
+        {aiStatus === 'error' && (
+          <div style={{
+            padding: '16px', borderRadius: '10px',
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)',
+            color: '#ef4444', fontSize: '13px',
+          }}>
+            Erreur : {aiError}
+          </div>
+        )}
+
+        {aiStatus === 'success' && aiReport && (
+          <div style={{
+            padding: '20px',
+            background: 'rgba(155,109,255,0.05)',
+            border: '1px solid rgba(155,109,255,0.15)',
+            borderLeft: '3px solid #9B6DFF',
+            borderRadius: '10px',
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.7,
+            whiteSpace: 'pre-wrap',
+            animation: 'fadeIn 0.3s ease',
+          }}>
+            {aiReport}
+          </div>
         )}
       </div>
 

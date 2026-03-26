@@ -20,8 +20,9 @@ export interface ScoutNote {
 }
 
 interface Props {
-  player: Player
-  notes: ScoutNote[]
+  player:    Player
+  notes:     ScoutNote[]
+  aiReport?: string | null
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ function formatDate(iso: string) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export const PlayerPDFReport = forwardRef<HTMLDivElement, Props>(({ player, notes }, ref) => {
+export const PlayerPDFReport = forwardRef<HTMLDivElement, Props>(({ player, notes, aiReport }, ref) => {
   const score = calculateScore(player)
   const label = getScoreLabel(score)
   const labelColor = LABEL_COLORS[label] || '#6b7280'
@@ -232,6 +233,28 @@ export const PlayerPDFReport = forwardRef<HTMLDivElement, Props>(({ player, note
           ))
         )}
       </div>
+
+      {/* ── AI Report ───────────────────────────────────────────────────── */}
+      {aiReport && (
+        <div style={{ padding: `0 ${PAD}px 24px` }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>
+            Rapport IA — Analyse VIZION
+          </div>
+          <div style={{
+            padding: '16px',
+            background: '#f0f9ff',
+            border: '1px solid #bae6fd',
+            borderLeft: '3px solid #0ea5e9',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: '#0f172a',
+            lineHeight: 1.65,
+            whiteSpace: 'pre-wrap',
+          }}>
+            {aiReport}
+          </div>
+        </div>
+      )}
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <div style={{
