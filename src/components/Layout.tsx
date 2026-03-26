@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
-  Scale, Settings, Zap, Menu, X,
+  Scale, Settings, Zap, Menu, X, Target,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import CompareBar from './CompareBar'
@@ -19,7 +19,8 @@ const NAV_ITEMS = [
   { to: '/shortlist',  icon: Bookmark,         label: 'Shortlist' },
   { to: '/newsletter', icon: Newspaper,        label: 'Newsletter' },
   { to: '/upload',     icon: Upload,           label: 'Import'    },
-  { to: '/settings',   icon: Settings,         label: 'Paramètres' },
+  { to: '/settings',    icon: Settings,         label: 'Paramètres' },
+  { to: '/shadow-team', icon: Target,           label: 'Shadow Team' },
 ]
 
 const BOTTOM_NAV_ITEMS = [
@@ -36,7 +37,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/shortlist':  'Shortlist',
   '/newsletter': 'Newsletter',
   '/upload':     'Import',
-  '/settings':   'Paramètres',
+  '/settings':    'Paramètres',
+  '/shadow-team': 'Shadow Team',
 }
 
 // ── Avatar gradient by first letter ──────────────────────────────────────────
