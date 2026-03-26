@@ -67,6 +67,9 @@ Règles :
 // ── Handler ────────────────────────────────────────────────────────────────
 
 export default async function handler(req: Request): Promise<Response> {
+  console.log('ANTHROPIC_API_KEY present:', !!process.env.ANTHROPIC_API_KEY)
+  console.log('Key prefix:', process.env.ANTHROPIC_API_KEY?.substring(0, 10))
+
   // CORS
   const corsHeaders = {
     'Access-Control-Allow-Origin':  '*',
