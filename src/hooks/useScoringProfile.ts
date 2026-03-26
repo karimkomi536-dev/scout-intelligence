@@ -29,10 +29,10 @@ export function useScoringProfile(): UseScoringProfileResult {
     }
 
     async function load() {
-      // 1. Fetch user's org + plan
+      // 1. Fetch organization_id from profile
       const { data: profile } = await supabase
         .from('profiles')
-        .select('organization_id, organizations(plan)')
+        .select('organization_id')
         .eq('user_id', userId!)
         .single()
 
@@ -41,14 +41,17 @@ export function useScoringProfile(): UseScoringProfileResult {
         return
       }
 
-      const org = profile as unknown as {
-        organization_id: string
-        organizations: { plan: string } | null
-      }
-      const plan = org.organizations?.plan ?? 'free'
+      // 2. Fetch org plan separately (avoids 406 from embedded join)
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('plan')
+        .eq('id', profile.organization_id)
+        .single()
+
+      const plan = orgData?.plan ?? 'free'
       const isPro = plan === 'pro' || plan === 'enterprise'
 
-      setOrgId(org.organization_id)
+      setOrgId(profile.organization_id)
       setIsProPlan(isPro)
 
       if (!isPro) {
@@ -56,11 +59,11 @@ export function useScoringProfile(): UseScoringProfileResult {
         return
       }
 
-      // 2. Fetch custom weights for this org
+      // 3. Fetch custom weights for this org
       const { data: profiles } = await supabase
         .from('scoring_profiles')
         .select('position_group, weights')
-        .eq('organization_id', org.organization_id)
+        .eq('organization_id', profile.organization_id)
 
       if (profiles && profiles.length > 0) {
         const merged: ScoringProfileMap = { ...DEFAULT_GROUP_WEIGHTS }
