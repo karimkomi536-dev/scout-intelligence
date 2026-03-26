@@ -67,7 +67,8 @@ Règles :
 // ── Handler ────────────────────────────────────────────────────────────────
 
 export default async function handler(req: Request): Promise<Response> {
-  console.log('ANTHROPIC_API_KEY present:', !!process.env.ANTHROPIC_API_KEY)
+  const apiKeyPresent = !!process.env.ANTHROPIC_API_KEY
+  console.log('ANTHROPIC_API_KEY present:', apiKeyPresent)
   console.log('Key prefix:', process.env.ANTHROPIC_API_KEY?.substring(0, 10))
 
   // CORS
@@ -82,30 +83,32 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+    return new Response(JSON.stringify({ error: 'Method not allowed', apiKeyPresent }), {
       status: 405, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    })
+  }
+
+  // Read body once at the top — Edge runtime body can only be consumed once
+  const body = await req.json().catch(() => null) as { player?: Record<string, unknown>; language?: string } | null
+  console.log('Request body received:', JSON.stringify(body))
+
+  if (!body) {
+    return new Response(JSON.stringify({ error: 'Invalid or empty JSON body', apiKeyPresent }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), {
+    return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured', apiKeyPresent: false }), {
       status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    })
-  }
-
-  let body: { player?: Record<string, unknown>; language?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })
   }
 
   const { player } = body
   if (!player || !player.name) {
-    return new Response(JSON.stringify({ error: 'Missing player data' }), {
+    console.log('Missing player data. body keys:', body ? Object.keys(body) : 'null')
+    return new Response(JSON.stringify({ error: 'Missing player data', received: JSON.stringify(body), apiKeyPresent }), {
       status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })
   }
@@ -131,16 +134,16 @@ export default async function handler(req: Request): Promise<Response> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('Anthropic fetch failed:', msg)
-    return new Response(JSON.stringify({ error: 'Failed to reach Anthropic API', detail: msg }), {
+    return new Response(JSON.stringify({ error: 'Failed to reach Anthropic API', detail: msg, apiKeyPresent }), {
       status: 502,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })
   }
 
   if (!anthropicRes.ok) {
-    const err = await anthropicRes.text()
-    console.error('Anthropic API error:', anthropicRes.status, err)
-    return new Response(JSON.stringify({ error: 'Anthropic API error', detail: err }), {
+    const errText = await anthropicRes.text()
+    console.error('Anthropic API error:', anthropicRes.status, errText)
+    return new Response(JSON.stringify({ error: 'Anthropic API error', detail: errText, apiKeyPresent }), {
       status: anthropicRes.status,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })
