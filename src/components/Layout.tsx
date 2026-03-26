@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/shortlist',  icon: Bookmark,         label: 'Shortlist' },
   { to: '/newsletter', icon: Newspaper,        label: 'Newsletter' },
   { to: '/upload',     icon: Upload,           label: 'Import'    },
+  { to: '/settings',   icon: Settings,         label: 'Paramètres' },
 ]
 
 const BOTTOM_NAV_ITEMS = [
@@ -34,6 +35,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/shortlist':  'Shortlist',
   '/newsletter': 'Newsletter',
   '/upload':     'Import',
+  '/settings':   'Paramètres',
 }
 
 // ── Avatar gradient by first letter ──────────────────────────────────────────

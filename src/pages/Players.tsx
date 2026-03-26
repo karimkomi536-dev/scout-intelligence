@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Search, X, Heart, Scale, RotateCcw, Users, SlidersHorizontal } from 'lucide-react'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { supabase } from '../lib/supabase'
-import { calculateScore, getScoreLabel } from '../utils/scoring'
+import { calculateScore, getScoreLabel, getPosGroup } from '../utils/scoring'
+import { useScoringProfile } from '../hooks/useScoringProfile'
 import { usePlayerFilters } from '../hooks/usePlayerFilters'
 import { useCompare } from '../contexts/CompareContext'
 import type { Player } from '../types/player'
@@ -92,6 +93,7 @@ export default function Players() {
   const { filters, set, reset, hasActiveFilters } = usePlayerFilters()
   const { isSelected, toggle, ids: compareIds } = useCompare()
   const isMobile = useIsMobile()
+  const { weights: scoringWeights } = useScoringProfile()
 
   const [players, setPlayers]   = useState<Player[]>([])
   const [loading, setLoading]   = useState(true)
@@ -149,7 +151,10 @@ export default function Players() {
     return list.includes(value) ? list.filter(x => x !== value) : [...list, value]
   }
 
-  const scored: PlayerWithScore[] = players.map(p => ({ ...p, _score: calculateScore(p) }))
+  const scored: PlayerWithScore[] = players.map(p => ({
+    ...p,
+    _score: calculateScore(p, scoringWeights[getPosGroup(p.primary_position)]),
+  }))
   const totalPages = Math.ceil(scored.length / PAGE_SIZE)
   const paginated  = scored.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 

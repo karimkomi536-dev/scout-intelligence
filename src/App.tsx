@@ -14,6 +14,7 @@ import Shortlist from './pages/Shortlist'
 import SharedShortlist from './pages/SharedShortlist'
 import NL from './pages/NL'
 import Upload from './pages/Upload'
+import Settings from './pages/Settings'
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
             <Route path="shortlist"  element={<Shortlist />} />
             <Route path="newsletter" element={<NL />} />
             <Route path="upload"     element={<Upload />} />
+            <Route path="settings"   element={<Settings />} />
           </Route>
 
           {/* Fallback */}

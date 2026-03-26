@@ -11,7 +11,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
-import { calculateScore, getScoreLabel, getRadarAxes } from '../utils/scoring'
+import { calculateScore, getScoreLabel, getRadarAxes, getPosGroup } from '../utils/scoring'
+import type { PosGroup } from '../utils/scoring'
+import { useScoringProfile } from '../hooks/useScoringProfile'
 import { useCompare } from '../contexts/CompareContext'
 import { PlayerPDFReport } from '../components/PlayerPDFReport'
 import { exportPlayerPDF } from '../utils/exportPDF'
@@ -19,15 +21,6 @@ import type { Player } from '../types/player'
 import type { ScoutNote } from '../components/PlayerPDFReport'
 
 // ── Position theming ───────────────────────────────────────────────────────────
-
-type PosGroup = 'GK' | 'DEF' | 'MID' | 'ATT'
-
-function getPosGroup(pos: string): PosGroup {
-  if (pos === 'GK') return 'GK'
-  if (['CB', 'RB', 'LB'].includes(pos)) return 'DEF'
-  if (['CDM', 'CM', 'CAM'].includes(pos)) return 'MID'
-  return 'ATT'
-}
 
 const POS_COLOR: Record<PosGroup, string> = {
   GK:  '#F5A623',
@@ -239,6 +232,7 @@ export default function PlayerDetail() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const { snapshots, loading: historyLoading } = usePlayerHistory(id)
+  const { weights: scoringWeights } = useScoringProfile()
 
   useEffect(() => {
     if (!id) return
@@ -317,7 +311,7 @@ export default function PlayerDetail() {
 
   // ── Derived values ─────────────────────────────────────────────────────────
 
-  const score      = calculateScore(player)
+  const score      = calculateScore(player, scoringWeights[getPosGroup(player.primary_position)])
   const label      = getScoreLabel(score)
   const posGroup   = getPosGroup(player.primary_position)
   const posColor   = POS_COLOR[posGroup]

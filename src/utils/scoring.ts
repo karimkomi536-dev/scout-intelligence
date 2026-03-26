@@ -19,13 +19,31 @@ import type { Player, ScoreLabel } from '../types/player'
 
 type Axis = 'technique' | 'physical' | 'pace' | 'mental' | 'tactical' | 'potential'
 
-interface ScoreWeights {
+export type PosGroup = 'GK' | 'DEF' | 'MID' | 'ATT'
+
+export interface ScoringWeights {
   technique?: number
   physical?: number
   pace?: number
   mental?: number
   tactical?: number
   potential?: number
+}
+
+/** Map any specific position (GK, CB, RW…) to its broad group. */
+export function getPosGroup(pos: string): PosGroup {
+  if (pos === 'GK') return 'GK'
+  if (['CB', 'RB', 'LB'].includes(pos)) return 'DEF'
+  if (['CDM', 'CM', 'CAM'].includes(pos)) return 'MID'
+  return 'ATT'
+}
+
+/** Default weights per position group used when no custom profile is loaded. */
+export const DEFAULT_GROUP_WEIGHTS: Record<PosGroup, ScoringWeights> = {
+  GK:  { tactical: 0.40, physical: 0.25, mental: 0.20, technique: 0.15 },
+  DEF: { tactical: 0.35, physical: 0.25, technique: 0.20, mental: 0.20 },
+  MID: { technique: 0.30, mental: 0.25, physical: 0.20, tactical: 0.25 },
+  ATT: { mental: 0.35, pace: 0.25, technique: 0.25, physical: 0.15 },
 }
 
 export interface ScoreBreakdown {
@@ -45,7 +63,7 @@ export interface CompareResult {
 // Weights sum to 1.0. `potential` intentionally excluded from scoring weight
 // (it inflates young players artificially when comparing across cohorts).
 
-const WEIGHTS: Record<string, ScoreWeights> = {
+const WEIGHTS: Record<string, ScoringWeights> = {
   // Goalkeepers: defence-first
   GK:  { tactical: 0.40, physical: 0.25, mental: 0.20, technique: 0.15 },
 
@@ -66,7 +84,7 @@ const WEIGHTS: Record<string, ScoreWeights> = {
 }
 
 // Fallback for unlisted positions (balanced)
-const DEFAULT_WEIGHTS: ScoreWeights = {
+const DEFAULT_WEIGHTS: ScoringWeights = {
   technique: 0.20, physical: 0.20, pace: 0.15, mental: 0.20, tactical: 0.25,
 }
 
@@ -102,12 +120,16 @@ const LABEL_THRESHOLDS: { min: number; label: ScoreLabel }[] = [
 /**
  * Recalculate a player's score using position-specific weights applied to their
  * individual_stats axes. Returns the stored scout_score if individual_stats is absent.
+ *
+ * @param customWeights  Optional override — pass the org's custom profile weights for
+ *                       this player's position group. When null/undefined the built-in
+ *                       per-position weights are used.
  */
-export function calculateScore(player: Player): number {
+export function calculateScore(player: Player, customWeights?: ScoringWeights | null): number {
   if (!player.individual_stats) return player.scout_score ?? 0
 
   const stats = player.individual_stats
-  const weights = WEIGHTS[player.primary_position] ?? DEFAULT_WEIGHTS
+  const weights = customWeights ?? WEIGHTS[player.primary_position] ?? DEFAULT_WEIGHTS
 
   let score = 0
   let totalWeight = 0
