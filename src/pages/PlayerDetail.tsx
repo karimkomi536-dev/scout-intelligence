@@ -224,6 +224,10 @@ function NoteCard({ note }: { note: ScoutNote }) {
   )
 }
 
+// ── Tab type ───────────────────────────────────────────────────────────────────
+
+type Tab = 'profil' | 'stats' | 'notes' | 'ia'
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function PlayerDetail() {
@@ -245,6 +249,7 @@ export default function PlayerDetail() {
   const reportRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const baseNoteRef = useRef('')  // text in textarea before recording starts
+  const [activeTab, setActiveTab] = useState<Tab>('profil')
 
   const { snapshots, loading: historyLoading } = usePlayerHistory(id)
   const { weights: scoringWeights } = useScoringProfile()
@@ -397,7 +402,7 @@ export default function PlayerDetail() {
 
       {/* ── HERO CARD ─────────────────────────────────────────────────────── */}
       <div style={{
-        background: `var(--bg-surface)`,
+        background: `var(--surface2)`,
         backgroundImage: POS_GRADIENT[posGroup],
         borderRadius: '16px',
         border: `1px solid ${posColor}22`,
@@ -633,521 +638,574 @@ export default function PlayerDetail() {
         </div>
       </div>
 
-      {/* ── STATS SECTION ─────────────────────────────────────────────────────── */}
-      {radarData.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+      {/* ── TABS ─────────────────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        marginBottom: '20px',
+        gap: '4px',
+      }}>
+        {(['profil', 'stats', 'notes', 'ia'] as Tab[]).map(tab => {
+          const labels: Record<Tab, string> = { profil: 'Profil', stats: 'Stats', notes: 'Notes', ia: 'IA' }
+          const isActive = activeTab === tab
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '10px 20px',
+                background: 'none',
+                border: 'none',
+                borderBottom: `2px solid ${isActive ? labelColor : 'transparent'}`,
+                marginBottom: '-1px',
+                color: isActive ? labelColor : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: isActive ? 600 : 500,
+                cursor: 'pointer',
+                transition: 'all 150ms ease',
+                fontFamily: 'var(--font-ui)',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--text-secondary)' }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              {labels[tab]}
+            </button>
+          )
+        })}
+      </div>
 
-          {/* Radar chart */}
-          <div style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '14px',
-            padding: '24px',
-          }}>
-            <p style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
-              textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px',
-            }}>
-              Profil joueur
-            </p>
-            <div style={{ filter: `drop-shadow(0 0 10px ${posColor}50)` }}>
-              <ResponsiveContainer width="100%" height={isMobile ? 280 : 260}>
-                <RadarChart data={radarData} margin={{ top: 14, right: 24, bottom: 14, left: 24 }}>
-                  <PolarGrid stroke="rgba(255,255,255,0.07)" />
-                  <PolarAngleAxis dataKey="stat" tick={CustomRadarTick as any} />
-                  <Radar
-                    dataKey="value"
-                    fill={posColor}
-                    fillOpacity={0.15}
-                    stroke={posColor}
-                    strokeWidth={2}
-                    dot={{ fill: posColor, r: 3, strokeWidth: 0 }}
-                    style={{ filter: `drop-shadow(0 0 4px ${posColor})` }}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
+      {/* ── STATS SECTION (radar + stat bars) ─────────────────────────────────── */}
+      {activeTab === 'profil' && (
+        <>
+          {radarData.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+
+              {/* Radar chart */}
+              <div style={{
+                background: 'var(--surface2)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '14px',
+                padding: '24px',
+              }}>
+                <p style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+                  textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px',
+                }}>
+                  Profil joueur
+                </p>
+                <div style={{ filter: `drop-shadow(0 0 10px ${posColor}50)` }}>
+                  <ResponsiveContainer width="100%" height={isMobile ? 280 : 260}>
+                    <RadarChart data={radarData} margin={{ top: 14, right: 24, bottom: 14, left: 24 }}>
+                      <PolarGrid stroke="rgba(255,255,255,0.07)" />
+                      <PolarAngleAxis dataKey="stat" tick={CustomRadarTick as any} />
+                      <Radar
+                        dataKey="value"
+                        fill={posColor}
+                        fillOpacity={0.15}
+                        stroke={posColor}
+                        strokeWidth={2}
+                        dot={{ fill: posColor, r: 3, strokeWidth: 0 }}
+                        style={{ filter: `drop-shadow(0 0 4px ${posColor})` }}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Stat bars */}
+              <div style={{
+                background: 'var(--surface2)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '14px',
+                padding: '24px',
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+              }}>
+                <p style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+                  textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '20px',
+                }}>
+                  Scores par axe
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {statBars.map(({ label: axisLabel, value, color }) => (
+                    <StatBar
+                      key={axisLabel}
+                      label={axisLabel}
+                      value={value}
+                      color={color}
+                      ready={barsReady}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+        </>
+      )}
 
-          {/* Stat bars */}
+      {/* ── RAW STATS + PROGRESSION ───────────────────────────────────────────── */}
+      {activeTab === 'stats' && (
+        <>
+          {/* ── RAW STATS ─────────────────────────────────────────────────────── */}
           <div style={{
-            background: 'var(--bg-surface)',
+            background: 'var(--surface2)',
             border: '1px solid rgba(255,255,255,0.06)',
             borderRadius: '14px',
             padding: '24px',
-            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            marginBottom: '20px',
           }}>
             <p style={{
               fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
               textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '20px',
             }}>
-              Scores par axe
+              Statistiques brutes
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              {statBars.map(({ label: axisLabel, value, color }) => (
-                <StatBar
-                  key={axisLabel}
-                  label={axisLabel}
-                  value={value}
-                  color={color}
-                  ready={barsReady}
-                />
+
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px' }}>
+              {[
+                { label: 'Matchs',           value: fmt(player.appearances, 0) },
+                { label: 'Minutes',          value: fmt(player.minutes_played, 0) },
+                { label: 'Buts',             value: fmt(player.goals, 0) },
+                { label: 'Passes déc.',      value: fmt(player.assists, 0) },
+                { label: 'xG',               value: fmt(player.xg) },
+                { label: 'xA',               value: fmt(player.xa) },
+                { label: 'SCA',              value: fmt(player.shot_creating_actions, 0) },
+                { label: 'Tacles',           value: fmt(player.tackles, 0) },
+                { label: 'Interceptions',    value: fmt(player.interceptions, 0) },
+                { label: 'Blocs',            value: fmt(player.blocks, 0) },
+                { label: 'Dégagements',      value: fmt(player.clearances, 0) },
+                { label: 'Pressions',        value: fmt(player.pressures, 0) },
+                { label: 'Réus. pression',   value: player.pressure_success_rate ? fmt(player.pressure_success_rate) + '%' : '—' },
+                { label: 'Réus. passes',     value: player.pass_completion_rate ? fmt(player.pass_completion_rate) + '%' : '—' },
+                { label: 'Passes prog.',     value: fmt(player.progressive_passes, 0) },
+                { label: 'Passes clés',      value: fmt(player.key_passes, 0) },
+              ].map(({ label: statLabel, value }) => (
+                <div key={statLabel} style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                }}>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
+                    {statLabel}
+                  </p>
+                  <p style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', margin: 0 }}>
+                    {value}
+                  </p>
+                </div>
               ))}
             </div>
           </div>
-        </div>
+
+          {/* ── PROGRESSION ──────────────────────────────────────────────────────── */}
+          <div style={{
+            background: 'var(--surface2)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: '14px',
+            padding: '24px',
+            marginBottom: '20px',
+          }}>
+            <p style={{
+              fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+              textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '20px',
+            }}>
+              Progression
+            </p>
+
+            {historyLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                <span>Chargement…</span>
+              </div>
+            ) : chartData.length < 2 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '6px' }}>
+                  Données insuffisantes — revenez dans quelques semaines
+                </p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                  {chartData.length} / 2 snapshots disponibles
+                </p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -10 }}>
+                  <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any}
+                    axisLine={false}
+                    tickLine={false}
+                    tickCount={5}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#0D1525',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      color: 'var(--text-primary)',
+                    }}
+                    formatter={(value: number) => [value, 'Score']}
+                    labelStyle={{ color: 'var(--text-muted)', marginBottom: '4px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke={labelColor}
+                    strokeWidth={2}
+                    dot={{ fill: labelColor, r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: labelColor, strokeWidth: 0 }}
+                    style={{ filter: `drop-shadow(0 0 6px ${labelColor}80)` }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </>
       )}
 
-      {/* ── RAW STATS ─────────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: '14px',
-        padding: '24px',
-        marginBottom: '20px',
-      }}>
-        <p style={{
-          fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
-          textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '20px',
+      {/* ── SCOUT NOTES ───────────────────────────────────────────────────────── */}
+      {activeTab === 'notes' && (
+        <div style={{
+          background: 'var(--surface2)',
+          border: '1px solid var(--border)',
+          borderRadius: '14px',
+          padding: '24px',
         }}>
-          Statistiques brutes
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px' }}>
-          {[
-            { label: 'Matchs',           value: fmt(player.appearances, 0) },
-            { label: 'Minutes',          value: fmt(player.minutes_played, 0) },
-            { label: 'Buts',             value: fmt(player.goals, 0) },
-            { label: 'Passes déc.',      value: fmt(player.assists, 0) },
-            { label: 'xG',               value: fmt(player.xg) },
-            { label: 'xA',               value: fmt(player.xa) },
-            { label: 'SCA',              value: fmt(player.shot_creating_actions, 0) },
-            { label: 'Tacles',           value: fmt(player.tackles, 0) },
-            { label: 'Interceptions',    value: fmt(player.interceptions, 0) },
-            { label: 'Blocs',            value: fmt(player.blocks, 0) },
-            { label: 'Dégagements',      value: fmt(player.clearances, 0) },
-            { label: 'Pressions',        value: fmt(player.pressures, 0) },
-            { label: 'Réus. pression',   value: player.pressure_success_rate ? fmt(player.pressure_success_rate) + '%' : '—' },
-            { label: 'Réus. passes',     value: player.pass_completion_rate ? fmt(player.pass_completion_rate) + '%' : '—' },
-            { label: 'Passes prog.',     value: fmt(player.progressive_passes, 0) },
-            { label: 'Passes clés',      value: fmt(player.key_passes, 0) },
-          ].map(({ label: statLabel, value }) => (
-            <div key={statLabel} style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid rgba(255,255,255,0.05)',
-              borderRadius: '10px',
-              padding: '12px 14px',
-            }}>
-              <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
-                {statLabel}
-              </p>
-              <p style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', margin: 0 }}>
-                {value}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── PROGRESSION ──────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: '14px',
-        padding: '24px',
-        marginBottom: '20px',
-      }}>
-        <p style={{
-          fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
-          textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '20px',
-        }}>
-          Progression
-        </p>
-
-        {historyLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
-            <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-            <span>Chargement…</span>
-          </div>
-        ) : chartData.length < 2 ? (
-          <div style={{ textAlign: 'center', padding: '32px 0' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '6px' }}>
-              Données insuffisantes — revenez dans quelques semaines
-            </p>
-            <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-              {chartData.length} / 2 snapshots disponibles
-            </p>
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -10 }}>
-              <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any}
-                axisLine={false}
-                tickLine={false}
-                tickCount={5}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: '#0D1525',
-                  border: '1px solid rgba(255,255,255,0.10)',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  color: 'var(--text-primary)',
-                }}
-                formatter={(value: number) => [value, 'Score']}
-                labelStyle={{ color: 'var(--text-muted)', marginBottom: '4px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}
-              />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke={labelColor}
-                strokeWidth={2}
-                dot={{ fill: labelColor, r: 3, strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: labelColor, strokeWidth: 0 }}
-                style={{ filter: `drop-shadow(0 0 6px ${labelColor}80)` }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-
-      {/* ── RAPPORT IA ────────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid rgba(155,109,255,0.18)',
-        borderRadius: '14px',
-        padding: '24px',
-        marginBottom: '20px',
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <p style={{
               fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
               textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0,
             }}>
-              Rapport IA
-            </p>
-            <span style={{
-              fontSize: '9px', fontWeight: 700, color: '#9B6DFF',
-              background: 'rgba(155,109,255,0.12)', border: '1px solid rgba(155,109,255,0.25)',
-              borderRadius: '4px', padding: '2px 7px',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              Pro+
-            </span>
-          </div>
-
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {aiReport && (
-              <>
-                <button
-                  onClick={() => setIncludeInPDF(v => !v)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    background: includeInPDF ? 'rgba(0,200,150,0.12)' : 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${includeInPDF ? 'rgba(0,200,150,0.30)' : 'rgba(255,255,255,0.10)'}`,
-                    borderRadius: '8px',
-                    color: includeInPDF ? '#00C896' : 'var(--text-muted)',
-                    fontSize: '12px', fontWeight: 600, padding: '6px 12px',
-                    cursor: 'pointer', transition: 'all 150ms ease',
-                  }}
-                >
-                  <FileText size={12} />
-                  {includeInPDF ? 'Dans le PDF ✓' : 'Inclure dans le PDF'}
-                </button>
-                <button
-                  onClick={() => { resetReport(); setIncludeInPDF(false) }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.10)',
-                    borderRadius: '8px', color: 'var(--text-muted)',
-                    fontSize: '12px', fontWeight: 600, padding: '6px 12px',
-                    cursor: 'pointer', transition: 'all 150ms ease',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                >
-                  <RefreshCw size={12} /> Régénérer
-                </button>
-              </>
-            )}
-
-            {aiStatus !== 'success' && (
-              <button
-                onClick={() => generateReport(player)}
-                disabled={aiStatus === 'loading'}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  background: aiStatus === 'loading'
-                    ? 'rgba(155,109,255,0.08)'
-                    : 'linear-gradient(135deg, rgba(155,109,255,0.20), rgba(77,127,255,0.20))',
-                  border: '1px solid rgba(155,109,255,0.35)',
-                  borderRadius: '8px',
-                  color: aiStatus === 'loading' ? 'var(--text-muted)' : '#9B6DFF',
-                  fontSize: '13px', fontWeight: 700, padding: '8px 18px',
-                  cursor: aiStatus === 'loading' ? 'not-allowed' : 'pointer',
-                  transition: 'all 150ms ease',
-                }}
-              >
-                {aiStatus === 'loading' ? (
-                  <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Analyse en cours…</>
-                ) : (
-                  <><Sparkles size={14} /> Générer rapport IA</>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Body */}
-        {aiStatus === 'idle' && (
-          <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--text-muted)' }}>
-            <Sparkles size={28} style={{ opacity: 0.25, marginBottom: '10px' }} />
-            <p style={{ fontSize: '13px', marginBottom: '4px' }}>
-              Génère un rapport de scouting professionnel en quelques secondes.
-            </p>
-            <p style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', opacity: 0.6 }}>
-              Alimenté par Claude — analyse basée sur les stats réelles
-            </p>
-          </div>
-        )}
-
-        {aiStatus === 'loading' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '28px 0', color: 'var(--text-muted)', justifyContent: 'center' }}>
-            <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: '#9B6DFF' }} />
-            <span style={{ fontSize: '13px' }}>Analyse en cours…</span>
-          </div>
-        )}
-
-        {aiStatus === 'error' && (
-          <div style={{
-            padding: '16px', borderRadius: '10px',
-            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)',
-            color: '#ef4444', fontSize: '13px',
-          }}>
-            Erreur : {aiError}
-          </div>
-        )}
-
-        {aiStatus === 'success' && aiReport && (
-          <div style={{
-            padding: '20px',
-            background: 'rgba(155,109,255,0.05)',
-            border: '1px solid rgba(155,109,255,0.15)',
-            borderLeft: '3px solid #9B6DFF',
-            borderRadius: '10px',
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.7,
-            whiteSpace: 'pre-wrap',
-            animation: 'fadeIn 0.3s ease',
-          }}>
-            {aiReport}
-          </div>
-        )}
-      </div>
-
-      {/* ── SCOUT NOTES ───────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: '14px',
-        padding: '24px',
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <p style={{
-            fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
-            textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0,
-          }}>
-            Notes de scouting
-            {notes.length > 0 && (
-              <span style={{
-                marginLeft: '8px',
-                background: 'rgba(77,127,255,0.15)',
-                color: 'var(--accent-blue)',
-                borderRadius: '20px',
-                padding: '1px 7px',
-                fontSize: '10px',
-                fontWeight: 700,
-              }}>
-                {notes.length}
-              </span>
-            )}
-          </p>
-          <button
-            onClick={() => { setShowNoteForm(v => !v); setTimeout(() => textareaRef.current?.focus(), 50) }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              background: showNoteForm ? 'rgba(77,127,255,0.15)' : 'rgba(77,127,255,0.08)',
-              border: '1px solid rgba(77,127,255,0.25)',
-              borderRadius: '8px', color: 'var(--accent-blue)',
-              fontSize: '12px', fontWeight: 600, padding: '6px 12px',
-              cursor: 'pointer', transition: 'all 150ms ease',
-            }}
-          >
-            {showNoteForm ? '✕ Annuler' : '+ Ajouter'}
-          </button>
-        </div>
-
-        {/* Note form */}
-        {showNoteForm && (
-          <div style={{ marginBottom: '20px', animation: 'fadeIn 0.2s ease' }}>
-            {/* Textarea + mic button row */}
-            <div style={{ position: 'relative', marginBottom: '10px' }}>
-              <textarea
-                ref={textareaRef}
-                value={noteText}
-                onChange={e => {
-                  setNoteText(e.target.value)
-                  if (!speech.isListening) baseNoteRef.current = e.target.value
-                  e.target.style.height = 'auto'
-                  e.target.style.height = e.target.scrollHeight + 'px'
-                }}
-                placeholder={speech.isListening ? 'En écoute…' : "Observations, remarques, points d'attention…"}
-                rows={3}
-                style={{
-                  width: '100%',
-                  background: speech.isListening
-                    ? 'rgba(239,68,68,0.05)'
-                    : 'rgba(255,255,255,0.03)',
-                  border: speech.isListening
-                    ? '1px solid rgba(239,68,68,0.40)'
-                    : '1px solid rgba(255,255,255,0.10)',
-                  borderRadius: '10px',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  lineHeight: 1.6,
-                  padding: '12px 44px 12px 14px',
-                  resize: 'none',
-                  outline: 'none',
-                  fontFamily: 'var(--font-ui)',
-                  transition: 'border-color 150ms ease, box-shadow 150ms ease',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={e => {
-                  if (!speech.isListening) {
-                    e.target.style.borderColor = 'rgba(77,127,255,0.50)'
-                    e.target.style.boxShadow = '0 0 0 3px rgba(77,127,255,0.12)'
-                  }
-                }}
-                onBlur={e => {
-                  if (!speech.isListening) {
-                    e.target.style.borderColor = 'rgba(255,255,255,0.10)'
-                    e.target.style.boxShadow = 'none'
-                  }
-                }}
-              />
-              {/* Mic button — top-right of textarea */}
-              <button
-                title={!speech.isSupported ? 'Non supporté par ce navigateur' : speech.isListening ? 'Arrêter la dictée' : 'Dicter une note'}
-                disabled={!speech.isSupported}
-                onClick={() => {
-                  if (speech.isListening) {
-                    speech.stopListening()
-                  } else {
-                    baseNoteRef.current = noteText
-                    speech.clearTranscript()
-                    speech.startListening()
-                  }
-                }}
-                style={{
-                  position: 'absolute',
-                  top: '10px',
-                  right: '10px',
-                  width: '28px',
-                  height: '28px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: speech.isListening
-                    ? 'rgba(239,68,68,0.15)'
-                    : 'rgba(255,255,255,0.06)',
-                  border: speech.isListening
-                    ? '1px solid rgba(239,68,68,0.40)'
-                    : '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '7px',
-                  color: speech.isListening ? '#ef4444' : speech.isSupported ? 'var(--text-muted)' : 'rgba(255,255,255,0.20)',
-                  cursor: speech.isSupported ? 'pointer' : 'not-allowed',
-                  transition: 'all 150ms ease',
-                  animation: speech.isListening ? 'pulse 1.4s ease-in-out infinite' : 'none',
-                  flexShrink: 0,
-                }}
-              >
-                {speech.isListening ? <MicOff size={13} /> : <Mic size={13} />}
-              </button>
-            </div>
-            {/* Listening indicator */}
-            {speech.isListening && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                marginBottom: '10px',
-                color: '#ef4444', fontSize: '11px', fontWeight: 600,
-              }}>
+              Notes de scouting
+              {notes.length > 0 && (
                 <span style={{
-                  width: '6px', height: '6px', borderRadius: '50%',
-                  background: '#ef4444',
-                  animation: 'pulse 1.4s ease-in-out infinite',
-                  flexShrink: 0,
-                }} />
-                En écoute…
+                  marginLeft: '8px',
+                  background: 'rgba(77,127,255,0.15)',
+                  color: 'var(--accent-blue)',
+                  borderRadius: '20px',
+                  padding: '1px 7px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                }}>
+                  {notes.length}
+                </span>
+              )}
+            </p>
+            <button
+              onClick={() => { setShowNoteForm(v => !v); setTimeout(() => textareaRef.current?.focus(), 50) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                background: showNoteForm ? 'rgba(77,127,255,0.15)' : 'rgba(77,127,255,0.08)',
+                border: '1px solid rgba(77,127,255,0.25)',
+                borderRadius: '8px', color: 'var(--accent-blue)',
+                fontSize: '12px', fontWeight: 600, padding: '6px 12px',
+                cursor: 'pointer', transition: 'all 150ms ease',
+              }}
+            >
+              {showNoteForm ? '✕ Annuler' : '+ Ajouter'}
+            </button>
+          </div>
+
+          {/* Note form */}
+          {showNoteForm && (
+            <div style={{ marginBottom: '20px', animation: 'fadeIn 0.2s ease' }}>
+              {/* Textarea + mic button row */}
+              <div style={{ position: 'relative', marginBottom: '10px' }}>
+                <textarea
+                  ref={textareaRef}
+                  value={noteText}
+                  onChange={e => {
+                    setNoteText(e.target.value)
+                    if (!speech.isListening) baseNoteRef.current = e.target.value
+                    e.target.style.height = 'auto'
+                    e.target.style.height = e.target.scrollHeight + 'px'
+                  }}
+                  placeholder={speech.isListening ? 'En écoute…' : "Observations, remarques, points d'attention…"}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    background: speech.isListening
+                      ? 'rgba(239,68,68,0.05)'
+                      : 'rgba(255,255,255,0.03)',
+                    border: speech.isListening
+                      ? '1px solid rgba(239,68,68,0.40)'
+                      : '1px solid rgba(255,255,255,0.10)',
+                    borderRadius: '10px',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    lineHeight: 1.6,
+                    padding: '12px 44px 12px 14px',
+                    resize: 'none',
+                    outline: 'none',
+                    fontFamily: 'var(--font-ui)',
+                    transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={e => {
+                    if (!speech.isListening) {
+                      e.target.style.borderColor = 'rgba(77,127,255,0.50)'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(77,127,255,0.12)'
+                    }
+                  }}
+                  onBlur={e => {
+                    if (!speech.isListening) {
+                      e.target.style.borderColor = 'rgba(255,255,255,0.10)'
+                      e.target.style.boxShadow = 'none'
+                    }
+                  }}
+                />
+                {/* Mic button — top-right of textarea */}
+                <button
+                  title={!speech.isSupported ? 'Non supporté par ce navigateur' : speech.isListening ? 'Arrêter la dictée' : 'Dicter une note'}
+                  disabled={!speech.isSupported}
+                  onClick={() => {
+                    if (speech.isListening) {
+                      speech.stopListening()
+                    } else {
+                      baseNoteRef.current = noteText
+                      speech.clearTranscript()
+                      speech.startListening()
+                    }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    width: '28px',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: speech.isListening
+                      ? 'rgba(239,68,68,0.15)'
+                      : 'rgba(255,255,255,0.06)',
+                    border: speech.isListening
+                      ? '1px solid rgba(239,68,68,0.40)'
+                      : '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '7px',
+                    color: speech.isListening ? '#ef4444' : speech.isSupported ? 'var(--text-muted)' : 'rgba(255,255,255,0.20)',
+                    cursor: speech.isSupported ? 'pointer' : 'not-allowed',
+                    transition: 'all 150ms ease',
+                    animation: speech.isListening ? 'pulse 1.4s ease-in-out infinite' : 'none',
+                    flexShrink: 0,
+                  }}
+                >
+                  {speech.isListening ? <MicOff size={13} /> : <Mic size={13} />}
+                </button>
+              </div>
+              {/* Listening indicator */}
+              {speech.isListening && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  marginBottom: '10px',
+                  color: '#ef4444', fontSize: '11px', fontWeight: 600,
+                }}>
+                  <span style={{
+                    width: '6px', height: '6px', borderRadius: '50%',
+                    background: '#ef4444',
+                    animation: 'pulse 1.4s ease-in-out infinite',
+                    flexShrink: 0,
+                  }} />
+                  En écoute…
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={handleAddNote}
+                  disabled={!noteText.trim() || savingNote}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: noteText.trim() ? 'var(--accent-blue)' : 'rgba(77,127,255,0.20)',
+                    border: 'none', borderRadius: '8px',
+                    color: noteText.trim() ? 'white' : 'var(--text-muted)',
+                    fontSize: '13px', fontWeight: 600, padding: '8px 16px',
+                    cursor: noteText.trim() && !savingNote ? 'pointer' : 'not-allowed',
+                    transition: 'all 150ms ease',
+                  }}
+                >
+                  {savingNote
+                    ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Enregistrement…</>
+                    : <><Send size={13} /> Enregistrer</>
+                  }
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Notes list */}
+          {notes.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {notes.map(note => <NoteCard key={note.id} note={note} />)}
+            </div>
+          ) : (
+            <div style={{
+              textAlign: 'center', padding: '32px 0',
+              color: 'var(--text-muted)', fontSize: '13px',
+            }}>
+              <p style={{ marginBottom: '4px' }}>Aucune note pour ce joueur.</p>
+              <p style={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                Ajoutez vos observations de scouting.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── RAPPORT IA + SIMILAR PLAYERS ──────────────────────────────────────── */}
+      {activeTab === 'ia' && (
+        <>
+          {/* ── RAPPORT IA ────────────────────────────────────────────────────────── */}
+          <div style={{
+            background: 'var(--surface2)',
+            border: '1px solid rgba(155,109,255,0.18)',
+            borderRadius: '14px',
+            padding: '24px',
+            marginBottom: '20px',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <p style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+                  textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0,
+                }}>
+                  Rapport IA
+                </p>
+                <span style={{
+                  fontSize: '9px', fontWeight: 700, color: '#9B6DFF',
+                  background: 'rgba(155,109,255,0.12)', border: '1px solid rgba(155,109,255,0.25)',
+                  borderRadius: '4px', padding: '2px 7px',
+                  fontFamily: 'var(--font-mono)',
+                }}>
+                  Pro+
+                </span>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {aiReport && (
+                  <>
+                    <button
+                      onClick={() => setIncludeInPDF(v => !v)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        background: includeInPDF ? 'rgba(0,200,150,0.12)' : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${includeInPDF ? 'rgba(0,200,150,0.30)' : 'rgba(255,255,255,0.10)'}`,
+                        borderRadius: '8px',
+                        color: includeInPDF ? '#00C896' : 'var(--text-muted)',
+                        fontSize: '12px', fontWeight: 600, padding: '6px 12px',
+                        cursor: 'pointer', transition: 'all 150ms ease',
+                      }}
+                    >
+                      <FileText size={12} />
+                      {includeInPDF ? 'Dans le PDF ✓' : 'Inclure dans le PDF'}
+                    </button>
+                    <button
+                      onClick={() => { resetReport(); setIncludeInPDF(false) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        borderRadius: '8px', color: 'var(--text-muted)',
+                        fontSize: '12px', fontWeight: 600, padding: '6px 12px',
+                        cursor: 'pointer', transition: 'all 150ms ease',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                    >
+                      <RefreshCw size={12} /> Régénérer
+                    </button>
+                  </>
+                )}
+
+                {aiStatus !== 'success' && (
+                  <button
+                    onClick={() => generateReport(player)}
+                    disabled={aiStatus === 'loading'}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      background: aiStatus === 'loading'
+                        ? 'rgba(155,109,255,0.08)'
+                        : 'linear-gradient(135deg, rgba(155,109,255,0.20), rgba(77,127,255,0.20))',
+                      border: '1px solid rgba(155,109,255,0.35)',
+                      borderRadius: '8px',
+                      color: aiStatus === 'loading' ? 'var(--text-muted)' : '#9B6DFF',
+                      fontSize: '13px', fontWeight: 700, padding: '8px 18px',
+                      cursor: aiStatus === 'loading' ? 'not-allowed' : 'pointer',
+                      transition: 'all 150ms ease',
+                    }}
+                  >
+                    {aiStatus === 'loading' ? (
+                      <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Analyse en cours…</>
+                    ) : (
+                      <><Sparkles size={14} /> Générer rapport IA</>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Body */}
+            {aiStatus === 'idle' && (
+              <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--text-muted)' }}>
+                <Sparkles size={28} style={{ opacity: 0.25, marginBottom: '10px' }} />
+                <p style={{ fontSize: '13px', marginBottom: '4px' }}>
+                  Génère un rapport de scouting professionnel en quelques secondes.
+                </p>
+                <p style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', opacity: 0.6 }}>
+                  Alimenté par Claude — analyse basée sur les stats réelles
+                </p>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                onClick={handleAddNote}
-                disabled={!noteText.trim() || savingNote}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  background: noteText.trim() ? 'var(--accent-blue)' : 'rgba(77,127,255,0.20)',
-                  border: 'none', borderRadius: '8px',
-                  color: noteText.trim() ? 'white' : 'var(--text-muted)',
-                  fontSize: '13px', fontWeight: 600, padding: '8px 16px',
-                  cursor: noteText.trim() && !savingNote ? 'pointer' : 'not-allowed',
-                  transition: 'all 150ms ease',
-                }}
-              >
-                {savingNote
-                  ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Enregistrement…</>
-                  : <><Send size={13} /> Enregistrer</>
-                }
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* Notes list */}
-        {notes.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {notes.map(note => <NoteCard key={note.id} note={note} />)}
-          </div>
-        ) : (
-          <div style={{
-            textAlign: 'center', padding: '32px 0',
-            color: 'var(--text-muted)', fontSize: '13px',
-          }}>
-            <p style={{ marginBottom: '4px' }}>Aucune note pour ce joueur.</p>
-            <p style={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-              Ajoutez vos observations de scouting.
-            </p>
-          </div>
-        )}
-      </div>
+            {aiStatus === 'loading' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '28px 0', color: 'var(--text-muted)', justifyContent: 'center' }}>
+                <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: '#9B6DFF' }} />
+                <span style={{ fontSize: '13px' }}>Analyse en cours…</span>
+              </div>
+            )}
 
-      {/* ── SIMILAR PLAYERS ───────────────────────────────────────────────────── */}
-      <SimilarPlayers similar={similar} loading={similarLoading} />
+            {aiStatus === 'error' && (
+              <div style={{
+                padding: '16px', borderRadius: '10px',
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)',
+                color: '#ef4444', fontSize: '13px',
+              }}>
+                Erreur : {aiError}
+              </div>
+            )}
+
+            {aiStatus === 'success' && aiReport && (
+              <div style={{
+                padding: '20px',
+                background: 'rgba(155,109,255,0.05)',
+                border: '1px solid rgba(155,109,255,0.15)',
+                borderLeft: '3px solid #9B6DFF',
+                borderRadius: '10px',
+                fontSize: '13px',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.7,
+                whiteSpace: 'pre-wrap',
+                animation: 'fadeIn 0.3s ease',
+              }}>
+                {aiReport}
+              </div>
+            )}
+          </div>
+
+          {/* ── SIMILAR PLAYERS ───────────────────────────────────────────────────── */}
+          <SimilarPlayers similar={similar} loading={similarLoading} />
+        </>
+      )}
 
     </div>
   )

@@ -390,7 +390,7 @@ export default function Players() {
   // ── Empty / loading state ─────────────────────────────────────────────────
 
   const emptyState = (
-    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '48px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+    <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '48px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
       <Users size={36} color="rgba(255,255,255,0.08)" />
       <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>Aucun joueur ne correspond à ces filtres.</p>
       {hasActiveFilters && (
@@ -683,7 +683,7 @@ export default function Players() {
 
       {/* ── Filter panel ──────────────────────────────────────────────────── */}
       <div style={{
-        background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+        background: 'var(--surface2)', border: '1px solid var(--border)',
         borderRadius: '12px', padding: '18px 20px',
         display: 'flex', flexDirection: 'column', gap: '14px',
       }}>
@@ -786,7 +786,7 @@ export default function Players() {
           Chargement…
         </div>
       ) : scored.length === 0 ? emptyState : (
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           {/* Table header */}
           <div style={{
             display: 'grid',
@@ -794,6 +794,9 @@ export default function Players() {
             background: 'var(--bg-sidebar)',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
             padding: '0 16px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 2,
           }}>
             {['', 'JOUEUR', 'POSTE', 'ÂGE', 'SCORE', 'LABEL', 'CHAMPIONNAT', 'VALEUR', ''].map((h, i) => (
               <div key={i} style={{
@@ -835,7 +838,7 @@ export default function Players() {
               >
                 <div style={{ padding: '12px 0' }}>
                   <div style={{
-                    width: 38, height: 38, borderRadius: '50%',
+                    width: 48, height: 48, borderRadius: '50%',
                     background: grad,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '12px', fontWeight: 700, color: 'white',
@@ -875,7 +878,7 @@ export default function Players() {
                     color: meta.color, background: `${meta.color}12`,
                     border: `1px solid ${meta.color}28`,
                     borderRadius: '5px', padding: '2px 7px',
-                    boxShadow: isHov ? `0 0 8px ${meta.glow}` : 'none',
+                    boxShadow: '0 0 8px ' + meta.glow,
                     transition: 'box-shadow 150ms',
                     whiteSpace: 'nowrap',
                   }}>
