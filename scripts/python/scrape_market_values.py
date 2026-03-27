@@ -28,6 +28,12 @@ from dotenv import load_dotenv
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
+# Force UTF-8 on Windows terminals (cp1252 can't handle accented player names)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s  %(message)s",
@@ -152,28 +158,32 @@ def fetch_market_value(name: str) -> int | None:
 
     soup = BeautifulSoup(r.text, "lxml")
 
-    # Transfermarkt search results table — first row = best match
-    tables = soup.select("div.box table.items")
-    if not tables:
-        log.debug("No results table for %r", name)
+    # TM search page has multiple result boxes (players, clubs, etc.).
+    # The players box has id="yw1" or is the first box with table.items.
+    # Try id="yw1" first (most reliable), then fall back to first table.
+    player_table = soup.select_one("#yw1 table.items") or soup.select_one("div.box table.items")
+    if not player_table:
+        log.debug("No player results table for %r", name)
         return None
 
-    first_table = tables[0]
-    rows = first_table.select("tbody tr")
+    rows = player_table.select("tbody tr")
     if not rows:
         return None
 
-    first_row = rows[0]
-    # Market value cell is typically the last <td> with class "rechts"
-    value_cells = first_row.select("td.rechts")
-    if not value_cells:
-        return None
+    # Iterate rows — skip ad/separator rows (they have no td.hauptlink)
+    for row in rows[:3]:  # check top 3 results max
+        # Market value: <td class="rechts hauptlink"> (NOT the last td.rechts which is the agent)
+        value_cell = row.select_one("td.rechts.hauptlink")
+        if not value_cell:
+            continue
+        raw_value = value_cell.get_text(strip=True)
+        if not raw_value or raw_value in ("-", "—", ""):
+            continue
+        parsed = parse_market_value(raw_value)
+        if parsed and parsed > 0:
+            return parsed
 
-    raw_value = value_cells[-1].get_text(strip=True)
-    if not raw_value or raw_value in ("-", "—"):
-        return None
-
-    return parse_market_value(raw_value)
+    return None
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
