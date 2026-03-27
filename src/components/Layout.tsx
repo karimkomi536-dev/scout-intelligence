@@ -11,6 +11,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 import { useAuth } from '../contexts/AuthContext'
+import { useOrganization } from '../hooks/useOrganization'
 import CompareBar from './CompareBar'
 import NotificationBell from './NotificationBell'
 import CommandPalette from './CommandPalette'
@@ -25,8 +26,8 @@ const NAV_ITEMS = [
   { to: '/shortlist',  icon: Bookmark,         label: 'Shortlist' },
   { to: '/newsletter', icon: Newspaper,        label: 'Newsletter' },
   { to: '/upload',     icon: Upload,           label: 'Import'    },
-  { to: '/settings',    icon: Settings,         label: 'Paramètres' },
-  { to: '/shadow-team', icon: Target,           label: 'Shadow Team' },
+  { to: '/settings',   icon: Settings,         label: 'Paramètres' },
+  { to: '/shadow-team', icon: Target,          label: 'Shadow Team' },
 ]
 
 const BOTTOM_NAV_ITEMS = [
@@ -43,7 +44,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/shortlist':  'Shortlist',
   '/newsletter': 'Newsletter',
   '/upload':     'Import',
-  '/settings':    'Paramètres',
+  '/settings':   'Paramètres',
   '/shadow-team': 'Shadow Team',
 }
 
@@ -72,7 +73,7 @@ function isActiveCheck(to: string, pathname: string) {
 // ── Sidebar inner content (shared desktop + drawer) ──────────────────────────
 
 function SidebarContent({
-  displayName, displayEmail, initials, location, signOut, onClose, onInstall,
+  displayName, displayEmail, initials, location, signOut, onClose, onInstall, plan,
 }: {
   displayName: string
   displayEmail: string
@@ -81,11 +82,14 @@ function SidebarContent({
   signOut: () => void
   onClose?: () => void
   onInstall?: (() => void) | null
+  plan: 'free' | 'pro' | 'enterprise'
 }) {
+  const navigate = useNavigate()
+
   return (
     <>
       {/* ── ZONE 1 : Logo ──────────────────────────────────────────────── */}
-      <div style={{ padding: '22px 20px 16px' }}>
+      <div style={{ padding: '20px 24px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Zap size={18} color="var(--accent-green)" fill="var(--accent-green)" />
@@ -107,14 +111,14 @@ function SidebarContent({
         </div>
         <span style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '10px',
+          fontSize: '11px',
           color: 'var(--text-muted)',
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
           display: 'block',
           marginTop: '4px',
         }}>
-          Football Scouting
+          Scouting Intelligence
         </span>
         <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginTop: '16px' }} />
       </div>
@@ -124,22 +128,22 @@ function SidebarContent({
         <div style={{
           background: 'rgba(255,255,255,0.03)',
           borderRadius: '10px',
-          padding: '12px 14px',
+          padding: '14px',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
           border: '1px solid rgba(255,255,255,0.05)',
         }}>
           <div style={{
-            width: '38px', height: '38px', borderRadius: '50%',
+            width: '36px', height: '36px', borderRadius: '50%',
             background: avatarGradient(displayName),
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0,
+            fontSize: '12px', fontWeight: 700, color: 'white', flexShrink: 0,
           }}>
             {initials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {displayName}
             </p>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -148,6 +152,7 @@ function SidebarContent({
           </div>
           <button
             title="Paramètres"
+            onClick={() => { onClose?.(); navigate('/settings') }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', flexShrink: 0, display: 'flex' }}
             onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -167,7 +172,7 @@ function SidebarContent({
           textTransform: 'uppercase',
           padding: '0 8px 8px',
         }}>
-          Menu
+          Navigation
         </p>
 
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
@@ -179,13 +184,13 @@ function SidebarContent({
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              padding: '9px 12px',
+              padding: '10px 16px',
               borderRadius: '8px',
               textDecoration: 'none',
-              fontSize: '13.5px',
+              fontSize: '14px',
               fontWeight: isActive ? 600 : 500,
               color: isActive ? 'var(--accent-blue)' : 'var(--text-secondary)',
-              background: isActive ? 'rgba(77,127,255,0.12)' : 'transparent',
+              background: isActive ? 'rgba(77,127,255,0.15)' : 'transparent',
               borderLeft: isActive ? '2px solid var(--accent-blue)' : '2px solid transparent',
               transition: 'all 150ms ease',
             })}
@@ -204,7 +209,7 @@ function SidebarContent({
               }
             }}
           >
-            <Icon size={16} strokeWidth={isActiveCheck(to, location.pathname) ? 2.2 : 1.8} />
+            <Icon size={18} strokeWidth={isActiveCheck(to, location.pathname) ? 2.2 : 1.8} />
             {label}
           </NavLink>
         ))}
@@ -212,21 +217,48 @@ function SidebarContent({
 
       {/* ── ZONE 4 : Footer ────────────────────────────────────────────── */}
       <div style={{ padding: '12px 12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{
-          background: 'rgba(245,166,35,0.08)',
-          border: '1px solid rgba(245,166,35,0.20)',
-          borderRadius: '10px',
-          padding: '12px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}>
-          <Zap size={14} color="#F5A623" fill="#F5A623" style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: '11px', fontWeight: 600, color: '#F5A623', margin: 0 }}>Plan Free</p>
-            <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>Passer à Pro →</p>
+        {plan === 'enterprise' ? (
+          /* Enterprise plan indicator */
+          <div style={{
+            background: 'rgba(0,200,150,0.06)',
+            border: '1px solid rgba(0,200,150,0.18)',
+            borderRadius: '10px',
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <Zap size={13} color="#00C896" fill="#00C896" style={{ flexShrink: 0 }} />
+            <p style={{ fontSize: '11px', fontWeight: 600, color: '#00C896', margin: 0 }}>
+              Plan Enterprise ✓
+            </p>
           </div>
-        </div>
+        ) : (
+          /* Free / Pro upgrade CTA */
+          <div style={{
+            background: 'rgba(245,166,35,0.08)',
+            border: '1px solid rgba(245,166,35,0.20)',
+            borderRadius: '10px',
+            padding: '12px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+          }}
+            onClick={() => { onClose?.(); navigate('/settings') }}
+          >
+            <Zap size={14} color="#F5A623" fill="#F5A623" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: '#F5A623', margin: 0 }}>
+                ⚡ Passer à Pro
+              </p>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>
+                Débloquer toutes les fonctionnalités →
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Install PWA button — shown only when browser fires beforeinstallprompt */}
         {onInstall && (
           <button
@@ -290,6 +322,7 @@ function SidebarContent({
 
 export default function Layout() {
   const { user, signOut } = useAuth()
+  const { organization } = useOrganization()
   const location = useLocation()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -297,6 +330,8 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+
+  const plan = organization?.plan ?? 'free'
 
   // Close drawer on route change
   useEffect(() => {
@@ -341,7 +376,7 @@ export default function Layout() {
   )?.[1] ?? 'VIZION'
 
   const sidebarProps = {
-    displayName, displayEmail, initials, location, signOut,
+    displayName, displayEmail, initials, location, signOut, plan,
     onInstall: installPrompt ? handleInstall : null,
   }
 
@@ -446,14 +481,14 @@ export default function Layout() {
             minHeight: '60px',
             backgroundColor: 'var(--bg-base)',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
-            padding: '0 28px',
+            padding: '16px 28px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexShrink: 0,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 {pageTitle}
               </h2>
             </div>
@@ -521,7 +556,7 @@ export default function Layout() {
             bottom: 0,
             left: 0,
             right: 0,
-            height: '64px',
+            height: '60px',
             paddingBottom: 'env(safe-area-inset-bottom)',
             backgroundColor: '#0D1525',
             borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -620,7 +655,7 @@ export default function Layout() {
               />
               <div style={{
                 position: 'fixed',
-                bottom: 'calc(64px + env(safe-area-inset-bottom))',
+                bottom: 'calc(60px + env(safe-area-inset-bottom))',
                 left: '12px',
                 right: '12px',
                 zIndex: 86,
@@ -651,17 +686,28 @@ export default function Layout() {
                 </div>
                 <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '16px' }} />
                 {/* Plan badge */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.20)',
-                  borderRadius: '10px', padding: '10px 12px', marginBottom: '12px',
-                }}>
-                  <Zap size={13} color="#F5A623" fill="#F5A623" />
-                  <div>
-                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#F5A623' }}>Plan Free</p>
-                    <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>Passer à Pro →</p>
+                {plan === 'enterprise' ? (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    background: 'rgba(0,200,150,0.06)', border: '1px solid rgba(0,200,150,0.18)',
+                    borderRadius: '10px', padding: '10px 12px', marginBottom: '12px',
+                  }}>
+                    <Zap size={13} color="#00C896" fill="#00C896" />
+                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#00C896' }}>Plan Enterprise ✓</p>
                   </div>
-                </div>
+                ) : (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.20)',
+                    borderRadius: '10px', padding: '10px 12px', marginBottom: '12px',
+                  }}>
+                    <Zap size={13} color="#F5A623" fill="#F5A623" />
+                    <div>
+                      <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#F5A623' }}>Plan Free</p>
+                      <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>Passer à Pro →</p>
+                    </div>
+                  </div>
+                )}
                 {/* Logout */}
                 <button
                   onClick={() => { setShowProfileSheet(false); signOut() }}
