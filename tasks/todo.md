@@ -3,6 +3,9 @@
 ## En cours
 - [ ] SharedShortlist.tsx — vue publique read-only à /shortlist/:token
 
+## Terminé (suite)
+- [x] Scoring personnalisable par org — scoring_profiles table, Settings.tsx (sliders, Pro+ gating), useScoringProfile hook, calculateScore(weights?), Players + PlayerDetail mis à jour
+
 ## Terminé
 - [x] P0·01 — Purger .env de l'historique Git
 - [x] P0·02 — Row Level Security Supabase
@@ -22,6 +25,11 @@
 - [x] AuthContext — fix INITIAL_SESSION race condition, suppression session state
 - [x] Shortlist — guard isFatal() contre boucle infinie 429/RLS recursion
 - [x] Mobile PWA + Responsive — manifest.json, iOS meta tags, sidebar drawer, safe areas, bottom nav
+
+## RAPPEL chaque MATIN
+- [ ] Lancer : npm run snapshot
+  (génère les snapshots de progression joueurs
+  + notifications automatiques si score changé)
 
 ## À faire
 - [ ] SharedShortlist.tsx — créer src/pages/SharedShortlist.tsx et route publique dans App.tsx

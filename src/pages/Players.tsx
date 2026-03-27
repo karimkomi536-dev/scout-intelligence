@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, Heart, Scale, RotateCcw, Users, SlidersHorizontal } from 'lucide-react'
+import { useSwipeable } from 'react-swipeable'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel, getPosGroup } from '../utils/scoring'
@@ -83,6 +84,112 @@ function Pill({ active, onClick, children }: {
     }}>
       {children}
     </button>
+  )
+}
+
+// ── SwipeableCard ─────────────────────────────────────────────────────────────
+
+function SwipeableCard({
+  onSwipeLeft,
+  onSwipeRight,
+  children,
+}: {
+  onSwipeLeft: () => void
+  onSwipeRight: () => void
+  children: React.ReactNode
+}) {
+  const [offsetX, setOffsetX]     = useState(0)
+  const [animating, setAnimating] = useState(false)
+  const blockClickRef             = useRef(false)
+  const THRESHOLD                 = 68
+
+  const handlers = useSwipeable({
+    onSwiping: ({ deltaX, absX }) => {
+      setAnimating(false)
+      if (absX > 12) blockClickRef.current = true
+      setOffsetX(Math.max(-THRESHOLD * 1.4, Math.min(THRESHOLD * 1.4, deltaX)))
+    },
+    onSwipedLeft: ({ absX }) => {
+      setAnimating(true)
+      if (absX >= THRESHOLD) {
+        setOffsetX(-THRESHOLD * 1.6)
+        setTimeout(() => {
+          setOffsetX(0)
+          onSwipeLeft()
+          blockClickRef.current = false
+        }, 260)
+      } else {
+        setOffsetX(0)
+        setTimeout(() => { blockClickRef.current = false }, 60)
+      }
+    },
+    onSwipedRight: ({ absX }) => {
+      setAnimating(true)
+      if (absX >= THRESHOLD) {
+        setOffsetX(THRESHOLD * 1.6)
+        setTimeout(() => {
+          setOffsetX(0)
+          onSwipeRight()
+          blockClickRef.current = false
+        }, 260)
+      } else {
+        setOffsetX(0)
+        setTimeout(() => { blockClickRef.current = false }, 60)
+      }
+    },
+    preventScrollOnSwipe: true,
+    trackMouse: false,
+    delta: 12,
+  })
+
+  const leftReveal  = Math.max(0, Math.min(1, (-offsetX - 18) / 50))
+  const rightReveal = Math.max(0, Math.min(1, (offsetX  - 18) / 50))
+
+  return (
+    <div
+      {...handlers}
+      style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px', userSelect: 'none', touchAction: 'pan-y' }}
+    >
+      {/* Swipe-left background: Shortlist (red) */}
+      <div style={{
+        position: 'absolute', top: 0, right: 0, bottom: 0, width: '80px',
+        background: `rgba(239,68,68,${0.85 * leftReveal})`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
+        borderRadius: '0 12px 12px 0',
+        opacity: leftReveal,
+        pointerEvents: 'none',
+        transition: animating ? 'opacity 200ms ease' : 'none',
+      }}>
+        <Heart size={18} color="white" fill="white" />
+        <span style={{ fontSize: '8px', fontWeight: 700, color: 'white', letterSpacing: '0.07em' }}>SHORTLIST</span>
+      </div>
+
+      {/* Swipe-right background: Compare (blue) */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, bottom: 0, width: '80px',
+        background: `rgba(77,127,255,${0.85 * rightReveal})`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
+        borderRadius: '12px 0 0 12px',
+        opacity: rightReveal,
+        pointerEvents: 'none',
+        transition: animating ? 'opacity 200ms ease' : 'none',
+      }}>
+        <Scale size={18} color="white" />
+        <span style={{ fontSize: '8px', fontWeight: 700, color: 'white', letterSpacing: '0.07em' }}>COMPARER</span>
+      </div>
+
+      {/* Translating card */}
+      <div
+        style={{
+          transform: `translateX(${offsetX}px)`,
+          transition: animating ? 'transform 260ms cubic-bezier(0.34,1.56,0.64,1)' : 'none',
+          willChange: 'transform',
+        }}
+        onClick={e => { if (blockClickRef.current) e.stopPropagation() }}
+      >
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -376,72 +483,77 @@ export default function Players() {
               const inComp  = isSelected(player.id)
 
               return (
-                <div key={player.id}
-                  onClick={() => navigate(`/players/${player.id}`)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.06)',
-                    borderRadius: '12px', padding: '14px',
-                    cursor: 'pointer', transition: 'border-color 150ms',
-                  }}
+                <SwipeableCard
+                  key={player.id}
+                  onSwipeLeft={() => navigate('/shortlist')}
+                  onSwipeRight={() => (compareIds.length < 3 || inComp) && toggle(player.id)}
                 >
-                  {/* Avatar */}
-                  <div style={{
-                    width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-                    background: grad,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '15px', fontWeight: 700, color: 'white',
-                  }}>
-                    {initials}
-                  </div>
+                  <div
+                    onClick={() => navigate(`/players/${player.id}`)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: '12px', padding: '14px',
+                      cursor: 'pointer', transition: 'border-color 150ms',
+                    }}
+                  >
+                    {/* Avatar */}
+                    <div style={{
+                      width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                      background: grad,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '15px', fontWeight: 700, color: 'white',
+                    }}>
+                      {initials}
+                    </div>
 
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: '0 0 3px', fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {player.name}
-                    </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: '0 0 3px', fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {player.name}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
+                          color: meta.color, background: `${meta.color}15`,
+                          border: `1px solid ${meta.color}30`, borderRadius: '4px', padding: '1px 6px',
+                        }}>
+                          {player.primary_position}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {player.team}
+                          {player.age ? ` · ${player.age} ans` : ''}
+                        </span>
+                      </div>
                       <span style={{
-                        fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-                        color: meta.color, background: `${meta.color}15`,
-                        border: `1px solid ${meta.color}30`, borderRadius: '4px', padding: '1px 6px',
+                        display: 'inline-block', marginTop: '4px',
+                        fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 700,
+                        color: meta.color, background: `${meta.color}12`,
+                        border: `1px solid ${meta.color}25`, borderRadius: '4px', padding: '1px 6px',
+                        letterSpacing: '0.06em',
                       }}>
-                        {player.primary_position}
-                      </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {player.team}
-                        {player.age ? ` · ${player.age} ans` : ''}
+                        {label}
                       </span>
                     </div>
-                    <span style={{
-                      display: 'inline-block', marginTop: '4px',
-                      fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 700,
-                      color: meta.color, background: `${meta.color}12`,
-                      border: `1px solid ${meta.color}25`, borderRadius: '4px', padding: '1px 6px',
-                      letterSpacing: '0.06em',
-                    }}>
-                      {label}
-                    </span>
-                  </div>
 
-                  {/* Score ring + actions */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0 }}
-                    onClick={e => e.stopPropagation()}>
-                    <ScoreRing score={player._score} color={meta.color} />
-                    <button
-                      onClick={() => (compareIds.length < 3 || inComp) && toggle(player.id)}
-                      style={{
-                        width: 26, height: 26, borderRadius: '6px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: inComp ? 'rgba(77,127,255,0.18)' : 'rgba(255,255,255,0.06)',
-                        border: `1px solid ${inComp ? 'rgba(77,127,255,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                        color: inComp ? '#4D7FFF' : 'var(--text-muted)',
-                        cursor: 'pointer',
-                      }}>
-                      <Scale size={11} />
-                    </button>
+                    {/* Score ring + compare badge */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0 }}
+                      onClick={e => e.stopPropagation()}>
+                      <ScoreRing score={player._score} color={meta.color} />
+                      {inComp && (
+                        <span style={{
+                          fontSize: '8px', fontWeight: 700, color: '#4D7FFF',
+                          background: 'rgba(77,127,255,0.15)',
+                          border: '1px solid rgba(77,127,255,0.35)',
+                          borderRadius: '4px', padding: '1px 5px',
+                          letterSpacing: '0.04em',
+                        }}>
+                          COMP.
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </SwipeableCard>
               )
             })}
           </div>
