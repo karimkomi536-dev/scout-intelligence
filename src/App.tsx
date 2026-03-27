@@ -16,6 +16,7 @@ import NL from './pages/NL'
 import Upload from './pages/Upload'
 import Settings from './pages/Settings'
 import ShadowTeam from './pages/ShadowTeam'
+import AcceptInvitation from './pages/AcceptInvitation'
 
 function App() {
   return (
@@ -32,6 +33,9 @@ function App() {
 
           {/* Public share view */}
           <Route path="/shortlist/:token" element={<SharedShortlist />} />
+
+          {/* Accept team invitation */}
+          <Route path="/invite/:token" element={<AcceptInvitation />} />
 
           {/* App — protégée par ProtectedRoute */}
           <Route
