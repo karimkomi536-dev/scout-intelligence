@@ -8,6 +8,7 @@ export interface PlayerFilters {
   ageMax: number
   foot: string      // '' | 'Left' | 'Right'
   minScore: number
+  maxValueM: number // max market value in millions, 0 = no filter
 }
 
 const DEFAULTS: PlayerFilters = {
@@ -18,6 +19,7 @@ const DEFAULTS: PlayerFilters = {
   ageMax: 40,
   foot: '',
   minScore: 0,
+  maxValueM: 0,
 }
 
 export function usePlayerFilters() {
@@ -31,6 +33,7 @@ export function usePlayerFilters() {
     ageMax:    Number(searchParams.get('age_max')            ?? DEFAULTS.ageMax),
     foot:      searchParams.get('foot')                      ?? DEFAULTS.foot,
     minScore:  Number(searchParams.get('score_min')          ?? DEFAULTS.minScore),
+    maxValueM: Number(searchParams.get('max_value_m')        ?? DEFAULTS.maxValueM),
   }
 
   const hasActiveFilters =
@@ -40,7 +43,8 @@ export function usePlayerFilters() {
     filters.ageMin !== DEFAULTS.ageMin ||
     filters.ageMax !== DEFAULTS.ageMax ||
     filters.foot !== '' ||
-    filters.minScore !== 0
+    filters.minScore !== 0 ||
+    filters.maxValueM !== 0
 
   function set(updates: Partial<PlayerFilters>) {
     const next = { ...filters, ...updates }
@@ -52,6 +56,7 @@ export function usePlayerFilters() {
     if (next.ageMax !== DEFAULTS.ageMax)       p.set('age_max', String(next.ageMax))
     if (next.foot)                             p.set('foot', next.foot)
     if (next.minScore !== DEFAULTS.minScore)   p.set('score_min', String(next.minScore))
+    if (next.maxValueM !== DEFAULTS.maxValueM) p.set('max_value_m', String(next.maxValueM))
     setSearchParams(p, { replace: true })
   }
 

@@ -24,6 +24,15 @@ import type { Player } from '../types/player'
 import type { ScoutNote } from '../components/PlayerPDFReport'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function formatMarketValue(eur: number): string {
+  if (eur >= 1_000_000_000) return `${(eur / 1_000_000_000).toFixed(1).replace('.0', '')}Md €`
+  if (eur >= 1_000_000)     return `${(eur / 1_000_000).toFixed(1).replace('.0', '')}M €`
+  if (eur >= 1_000)         return `${Math.round(eur / 1_000)}k €`
+  return `${eur} €`
+}
+
 // ── Position theming ───────────────────────────────────────────────────────────
 
 const POS_COLOR: Record<PosGroup, string> = {
@@ -230,6 +239,7 @@ export default function PlayerDetail() {
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const [showNoteForm, setShowNoteForm] = useState(false)
+  const [prevMarketValue, setPrevMarketValue] = useState<number | null>(null)
   const [barsReady, setBarsReady] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const reportRef = useRef<HTMLDivElement>(null)
@@ -254,6 +264,15 @@ export default function PlayerDetail() {
     supabase.from('notes').select('id, content, created_at')
       .eq('player_id', id).order('created_at', { ascending: false }).limit(10)
       .then(({ data }) => { if (data) setNotes(data as ScoutNote[]) })
+    // Fetch previous market value to show trend indicator
+    supabase.from('market_value_history')
+      .select('value_eur')
+      .eq('player_id', id)
+      .order('recorded_at', { ascending: false })
+      .limit(2)
+      .then(({ data }) => {
+        if (data && data.length >= 2) setPrevMarketValue(data[1].value_eur as number)
+      })
   }, [id])
 
   // Trigger bar animations after player loads
@@ -477,6 +496,31 @@ export default function PlayerDetail() {
                   <span style={{ color: 'var(--text-secondary)', marginRight: '4px' }}>Ligue</span>{player.competition}
                 </span>
               )}
+              {player.market_value_eur != null && (() => {
+                const formatted = formatMarketValue(player.market_value_eur)
+                const delta = prevMarketValue != null ? player.market_value_eur - prevMarketValue : null
+                return (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{
+                      fontSize: '13px', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                      color: '#F5A623',
+                      background: 'rgba(245,166,35,0.10)',
+                      border: '1px solid rgba(245,166,35,0.25)',
+                      borderRadius: '6px', padding: '2px 8px',
+                    }}>
+                      {formatted}
+                    </span>
+                    {delta !== null && delta !== 0 && (
+                      <span style={{
+                        fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                        color: delta > 0 ? '#00C896' : '#ef4444',
+                      }}>
+                        {delta > 0 ? '↑' : '↓'} {formatMarketValue(Math.abs(delta))}
+                      </span>
+                    )}
+                  </span>
+                )
+              })()}
             </div>
 
             {/* Action buttons */}

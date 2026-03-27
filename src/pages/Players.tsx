@@ -46,6 +46,14 @@ const PAGE_SIZE = 20
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function formatMarketValueShort(eur: number): string {
+  if (eur >= 1_000_000_000) return `${(eur / 1_000_000_000).toFixed(1).replace('.0', '')}Md €`
+  if (eur >= 1_000_000)     return `${(eur / 1_000_000).toFixed(1).replace('.0', '')}M €`
+  if (eur >= 1_000)         return `${Math.round(eur / 1_000)}k €`
+  return `${eur} €`
+}
+
+
 function ScoreRing({ score, color }: { score: number; color: string }) {
   const r = 14, circ = 2 * Math.PI * r
   const offset = circ - (score / 100) * circ
@@ -214,7 +222,8 @@ export default function Players() {
     (filters.leagues.length > 0 ? 1 : 0) +
     (filters.foot !== '' ? 1 : 0) +
     ((filters.ageMin > 16 || filters.ageMax < 40) ? 1 : 0) +
-    (filters.minScore > 0 ? 1 : 0)
+    (filters.minScore > 0 ? 1 : 0) +
+    (filters.maxValueM > 0 ? 1 : 0)
   )
 
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search)
@@ -245,6 +254,7 @@ export default function Players() {
     if (filters.foot === 'Left')   q = q.ilike('foot', '%left%')
     if (filters.foot === 'Right')  q = q.ilike('foot', '%right%')
     if (filters.minScore > 0)      q = q.gte('scout_score', filters.minScore)
+    if (filters.maxValueM > 0)     q = q.lte('market_value_eur', filters.maxValueM * 1_000_000)
     q.order('scout_score', { ascending: false })
       .then(({ data }: { data: Player[] | null }) => {
         setPlayers(data ?? [])
@@ -252,7 +262,7 @@ export default function Players() {
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, filters.positions.join(','), filters.leagues.join(','),
-      filters.ageMin, filters.ageMax, filters.foot, filters.minScore])
+      filters.ageMin, filters.ageMax, filters.foot, filters.minScore, filters.maxValueM])
 
   function toggleValue(list: string[], value: string) {
     return list.includes(value) ? list.filter(x => x !== value) : [...list, value]
@@ -326,6 +336,26 @@ export default function Players() {
             onChange={e => set({ minScore: Number(e.target.value) })}
             style={{ accentColor: '#4D7FFF', width: '90px' }} />
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600, color: '#4D7FFF', minWidth: '24px' }}>{filters.minScore}</span>
+        </div>
+      </div>
+
+      {/* Valeur max */}
+      <div>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '7px' }}>Valeur max</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <input type="number" min={0} step={1} value={filters.maxValueM || ''}
+            placeholder="∞"
+            onChange={e => set({ maxValueM: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+            style={{
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              color: 'var(--text-primary)', borderRadius: '6px', padding: '4px 6px',
+              width: '60px', fontSize: '12px', textAlign: 'center', outline: 'none',
+              fontFamily: 'var(--font-mono)',
+            }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>M €</span>
+          {filters.maxValueM > 0 && (
+            <button onClick={() => set({ maxValueM: 0 })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', padding: '0 2px' }}>✕</button>
+          )}
         </div>
       </div>
 
@@ -715,6 +745,25 @@ export default function Players() {
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600, color: '#4D7FFF', minWidth: '24px' }}>{filters.minScore}</span>
             </div>
           </div>
+          {/* Valeur max */}
+          <div>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '7px' }}>Valeur max</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input type="number" min={0} step={1} value={filters.maxValueM || ''}
+                placeholder="∞"
+                onChange={e => set({ maxValueM: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+                style={{
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'var(--text-primary)', borderRadius: '6px', padding: '4px 6px',
+                  width: '60px', fontSize: '12px', textAlign: 'center', outline: 'none',
+                  fontFamily: 'var(--font-mono)',
+                }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>M €</span>
+              {filters.maxValueM > 0 && (
+                <button onClick={() => set({ maxValueM: 0 })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', padding: '0 2px' }}>✕</button>
+              )}
+            </div>
+          </div>
         </div>
         {/* Leagues */}
         {leagues.length > 0 && (
@@ -741,12 +790,12 @@ export default function Players() {
           {/* Table header */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '48px 1fr 90px 80px 100px 120px 1fr 72px',
+            gridTemplateColumns: '48px 1fr 90px 80px 100px 120px 1fr 90px 72px',
             background: 'var(--bg-sidebar)',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
             padding: '0 16px',
           }}>
-            {['', 'JOUEUR', 'POSTE', 'ÂGE', 'SCORE', 'LABEL', 'CHAMPIONNAT', ''].map((h, i) => (
+            {['', 'JOUEUR', 'POSTE', 'ÂGE', 'SCORE', 'LABEL', 'CHAMPIONNAT', 'VALEUR', ''].map((h, i) => (
               <div key={i} style={{
                 padding: '10px 8px',
                 fontFamily: 'var(--font-mono)', fontSize: '10px',
@@ -774,7 +823,7 @@ export default function Players() {
                 onMouseLeave={() => setHoveredId(null)}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '48px 1fr 90px 80px 100px 120px 1fr 72px',
+                  gridTemplateColumns: '48px 1fr 90px 80px 100px 120px 1fr 90px 72px',
                   alignItems: 'center',
                   padding: '0 16px',
                   borderBottom: '1px solid rgba(255,255,255,0.04)',
@@ -835,6 +884,18 @@ export default function Players() {
                 </div>
                 <div style={{ padding: '12px 8px', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {player.competition}
+                </div>
+                <div style={{ padding: '12px 8px' }}>
+                  {player.market_value_eur != null ? (
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 600,
+                      color: '#F5A623',
+                    }}>
+                      {formatMarketValueShort(player.market_value_eur)}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '11px' }}>—</span>
+                  )}
                 </div>
                 <div style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: '6px', opacity: isHov ? 1 : 0, transition: 'opacity 150ms' }}
                   onClick={e => e.stopPropagation()}>

@@ -37,4 +37,5 @@ export interface Player {
   progressive_passes: number
   key_passes: number
   individual_stats: IndividualStats | null
+  market_value_eur: number | null
 }
