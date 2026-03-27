@@ -24,9 +24,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (!mounted) return
       if (error) {
-        console.warn('getSession error:', error.message)
-        // Ne pas rediriger vers /login — montrer une erreur récupérable
-        setAuthError(error.message)
+        // 429 = rate limit on token refresh — keep the current session if any,
+        // don't surface as a hard error
+        const is429 = error.status === 429 || error.message?.includes('rate limit')
+        if (is429) {
+          console.warn('Auth rate-limited (429) — keeping existing session')
+          setUser(session?.user ?? null)
+        } else {
+          console.warn('getSession error:', error.message)
+          setAuthError(error.message)
+        }
         setLoading(false)
         return
       }
