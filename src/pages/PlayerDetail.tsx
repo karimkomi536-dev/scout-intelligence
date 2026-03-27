@@ -4,7 +4,7 @@ import { useIsMobile } from '../hooks/useIsMobile'
 import { usePlayerHistory } from '../hooks/usePlayerHistory'
 import {
   ArrowLeft, Scale, CheckCircle, FileDown, Loader2, Heart, Sparkles, Send,
-  TrendingUp, TrendingDown, RefreshCw, FileText,
+  TrendingUp, TrendingDown, RefreshCw, FileText, Mic, MicOff,
 } from 'lucide-react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
@@ -22,6 +22,7 @@ import { PlayerPDFReport } from '../components/PlayerPDFReport'
 import { exportPlayerPDF } from '../utils/exportPDF'
 import type { Player } from '../types/player'
 import type { ScoutNote } from '../components/PlayerPDFReport'
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 
 // ── Position theming ───────────────────────────────────────────────────────────
 
@@ -233,9 +234,11 @@ export default function PlayerDetail() {
   const [pdfLoading, setPdfLoading] = useState(false)
   const reportRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const baseNoteRef = useRef('')  // text in textarea before recording starts
 
   const { snapshots, loading: historyLoading } = usePlayerHistory(id)
   const { weights: scoringWeights } = useScoringProfile()
+  const speech = useSpeechRecognition()
   const { report: aiReport, status: aiStatus, error: aiError, generateReport, reset: resetReport } = useScoutReport()
   const [includeInPDF, setIncludeInPDF] = useState(false)
   const { similar, loading: similarLoading } = useSimilarPlayers(player)
@@ -259,6 +262,18 @@ export default function PlayerDetail() {
     const t = setTimeout(() => setBarsReady(true), 150)
     return () => clearTimeout(t)
   }, [player])
+
+  // Sync live speech transcript into the textarea
+  useEffect(() => {
+    if (speech.isListening) {
+      setNoteText(baseNoteRef.current + (speech.transcript ? ' ' + speech.transcript : ''))
+    }
+  }, [speech.transcript, speech.isListening])
+
+  // Stop listening when the form is closed
+  useEffect(() => {
+    if (!showNoteForm && speech.isListening) speech.stopListening()
+  }, [showNoteForm]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleExportPDF() {
     if (!reportRef.current || !player) return
@@ -946,41 +961,106 @@ export default function PlayerDetail() {
         {/* Note form */}
         {showNoteForm && (
           <div style={{ marginBottom: '20px', animation: 'fadeIn 0.2s ease' }}>
-            <textarea
-              ref={textareaRef}
-              value={noteText}
-              onChange={e => {
-                setNoteText(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = e.target.scrollHeight + 'px'
-              }}
-              placeholder="Observations, remarques, points d'attention…"
-              rows={3}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                borderRadius: '10px',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                lineHeight: 1.6,
-                padding: '12px 14px',
-                resize: 'none',
-                outline: 'none',
-                fontFamily: 'var(--font-ui)',
-                transition: 'border-color 150ms ease, box-shadow 150ms ease',
+            {/* Textarea + mic button row */}
+            <div style={{ position: 'relative', marginBottom: '10px' }}>
+              <textarea
+                ref={textareaRef}
+                value={noteText}
+                onChange={e => {
+                  setNoteText(e.target.value)
+                  if (!speech.isListening) baseNoteRef.current = e.target.value
+                  e.target.style.height = 'auto'
+                  e.target.style.height = e.target.scrollHeight + 'px'
+                }}
+                placeholder={speech.isListening ? 'En écoute…' : "Observations, remarques, points d'attention…"}
+                rows={3}
+                style={{
+                  width: '100%',
+                  background: speech.isListening
+                    ? 'rgba(239,68,68,0.05)'
+                    : 'rgba(255,255,255,0.03)',
+                  border: speech.isListening
+                    ? '1px solid rgba(239,68,68,0.40)'
+                    : '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  lineHeight: 1.6,
+                  padding: '12px 44px 12px 14px',
+                  resize: 'none',
+                  outline: 'none',
+                  fontFamily: 'var(--font-ui)',
+                  transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={e => {
+                  if (!speech.isListening) {
+                    e.target.style.borderColor = 'rgba(77,127,255,0.50)'
+                    e.target.style.boxShadow = '0 0 0 3px rgba(77,127,255,0.12)'
+                  }
+                }}
+                onBlur={e => {
+                  if (!speech.isListening) {
+                    e.target.style.borderColor = 'rgba(255,255,255,0.10)'
+                    e.target.style.boxShadow = 'none'
+                  }
+                }}
+              />
+              {/* Mic button — top-right of textarea */}
+              <button
+                title={!speech.isSupported ? 'Non supporté par ce navigateur' : speech.isListening ? 'Arrêter la dictée' : 'Dicter une note'}
+                disabled={!speech.isSupported}
+                onClick={() => {
+                  if (speech.isListening) {
+                    speech.stopListening()
+                  } else {
+                    baseNoteRef.current = noteText
+                    speech.clearTranscript()
+                    speech.startListening()
+                  }
+                }}
+                style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: speech.isListening
+                    ? 'rgba(239,68,68,0.15)'
+                    : 'rgba(255,255,255,0.06)',
+                  border: speech.isListening
+                    ? '1px solid rgba(239,68,68,0.40)'
+                    : '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '7px',
+                  color: speech.isListening ? '#ef4444' : speech.isSupported ? 'var(--text-muted)' : 'rgba(255,255,255,0.20)',
+                  cursor: speech.isSupported ? 'pointer' : 'not-allowed',
+                  transition: 'all 150ms ease',
+                  animation: speech.isListening ? 'pulse 1.4s ease-in-out infinite' : 'none',
+                  flexShrink: 0,
+                }}
+              >
+                {speech.isListening ? <MicOff size={13} /> : <Mic size={13} />}
+              </button>
+            </div>
+            {/* Listening indicator */}
+            {speech.isListening && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
                 marginBottom: '10px',
-                boxSizing: 'border-box',
-              }}
-              onFocus={e => {
-                e.target.style.borderColor = 'rgba(77,127,255,0.50)'
-                e.target.style.boxShadow = '0 0 0 3px rgba(77,127,255,0.12)'
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = 'rgba(255,255,255,0.10)'
-                e.target.style.boxShadow = 'none'
-              }}
-            />
+                color: '#ef4444', fontSize: '11px', fontWeight: 600,
+              }}>
+                <span style={{
+                  width: '6px', height: '6px', borderRadius: '50%',
+                  background: '#ef4444',
+                  animation: 'pulse 1.4s ease-in-out infinite',
+                  flexShrink: 0,
+                }} />
+                En écoute…
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={handleAddNote}
