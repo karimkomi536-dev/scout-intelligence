@@ -84,7 +84,7 @@ function useCountUp(target: number, duration = 800) {
   return val
 }
 
-// ── Score ring SVG (mini, 40px) ───────────────────────────────────────────────
+// ── Score ring SVG (40px) ─────────────────────────────────────────────────────
 
 function ScoreRing({ score, color }: { score: number; color: string }) {
   const r = 16
@@ -99,7 +99,7 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
         strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round"
         transform="rotate(-90 20 20)"
-        style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+        style={{ filter: `drop-shadow(0 0 5px ${color})` }}
       />
       <text x="20" y="24" textAnchor="middle" fill={color}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600 }}>
@@ -118,8 +118,8 @@ function KpiCard({ label, value, icon: Icon, color, glow, delta }: {
   const display = useCountUp(value)
   return (
     <div style={{
-      background: 'var(--bg-surface)',
-      border: '1px solid var(--border-subtle)',
+      background: 'var(--surface2)',
+      border: '1px solid var(--border)',
       borderRadius: '12px',
       padding: '20px 22px',
       position: 'relative',
@@ -129,22 +129,22 @@ function KpiCard({ label, value, icon: Icon, color, glow, delta }: {
       <div style={{
         position: 'absolute', top: '-20px', right: '-20px',
         width: '80px', height: '80px', borderRadius: '50%',
-        background: glow, filter: 'blur(24px)', pointerEvents: 'none',
+        background: glow, filter: 'blur(28px)', pointerEvents: 'none',
       }} />
 
-      {/* Icon */}
+      {/* Icon in circle */}
       <div style={{
-        width: '36px', height: '36px', borderRadius: '8px',
-        background: `${color}18`, border: `1px solid ${color}30`,
+        width: '40px', height: '40px', borderRadius: '50%',
+        background: `${color}18`, border: `1px solid ${color}35`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         marginBottom: '14px',
-        boxShadow: `0 0 12px ${glow}`,
+        boxShadow: `0 0 14px ${glow}`,
       }}>
-        <Icon size={16} color={color} />
+        <Icon size={17} color={color} />
       </div>
 
       <p style={{
-        fontFamily: 'var(--font-mono)', fontSize: '34px', fontWeight: 700,
+        fontFamily: 'var(--font-mono)', fontSize: '36px', fontWeight: 700,
         color, margin: '0 0 2px', lineHeight: 1,
         textShadow: `0 0 20px ${glow}`,
       }}>
@@ -160,6 +160,57 @@ function KpiCard({ label, value, icon: Icon, color, glow, delta }: {
         </p>
       )}
     </div>
+  )
+}
+
+// ── Live badge ────────────────────────────────────────────────────────────────
+
+function LiveBadge() {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500,
+      color: '#00C896', background: 'rgba(0,200,150,0.10)',
+      border: '1px solid rgba(0,200,150,0.25)', borderRadius: '4px',
+      padding: '2px 8px', letterSpacing: '0.06em',
+    }}>
+      <span style={{
+        width: '6px', height: '6px', borderRadius: '50%',
+        background: '#00C896',
+        boxShadow: '0 0 6px #00C896',
+        animation: 'pulse 2s ease infinite',
+        display: 'inline-block',
+      }} />
+      LIVE
+    </span>
+  )
+}
+
+// ── Label badge (text) ────────────────────────────────────────────────────────
+
+function LabelBadge({ label }: { label: string }) {
+  const meta = LABEL_META[label] ?? LABEL_META['LOW PRIORITY']
+  const shortLabel: Record<string, string> = {
+    'ELITE': 'ELITE',
+    'TOP PROSPECT': 'PROSPECT',
+    'INTERESTING': 'INTERESTING',
+    'TO MONITOR': 'MONITOR',
+    'LOW PRIORITY': 'LOW',
+  }
+  return (
+    <span style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '9px', fontWeight: 500,
+      color: meta.color,
+      background: meta.bg,
+      border: `1px solid ${meta.color}30`,
+      borderRadius: '4px',
+      padding: '1px 5px',
+      letterSpacing: '0.04em',
+      whiteSpace: 'nowrap',
+    }}>
+      {shortLabel[label] ?? label}
+    </span>
   )
 }
 
@@ -212,7 +263,7 @@ export default function Dashboard() {
   const countByLabel = (label: string) => scored.filter(p => p._label === label).length
   const top5 = [...scored].sort((a, b) => b._score - a._score).slice(0, 5)
 
-  // Area chart: distribution stacked by label per score bucket (10-point buckets)
+  // Area chart: distribution by label per score bucket (10-point buckets)
   const buckets: Record<number, Record<string, number>> = {}
   scored.forEach(p => {
     const b = Math.floor(p._score / 10) * 10
@@ -258,7 +309,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.02em' }}>
-            Bonjour, {greeting} 👋
+            Bonjour {greeting} 👋
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, textTransform: 'capitalize' }}>
             {formatFullDate()}
@@ -285,47 +336,40 @@ export default function Dashboard() {
 
       {/* ── KPI cards ───────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: '14px' }}>
-        <KpiCard label="Total Joueurs"  value={players.length}          icon={Users}      color="#4D7FFF" glow="rgba(77,127,255,0.3)"   delta={monthDelta} />
-        <KpiCard label="Elite"          value={countByLabel('ELITE')}   icon={Star}       color="#00C896" glow="rgba(0,200,150,0.3)"    />
+        <KpiCard label="Total Joueurs"  value={players.length}               icon={Users}      color="#4D7FFF" glow="rgba(77,127,255,0.3)"   delta={monthDelta} />
+        <KpiCard label="Elite"          value={countByLabel('ELITE')}        icon={Star}       color="#00C896" glow="rgba(0,200,150,0.3)"    />
         <KpiCard label="Top Prospect"   value={countByLabel('TOP PROSPECT')} icon={TrendingUp} color="#4D7FFF" glow="rgba(77,127,255,0.25)" />
-        <KpiCard label="À surveiller"   value={countByLabel('TO MONITOR')}  icon={Eye}        color="#9B6DFF" glow="rgba(155,109,255,0.25)" />
+        <KpiCard label="À surveiller"   value={countByLabel('TO MONITOR')}   icon={Eye}        color="#9B6DFF" glow="rgba(155,109,255,0.25)" />
       </div>
 
-      {/* ── Main row : Area chart + Top 5 ───────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: '14px' }}>
+      {/* ── Main row : Area chart (2/3) + Top 5 (1/3) ───────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '14px' }}>
 
         {/* Area chart */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '22px' }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
               Distribution des talents
             </h3>
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500,
-              color: '#00C896', background: 'rgba(0,200,150,0.12)',
-              border: '1px solid rgba(0,200,150,0.25)', borderRadius: '4px',
-              padding: '2px 8px', letterSpacing: '0.06em',
-            }}>
-              LIVE
-            </span>
+            <LiveBadge />
           </div>
           <ResponsiveContainer width="100%" height={isMobile ? 200 : 220}>
             <AreaChart data={areaData} margin={{ left: -10, right: 10, top: 4, bottom: 0 }}>
               <defs>
                 <linearGradient id="gElite" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#00C896" stopOpacity={0.25} />
+                  <stop offset="5%"  stopColor="#00C896" stopOpacity={0.28} />
                   <stop offset="95%" stopColor="#00C896" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gProspect" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#4D7FFF" stopOpacity={0.25} />
+                  <stop offset="5%"  stopColor="#4D7FFF" stopOpacity={0.28} />
                   <stop offset="95%" stopColor="#4D7FFF" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gInteresting" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#F5A623" stopOpacity={0.2} />
+                  <stop offset="5%"  stopColor="#F5A623" stopOpacity={0.22} />
                   <stop offset="95%" stopColor="#F5A623" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gMonitor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#9B6DFF" stopOpacity={0.2} />
+                  <stop offset="5%"  stopColor="#9B6DFF" stopOpacity={0.22} />
                   <stop offset="95%" stopColor="#9B6DFF" stopOpacity={0} />
                 </linearGradient>
               </defs>
@@ -336,23 +380,23 @@ export default function Dashboard() {
                 labelStyle={{ color: 'var(--text-secondary)', marginBottom: '4px' }}
                 itemStyle={{ color: 'var(--text-primary)' }}
               />
-              <Area type="monotone" dataKey="ELITE"        stroke="#00C896" strokeWidth={2} fill="url(#gElite)"       dot={false} style={{ filter: 'drop-shadow(0 0 4px #00C896)' }} />
-              <Area type="monotone" dataKey="TOP PROSPECT" stroke="#4D7FFF" strokeWidth={2} fill="url(#gProspect)"    dot={false} style={{ filter: 'drop-shadow(0 0 4px #4D7FFF)' }} />
-              <Area type="monotone" dataKey="INTERESTING"  stroke="#F5A623" strokeWidth={2} fill="url(#gInteresting)" dot={false} style={{ filter: 'drop-shadow(0 0 4px #F5A623)' }} />
-              <Area type="monotone" dataKey="TO MONITOR"   stroke="#9B6DFF" strokeWidth={2} fill="url(#gMonitor)"     dot={false} style={{ filter: 'drop-shadow(0 0 4px #9B6DFF)' }} />
+              <Area type="monotone" dataKey="ELITE"        stroke="#00C896" strokeWidth={2} fill="url(#gElite)"       dot={false} style={{ filter: 'drop-shadow(0 0 6px #00C896)' }} />
+              <Area type="monotone" dataKey="TOP PROSPECT" stroke="#4D7FFF" strokeWidth={2} fill="url(#gProspect)"    dot={false} style={{ filter: 'drop-shadow(0 0 6px #4D7FFF)' }} />
+              <Area type="monotone" dataKey="INTERESTING"  stroke="#F5A623" strokeWidth={2} fill="url(#gInteresting)" dot={false} style={{ filter: 'drop-shadow(0 0 6px #F5A623)' }} />
+              <Area type="monotone" dataKey="TO MONITOR"   stroke="#9B6DFF" strokeWidth={2} fill="url(#gMonitor)"     dot={false} style={{ filter: 'drop-shadow(0 0 6px #9B6DFF)' }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Top 5 */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '22px' }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Top 5</h3>
             <button onClick={() => navigate('/players')} style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', fontSize: '11px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
               Voir tous →
             </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '2px' : '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {top5.map((p, i) => {
               const meta = LABEL_META[p._label] ?? LABEL_META['LOW PRIORITY']
               const initials = p.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
@@ -367,9 +411,9 @@ export default function Dashboard() {
                   onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-disabled)', width: '14px', textAlign: 'center' }}>{i + 1}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', width: '14px', textAlign: 'center', flexShrink: 0 }}>{i + 1}</span>
                   <div style={{
-                    width: 30, height: 30, borderRadius: '50%',
+                    width: 32, height: 32, borderRadius: '50%',
                     background: `${meta.color}20`, border: `1px solid ${meta.color}40`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '10px', fontWeight: 700, color: meta.color, flexShrink: 0,
@@ -378,10 +422,13 @@ export default function Dashboard() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                    <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>{p.primary_position} · {p.team}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{p.primary_position}</span>
+                      <LabelBadge label={p._label} />
+                    </div>
                   </div>
                   <ScoreRing score={p._score} color={meta.color} />
-                  {!isMobile && <ArrowRight size={12} color="var(--text-disabled)" />}
+                  {!isMobile && <ArrowRight size={12} color="var(--text-muted)" />}
                 </div>
               )
             })}
@@ -393,7 +440,7 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
 
         {/* Donut */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '22px' }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>Répartition par poste</h3>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 14px' }}>{players.length} joueurs analysés</p>
           <ResponsiveContainer width="100%" height={200}>
@@ -416,7 +463,7 @@ export default function Dashboard() {
         </div>
 
         {/* Activity feed */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '22px' }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 16px' }}>Activité récente</h3>
           {recent.length === 0 ? (
             <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Aucune activité pour l'instant.</p>
@@ -429,11 +476,11 @@ export default function Dashboard() {
                 }}>
                   {/* Icon */}
                   <div style={{
-                    width: 30, height: 30, borderRadius: '8px', flexShrink: 0,
+                    width: 32, height: 32, borderRadius: '8px', flexShrink: 0,
                     background: 'rgba(77,127,255,0.12)', border: '1px solid rgba(77,127,255,0.20)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Bookmark size={12} color="#4D7FFF" />
+                    <Bookmark size={13} color="#4D7FFF" />
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.4 }}>
