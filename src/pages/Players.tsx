@@ -529,7 +529,7 @@ export default function Players() {
                   >
                     {/* Avatar */}
                     <div style={{
-                      width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                      width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
                       background: grad,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '15px', fontWeight: 700, color: 'white',

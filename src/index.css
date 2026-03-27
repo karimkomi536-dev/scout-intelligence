@@ -86,7 +86,7 @@ button, a, [role="button"] {
 }
 
 /* Scroll fluide iOS (momentum scrolling) */
-main {
+* {
   -webkit-overflow-scrolling: touch;
 }
 

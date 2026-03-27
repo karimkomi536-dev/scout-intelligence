@@ -353,7 +353,7 @@ export default function Dashboard() {
             </h3>
             <LiveBadge />
           </div>
-          <ResponsiveContainer width="100%" height={isMobile ? 200 : 220}>
+          <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
             <AreaChart data={areaData} margin={{ left: -10, right: 10, top: 4, bottom: 0 }}>
               <defs>
                 <linearGradient id="gElite" x1="0" y1="0" x2="0" y2="1">
@@ -443,7 +443,7 @@ export default function Dashboard() {
         <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>Répartition par poste</h3>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 14px' }}>{players.length} joueurs analysés</p>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={isMobile ? 180 : 200}>
             <PieChart>
               <Pie data={posData} cx="40%" cy="50%" innerRadius={52} outerRadius={78} paddingAngle={4} dataKey="value">
                 {posData.map(d => (
