@@ -63,4 +63,11 @@
   /* ── Transitions ─────────────────────────────────────────────────────────── */
   --transition-fast: 120ms ease;
   --transition-base: 200ms ease;
+
+  /* ── Short aliases (V3 naming) ───────────────────────────────────────────── */
+  --bg:           #0A0E1B;
+  --surface:      #0D1525;
+  --surface2:     #111A2E;
+  --border:       rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(255, 255, 255, 0.14);
 }
