@@ -2,8 +2,14 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
-  Scale, Settings, Zap, Menu, X, Target,
+  Scale, Settings, Zap, Menu, X, Target, Download,
 } from 'lucide-react'
+
+// Browser install prompt event (not in standard TS lib)
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
 import { useAuth } from '../contexts/AuthContext'
 import CompareBar from './CompareBar'
 import NotificationBell from './NotificationBell'
@@ -66,7 +72,7 @@ function isActiveCheck(to: string, pathname: string) {
 // ── Sidebar inner content (shared desktop + drawer) ──────────────────────────
 
 function SidebarContent({
-  displayName, displayEmail, initials, location, signOut, onClose,
+  displayName, displayEmail, initials, location, signOut, onClose, onInstall,
 }: {
   displayName: string
   displayEmail: string
@@ -74,6 +80,7 @@ function SidebarContent({
   location: { pathname: string }
   signOut: () => void
   onClose?: () => void
+  onInstall?: (() => void) | null
 }) {
   return (
     <>
@@ -220,6 +227,31 @@ function SidebarContent({
             <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>Passer à Pro →</p>
           </div>
         </div>
+        {/* Install PWA button — shown only when browser fires beforeinstallprompt */}
+        {onInstall && (
+          <button
+            onClick={() => { onClose?.(); onInstall() }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '9px 12px',
+              background: 'rgba(0,200,150,0.08)',
+              border: '1px solid rgba(0,200,150,0.22)',
+              borderRadius: '8px',
+              color: '#00C896',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              width: '100%',
+              transition: 'all 150ms ease',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,200,150,0.16)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,200,150,0.08)')}
+          >
+            <Download size={14} />
+            Installer l'app
+          </button>
+        )}
+
         <button
           onClick={() => { onClose?.(); signOut() }}
           style={{
@@ -264,11 +296,29 @@ export default function Layout() {
   const [showProfileSheet, setShowProfileSheet] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 
   // Close drawer on route change
   useEffect(() => {
     setSidebarOpen(false)
   }, [location.pathname])
+
+  // Capture PWA install prompt
+  useEffect(() => {
+    function onBeforeInstall(e: Event) {
+      e.preventDefault()
+      setInstallPrompt(e as BeforeInstallPromptEvent)
+    }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall)
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall)
+  }, [])
+
+  async function handleInstall() {
+    if (!installPrompt) return
+    await installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === 'accepted') setInstallPrompt(null)
+  }
 
   // Cmd+K / Ctrl+K global shortcut
   useEffect(() => {
@@ -290,7 +340,10 @@ export default function Layout() {
     location.pathname.startsWith(path)
   )?.[1] ?? 'VIZION'
 
-  const sidebarProps = { displayName, displayEmail, initials, location, signOut }
+  const sidebarProps = {
+    displayName, displayEmail, initials, location, signOut,
+    onInstall: installPrompt ? handleInstall : null,
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: 'var(--bg-base)' }}>
