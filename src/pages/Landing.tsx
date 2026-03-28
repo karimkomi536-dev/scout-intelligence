@@ -939,17 +939,25 @@ function Footer({ isMobile }: { isMobile: boolean }) {
       </div>
 
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-        {['Confidentialité', 'CGU', 'Mentions légales', 'Contact'].map(label => (
-          <a key={label} href="#" style={{
-            fontSize: '13px', color: T.muted,
-            textDecoration: 'none', transition: 'color 0.2s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.color = T.text)}
-            onMouseLeave={e => (e.currentTarget.style.color = T.muted)}
-          >
-            {label}
-          </a>
-        ))}
+        {([
+          { label: 'Confidentialité', to: '/privacy' },
+          { label: 'CGU',             to: '/terms'   },
+          { label: 'Contact',         to: 'mailto:hello@vizion.app' },
+        ] as const).map(({ label, to }) =>
+          to.startsWith('mailto:') ? (
+            <a key={label} href={to} style={{ fontSize: '13px', color: T.muted, textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = T.text)}
+              onMouseLeave={e => (e.currentTarget.style.color = T.muted)}>
+              {label}
+            </a>
+          ) : (
+            <Link key={label} to={to} style={{ fontSize: '13px', color: T.muted, textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = T.text)}
+              onMouseLeave={e => (e.currentTarget.style.color = T.muted)}>
+              {label}
+            </Link>
+          )
+        )}
       </div>
     </footer>
   )

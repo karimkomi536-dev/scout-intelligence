@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -11,7 +11,7 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault()
     setError(null)
 
@@ -178,7 +178,18 @@ export default function Register() {
           </button>
         </form>
 
-        <p style={{ marginTop: '24px', textAlign: 'center', fontSize: '13px', color: '#6b7280' }}>
+        <p style={{ marginTop: '16px', fontSize: '11px', color: '#4b5563', textAlign: 'center', lineHeight: 1.6 }}>
+          En créant un compte, vous acceptez nos{' '}
+          <Link to="/terms" style={{ color: '#6b7280', textDecoration: 'underline' }}>
+            CGU
+          </Link>{' '}
+          et notre{' '}
+          <Link to="/privacy" style={{ color: '#6b7280', textDecoration: 'underline' }}>
+            politique de confidentialité
+          </Link>.
+        </p>
+
+        <p style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', color: '#6b7280' }}>
           Already have an account?{' '}
           <Link to="/login" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}>
             Sign in

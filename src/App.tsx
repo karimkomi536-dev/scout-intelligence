@@ -19,6 +19,8 @@ import Upload from './pages/Upload'
 import Settings from './pages/Settings'
 import ShadowTeam from './pages/ShadowTeam'
 import AcceptInvitation from './pages/AcceptInvitation'
+import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
 
 function App() {
   return (
@@ -38,6 +40,10 @@ function App() {
 
           {/* Accept team invitation */}
           <Route path="/invite/:token" element={<AcceptInvitation />} />
+
+          {/* Legal */}
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms"   element={<Terms />} />
 
           {/* App — protégée par ProtectedRoute */}
           <Route
