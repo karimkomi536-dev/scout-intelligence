@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import * as Sentry from '@sentry/react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
@@ -21,56 +22,71 @@ import ShadowTeam from './pages/ShadowTeam'
 import AcceptInvitation from './pages/AcceptInvitation'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
+import SplashScreen from './components/SplashScreen'
 
 function App() {
+  // Show splash only once per browser session (not on every navigation)
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    return !sessionStorage.getItem('vizion-splash-shown')
+  })
+
+  function handleSplashDone() {
+    sessionStorage.setItem('vizion-splash-shown', 'true')
+    setShowSplash(false)
+  }
+
   return (
-    <CompareProvider>
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Landing — publique, redirige vers /dashboard si déjà connecté */}
-          <Route path="/" element={<Landing />} />
+    <>
+      {showSplash && <SplashScreen onDone={handleSplashDone} />}
 
-          {/* Auth */}
-          <Route path="/login"    element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <CompareProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Landing — publique, redirige vers /dashboard si déjà connecté */}
+            <Route path="/" element={<Landing />} />
 
-          {/* Public share view */}
-          <Route path="/shortlist/:token" element={<SharedShortlist />} />
+            {/* Auth */}
+            <Route path="/login"    element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Accept team invitation */}
-          <Route path="/invite/:token" element={<AcceptInvitation />} />
+            {/* Public share view */}
+            <Route path="/shortlist/:token" element={<SharedShortlist />} />
 
-          {/* Legal */}
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms"   element={<Terms />} />
+            {/* Accept team invitation */}
+            <Route path="/invite/:token" element={<AcceptInvitation />} />
 
-          {/* App — protégée par ProtectedRoute */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="dashboard"  element={<Dashboard />} />
-            <Route path="players"    element={<Players />} />
-            <Route path="players/:id" element={<PlayerDetail />} />
-            <Route path="compare"    element={<Compare />} />
-            <Route path="shortlist"  element={<Shortlist />} />
-            <Route path="newsletter" element={<NL />} />
-            <Route path="upload"     element={<Upload />} />
-            <Route path="settings"     element={<Settings />} />
-            <Route path="shadow-team"  element={<ShadowTeam />} />
-          </Route>
+            {/* Legal */}
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms"   element={<Terms />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-    </CompareProvider>
+            {/* App — protégée par ProtectedRoute */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="dashboard"   element={<Dashboard />} />
+              <Route path="players"     element={<Players />} />
+              <Route path="players/:id" element={<PlayerDetail />} />
+              <Route path="compare"     element={<Compare />} />
+              <Route path="shortlist"   element={<Shortlist />} />
+              <Route path="newsletter"  element={<NL />} />
+              <Route path="upload"      element={<Upload />} />
+              <Route path="settings"    element={<Settings />} />
+              <Route path="shadow-team" element={<ShadowTeam />} />
+            </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+      </CompareProvider>
+    </>
   )
 }
 
