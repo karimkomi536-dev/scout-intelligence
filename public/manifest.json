@@ -1,15 +1,18 @@
 {
   "name": "VIZION Football Scouting",
   "short_name": "VIZION",
-  "description": "Football Scouting Intelligence",
-  "start_url": "/dashboard",
-  "scope": "/",
+  "description": "Football Scouting Intelligence Platform",
+  "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
   "background_color": "#0A0E1B",
   "theme_color": "#0A0E1B",
-  "categories": ["sports", "productivity"],
+  "orientation": "portrait-primary",
   "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",

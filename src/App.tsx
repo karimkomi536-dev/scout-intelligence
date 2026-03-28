@@ -25,12 +25,18 @@ import Terms from './pages/Terms'
 import SplashScreen from './components/SplashScreen'
 
 function App() {
-  const [splashDone, setSplashDone] = useState<boolean>(
-    () => sessionStorage.getItem('vizion-splash') === '1'
-  )
+  const [splashDone, setSplashDone] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('vizion-splash-v2') === 'done'
+    } catch {
+      return false
+    }
+  })
 
-  function handleSplashDone() {
-    sessionStorage.setItem('vizion-splash', '1')
+  const handleSplashDone = () => {
+    try {
+      sessionStorage.setItem('vizion-splash-v2', 'done')
+    } catch {}
     setSplashDone(true)
   }
 
