@@ -6,7 +6,7 @@ import {
   checkRateLimit,
   getClientIp,
   rateLimitedResponse,
-} from './cors'
+} from './cors.js'
 
 export default async function handler(request: Request) {
   const origin = request.headers.get('origin') ?? undefined
