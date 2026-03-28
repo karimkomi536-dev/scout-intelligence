@@ -4,7 +4,7 @@ import { useIsMobile } from '../hooks/useIsMobile'
 import { usePlayerHistory } from '../hooks/usePlayerHistory'
 import {
   ArrowLeft, Scale, CheckCircle, FileDown, Loader2, Heart, Sparkles, Send,
-  TrendingUp, TrendingDown, RefreshCw, FileText, Mic, MicOff,
+  TrendingUp, TrendingDown, RefreshCw, FileText, Mic, MicOff, ClipboardList, Plus,
 } from 'lucide-react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
@@ -23,6 +23,9 @@ import { exportPlayerPDF } from '../utils/exportPDF'
 import type { Player } from '../types/player'
 import type { ScoutNote } from '../components/PlayerPDFReport'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import ScoutReportForm from '../components/ScoutReportForm'
+import type { ScoutReport } from '../components/ScoutReportForm'
+import { useOrganization } from '../hooks/useOrganization'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -226,7 +229,7 @@ function NoteCard({ note }: { note: ScoutNote }) {
 
 // ── Tab type ───────────────────────────────────────────────────────────────────
 
-type Tab = 'profil' | 'stats' | 'notes' | 'ia'
+type Tab = 'profil' | 'stats' | 'notes' | 'ia' | 'rapports'
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -251,6 +254,10 @@ export default function PlayerDetail() {
   const baseNoteRef = useRef('')  // text in textarea before recording starts
   const [activeTab, setActiveTab] = useState<Tab>('profil')
 
+  const { organization } = useOrganization()
+  const [scoutReports, setScoutReports]       = useState<ScoutReport[]>([])
+  const [showReportForm, setShowReportForm]   = useState(false)
+
   const { snapshots, loading: historyLoading } = usePlayerHistory(id)
   const { weights: scoringWeights } = useScoringProfile()
   const speech = useSpeechRecognition()
@@ -269,6 +276,11 @@ export default function PlayerDetail() {
     supabase.from('notes').select('id, content, created_at')
       .eq('player_id', id).order('created_at', { ascending: false }).limit(10)
       .then(({ data }) => { if (data) setNotes(data as ScoutNote[]) })
+    // Fetch scout reports for this player
+    supabase.from('scout_reports').select('*')
+      .eq('player_id', id).order('created_at', { ascending: false })
+      .then(({ data }) => { if (data) setScoutReports(data as ScoutReport[]) })
+
     // Fetch previous market value to show trend indicator
     supabase.from('market_value_history')
       .select('value_eur')
@@ -646,7 +658,7 @@ export default function PlayerDetail() {
         gap: '4px',
       }}>
         {(['profil', 'stats', 'notes', 'ia'] as Tab[]).map(tab => {
-          const labels: Record<Tab, string> = { profil: 'Profil', stats: 'Stats', notes: 'Notes', ia: 'IA' }
+          const labels: Record<Tab, string> = { profil: 'Profil', stats: 'Stats', notes: 'Notes', ia: 'IA', rapports: 'Rapports' }
           const isActive = activeTab === tab
           return (
             <button
@@ -1205,6 +1217,137 @@ export default function PlayerDetail() {
           {/* ── SIMILAR PLAYERS ───────────────────────────────────────────────────── */}
           <SimilarPlayers similar={similar} loading={similarLoading} />
         </>
+      )}
+
+      {/* ── RAPPORTS TAB ─────────────────────────────────────────────────────── */}
+      {activeTab === 'rapports' && (
+        <div style={{ animation: 'fadeIn 0.2s ease' }}>
+
+          {/* Header row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Rapports de scouting
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {scoutReports.length} rapport{scoutReports.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowReportForm(true)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '8px 16px',
+                background: 'var(--accent-blue, #4D7FFF)',
+                border: 'none', borderRadius: '8px', cursor: 'pointer',
+                color: '#fff', fontSize: '13px', fontWeight: 600,
+              }}
+            >
+              <Plus size={14} /> Nouveau rapport
+            </button>
+          </div>
+
+          {/* Report list */}
+          {scoutReports.length === 0 ? (
+            <div style={{
+              textAlign: 'center', padding: '48px 0',
+              background: 'var(--surface2)', borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <ClipboardList size={32} style={{ color: 'var(--text-muted)', opacity: 0.4, marginBottom: '12px' }} />
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>
+                Aucun rapport pour ce joueur.
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '6px 0 0', fontFamily: 'var(--font-mono)', opacity: 0.7 }}>
+                Soumettez le premier rapport après l'avoir observé en match.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {scoutReports.map(r => {
+                const sum = r.technique + r.tactique + r.mental + r.physique + r.potentiel
+                const rScore = Math.round((sum / 5) * 20)
+                const recoColor = r.recommendation === 'signer' ? '#00C896' : r.recommendation === 'suivre' ? '#4D7FFF' : '#ef4444'
+                return (
+                  <div key={r.id} style={{
+                    background: 'var(--surface2)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                  }}>
+                    {/* Row 1: date + competition + reco badge */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {new Date(r.match_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                        {r.competition && (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>{r.competition}</span>
+                        )}
+                        {r.venue && (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px', opacity: 0.7 }}>· {r.venue}</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <span style={{
+                          fontSize: '18px', fontWeight: 900, color: recoColor,
+                          fontFamily: 'var(--font-mono)',
+                        }}>{rScore}</span>
+                        <span style={{
+                          padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                          background: `${recoColor}18`, color: recoColor,
+                          border: `1px solid ${recoColor}35`,
+                          textTransform: 'capitalize',
+                        }}>
+                          {r.recommendation}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Row 2: star ratings */}
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: r.summary ? '12px' : 0 }}>
+                      {([
+                        { key: 'technique', label: 'Tech' },
+                        { key: 'tactique',  label: 'Tact' },
+                        { key: 'mental',    label: 'Men' },
+                        { key: 'physique',  label: 'Phy' },
+                        { key: 'potentiel', label: 'Pot' },
+                      ] as { key: keyof ScoutReport; label: string }[]).map(({ key, label }) => (
+                        <div key={key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{label}</span>
+                          <span style={{ fontSize: '13px', color: '#F5A623', letterSpacing: '-1px' }}>
+                            {'★'.repeat(r[key] as number)}{'☆'.repeat(5 - (r[key] as number))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Row 3: summary */}
+                    {r.summary && (
+                      <p style={{
+                        margin: 0, fontSize: '12px', color: 'var(--text-secondary)',
+                        lineHeight: 1.6, borderTop: '1px solid rgba(255,255,255,0.05)',
+                        paddingTop: '10px',
+                      }}>
+                        {r.summary}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Report form modal */}
+          {showReportForm && id && (
+            <ScoutReportForm
+              playerId={id}
+              organizationId={organization?.id}
+              onClose={() => setShowReportForm(false)}
+              onSaved={report => setScoutReports(prev => [report, ...prev])}
+            />
+          )}
+        </div>
       )}
 
     </div>
