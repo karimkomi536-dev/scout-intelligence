@@ -49,11 +49,7 @@ load_dotenv(_env_path)
 
 API_KEY        = os.environ.get("API_FOOTBALL_KEY", "")
 SUPABASE_URL   = os.environ.get("VITE_SUPABASE_URL", "")
-SUPABASE_KEY   = (
-    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    or os.environ.get("VITE_SUPABASE_SERVICE_ROLE_KEY")
-    or ""
-)
+SUPABASE_KEY   = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 if not API_KEY:
     log.error("API_FOOTBALL_KEY not found in .env — add it and retry.")

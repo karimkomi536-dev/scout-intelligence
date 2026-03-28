@@ -2,7 +2,6 @@
 import_supabase.py — Upsert transformed player data into Supabase
 
 Uses SUPABASE_SERVICE_ROLE_KEY (not anon key) to bypass RLS on the players table.
-Falls back to VITE_SUPABASE_SERVICE_ROLE_KEY if the unprefixed version is absent.
 
 Upsert strategy: match on (name, team) — update if exists, insert if not.
 Batch size: 25 rows per request to stay under Supabase payload limits.
@@ -45,10 +44,7 @@ def _get_supabase_client():
     from supabase import create_client
 
     url = os.getenv("VITE_SUPABASE_URL") or os.getenv("SUPABASE_URL")
-    key = (
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        or os.getenv("VITE_SUPABASE_SERVICE_ROLE_KEY")
-    )
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
     if not url:
         raise EnvironmentError(
@@ -57,8 +53,8 @@ def _get_supabase_client():
         )
     if not key:
         raise EnvironmentError(
-            "Neither SUPABASE_SERVICE_ROLE_KEY nor VITE_SUPABASE_SERVICE_ROLE_KEY "
-            "found in .env. The service role key is required to write to Supabase."
+            "SUPABASE_SERVICE_ROLE_KEY not found in .env. "
+            "The service role key is required to write to Supabase."
         )
 
     return create_client(url, key)

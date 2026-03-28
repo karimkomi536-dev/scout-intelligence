@@ -46,11 +46,7 @@ load_dotenv(_env_path)
 
 SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL", "")
 # Scraper needs service_role to bypass RLS for writes
-SUPABASE_KEY = (
-    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    or os.environ.get("VITE_SUPABASE_SERVICE_ROLE_KEY")
-    or ""
-)
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     log.error("Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env")
