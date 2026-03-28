@@ -8,6 +8,7 @@ import { calculateScore, getScoreLabel, getPosGroup } from '../utils/scoring'
 import { useScoringProfile } from '../hooks/useScoringProfile'
 import { usePlayerFilters } from '../hooks/usePlayerFilters'
 import { useCompare } from '../contexts/CompareContext'
+import AdvancedSearch from '../components/AdvancedSearch'
 import type { Player } from '../types/player'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -205,7 +206,7 @@ function SwipeableCard({
 
 export default function Players() {
   const navigate = useNavigate()
-  const { filters, set, reset, hasActiveFilters } = usePlayerFilters()
+  const { filters, set, reset, hasActiveFilters, activeFilterCount, serialize, restore } = usePlayerFilters()
   const { isSelected, toggle, ids: compareIds } = useCompare()
   const isMobile = useIsMobile()
   const { weights: scoringWeights } = useScoringProfile()
@@ -215,16 +216,8 @@ export default function Players() {
   const [leagues, setLeagues]   = useState<string[]>([])
   const [page, setPage]         = useState(1)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [showFiltersDrawer, setShowFiltersDrawer] = useState(false)
-
-  const activeFilterCount = (
-    (filters.positions.length > 0 ? 1 : 0) +
-    (filters.leagues.length > 0 ? 1 : 0) +
-    (filters.foot !== '' ? 1 : 0) +
-    ((filters.ageMin > 16 || filters.ageMax < 40) ? 1 : 0) +
-    (filters.minScore > 0 ? 1 : 0) +
-    (filters.maxValueM > 0 ? 1 : 0)
-  )
+  const [showFiltersDrawer, setShowFiltersDrawer]       = useState(false)
+  const [showAdvancedSearch, setShowAdvancedSearch]     = useState(false)
 
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search)
   useEffect(() => {
@@ -253,8 +246,11 @@ export default function Players() {
     if (filters.ageMax < 40)       q = q.lte('age', filters.ageMax)
     if (filters.foot === 'Left')   q = q.ilike('foot', '%left%')
     if (filters.foot === 'Right')  q = q.ilike('foot', '%right%')
-    if (filters.minScore > 0)      q = q.gte('scout_score', filters.minScore)
-    if (filters.maxValueM > 0)     q = q.lte('market_value_eur', filters.maxValueM * 1_000_000)
+    if (filters.minScore   > 0)       q = q.gte('scout_score',      filters.minScore)
+    if (filters.maxValueM  > 0)       q = q.lte('market_value_eur', filters.maxValueM * 1_000_000)
+    if (filters.xgMin      > 0)       q = q.gte('xg',               filters.xgMin)
+    if (filters.minutesMin > 0)       q = q.gte('minutes_played',   filters.minutesMin)
+    if (filters.labels.length > 0)    q = q.in('scout_label',       filters.labels)
     q.order('scout_score', { ascending: false })
       .then(({ data }: { data: Player[] | null }) => {
         setPlayers(data ?? [])
@@ -262,7 +258,8 @@ export default function Players() {
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, filters.positions.join(','), filters.leagues.join(','),
-      filters.ageMin, filters.ageMax, filters.foot, filters.minScore, filters.maxValueM])
+      filters.labels.join(','), filters.ageMin, filters.ageMax, filters.foot,
+      filters.minScore, filters.maxValueM, filters.xgMin, filters.minutesMin])
 
   function toggleValue(list: string[], value: string) {
     return list.includes(value) ? list.filter(x => x !== value) : [...list, value]
@@ -464,6 +461,31 @@ export default function Players() {
         }}>
           <div style={{ flex: 1 }}>{searchBar}</div>
           <button
+            onClick={() => setShowAdvancedSearch(true)}
+            style={{
+              display: 'flex', alignItems: 'center',
+              background: activeFilterCount > 0 ? 'rgba(77,127,255,0.15)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${activeFilterCount > 0 ? 'rgba(77,127,255,0.40)' : 'rgba(255,255,255,0.08)'}`,
+              borderRadius: '8px', color: activeFilterCount > 0 ? '#4D7FFF' : 'var(--text-muted)',
+              fontSize: '13px', padding: '9px 12px', cursor: 'pointer', flexShrink: 0,
+              position: 'relative',
+            }}
+          >
+            <SlidersHorizontal size={15} />
+            {activeFilterCount > 0 && (
+              <span style={{
+                position: 'absolute', top: '-6px', right: '-6px',
+                width: '16px', height: '16px', borderRadius: '50%',
+                background: '#4D7FFF', color: 'white',
+                fontSize: '9px', fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '1.5px solid var(--bg-base)',
+              }}>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setShowFiltersDrawer(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
@@ -591,6 +613,19 @@ export default function Players() {
 
         {pagination}
 
+        <AdvancedSearch
+          open={showAdvancedSearch}
+          onClose={() => setShowAdvancedSearch(false)}
+          filters={filters}
+          leagues={leagues}
+          activeFilterCount={activeFilterCount}
+          onSet={set}
+          onReset={reset}
+          onSave={_name => setShowAdvancedSearch(false)}
+          onRestore={restore}
+          serialize={serialize}
+        />
+
         {/* Filter drawer (bottom sheet) */}
         {showFiltersDrawer && (
           <>
@@ -687,7 +722,36 @@ export default function Players() {
         borderRadius: '12px', padding: '18px 20px',
         display: 'flex', flexDirection: 'column', gap: '14px',
       }}>
-        {searchBar}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ flex: 1 }}>{searchBar}</div>
+          <button
+            onClick={() => setShowAdvancedSearch(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0,
+              background: activeFilterCount > 0 ? 'rgba(77,127,255,0.15)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${activeFilterCount > 0 ? 'rgba(77,127,255,0.40)' : 'rgba(255,255,255,0.10)'}`,
+              borderRadius: '8px', padding: '9px 14px',
+              color: activeFilterCount > 0 ? '#4D7FFF' : 'var(--text-muted)',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+              position: 'relative',
+            }}
+          >
+            <SlidersHorizontal size={14} />
+            Recherche avancée
+            {activeFilterCount > 0 && (
+              <span style={{
+                position: 'absolute', top: '-7px', right: '-7px',
+                width: '17px', height: '17px', borderRadius: '50%',
+                background: '#4D7FFF', color: 'white',
+                fontSize: '9px', fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '1.5px solid var(--bg-base)',
+              }}>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {/* Positions */}
           <div>
@@ -937,6 +1001,19 @@ export default function Players() {
       )}
 
       {pagination}
+
+      <AdvancedSearch
+        open={showAdvancedSearch}
+        onClose={() => setShowAdvancedSearch(false)}
+        filters={filters}
+        leagues={leagues}
+        activeFilterCount={activeFilterCount}
+        onSet={set}
+        onReset={reset}
+        onSave={_name => setShowAdvancedSearch(false)}
+        onRestore={restore}
+        serialize={serialize}
+      />
     </div>
   )
 }
