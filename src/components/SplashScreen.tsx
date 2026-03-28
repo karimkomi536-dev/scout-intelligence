@@ -1,115 +1,117 @@
 import { useEffect, useState } from 'react'
 
-type Phase = 'enter' | 'glow' | 'exit'
-
-interface Props { onDone: () => void }
-
-export default function SplashScreen({ onDone }: Props) {
-  const [phase, setPhase] = useState<Phase>('enter')
+export default function SplashScreen({ onDone }: { onDone: () => void }) {
+  const [visible, setVisible] = useState(true)
+  const [animate, setAnimate] = useState(false)
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('glow'), 700)
-    const t2 = setTimeout(() => setPhase('exit'), 1600)
-    const t3 = setTimeout(() => onDone(), 2100)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-      clearTimeout(t3)
-    }
-  }, [onDone])
+    console.log('[VIZION] SplashScreen mounted')
+
+    const t0 = setTimeout(() => setAnimate(true), 50)
+    const t1 = setTimeout(() => setVisible(false), 1800)
+    const t2 = setTimeout(() => {
+      console.log('[VIZION] SplashScreen done')
+      onDone()
+    }, 2300)
+
+    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2) }
+  }, [])
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      zIndex: 99999,
-      backgroundColor: '#0A0E1B',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 24,
-      opacity: phase === 'exit' ? 0 : 1,
-      transition: phase === 'exit' ? 'opacity 0.5s ease' : 'none',
-    }}>
-
-      {/* ICÔNE ÉCLAIR */}
-      <div style={{
-        width: 100,
-        height: 100,
-        borderRadius: 24,
-        backgroundColor: '#0D1525',
-        border: '1px solid rgba(0,200,150,0.15)',
+    <div
+      style={{
+        position: 'fixed',
+        top: 0, left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 999999,
+        background: '#0A0E1B',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        transform: phase === 'enter' ? 'scale(0.3)' : 'scale(1)',
-        opacity: phase === 'enter' ? 0 : 1,
-        transition: 'transform 0.7s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease',
-        boxShadow: phase === 'glow'
-          ? '0 0 30px rgba(0,200,150,0.4), 0 0 60px rgba(0,200,150,0.2)'
-          : '0 0 10px rgba(0,200,150,0.1)',
-      }}>
-        <svg
-          width="60"
-          height="60"
-          viewBox="0 0 60 60"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        gap: '20px',
+        transition: 'opacity 0.5s ease',
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? 'all' : 'none',
+      }}
+    >
+      {/* Icône éclair */}
+      <div
+        style={{
+          width: 96,
+          height: 96,
+          borderRadius: 22,
+          background: '#0D1525',
+          border: '1px solid rgba(0,200,150,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease, box-shadow 0.4s ease',
+          transform: animate ? 'scale(1)' : 'scale(0.3)',
+          opacity: animate ? 1 : 0,
+          boxShadow: animate
+            ? '0 0 30px rgba(0,200,150,0.35), 0 0 60px rgba(0,200,150,0.15)'
+            : 'none',
+        }}
+      >
+        <svg width="54" height="54" viewBox="0 0 192 192">
           <polygon
-            points="36,4 18,32 30,32 24,56 46,28 33,28"
+            points="112,20 60,105 95,105 80,172 140,87 105,87"
             fill="#00C896"
-            style={{
-              filter: phase === 'glow'
-                ? 'drop-shadow(0 0 8px #00C896)'
-                : 'none',
-            }}
           />
         </svg>
       </div>
 
-      {/* NOM */}
-      <div style={{
-        fontFamily: 'Syne, system-ui, -apple-system, sans-serif',
-        fontSize: 36,
-        fontWeight: 800,
-        letterSpacing: '-0.03em',
-        color: '#E2EAF4',
-        opacity: phase === 'enter' ? 0 : 1,
-        transform: phase === 'enter' ? 'translateY(16px)' : 'translateY(0)',
-        transition: 'opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s',
-      }}>
+      {/* Titre */}
+      <div
+        style={{
+          fontSize: 38,
+          fontWeight: 800,
+          letterSpacing: '-0.03em',
+          color: '#E2EAF4',
+          fontFamily: 'Syne, system-ui, sans-serif',
+          transition: 'opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s',
+          opacity: animate ? 1 : 0,
+          transform: animate ? 'translateY(0)' : 'translateY(14px)',
+        }}
+      >
         VIZ<span style={{ color: '#00C896' }}>ION</span>
       </div>
 
-      {/* TAGLINE */}
-      <div style={{
-        fontFamily: 'JetBrains Mono, Menlo, monospace',
-        fontSize: 11,
-        letterSpacing: '0.18em',
-        textTransform: 'uppercase' as const,
-        color: '#4A5568',
-        opacity: phase === 'enter' ? 0 : 1,
-        transition: 'opacity 0.6s ease 0.55s',
-      }}>
+      {/* Tagline */}
+      <div
+        style={{
+          fontSize: 11,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: '#4A5568',
+          fontFamily: 'JetBrains Mono, monospace',
+          transition: 'opacity 0.5s ease 0.55s',
+          opacity: animate ? 1 : 0,
+        }}
+      >
         Scouting Intelligence
       </div>
 
-      {/* BARRE BAS */}
-      <div style={{
-        position: 'absolute',
-        bottom: 0, left: 0, right: 0,
-        height: 3,
-        backgroundColor: 'rgba(255,255,255,0.04)',
-      }}>
-        <div style={{
-          height: '100%',
-          background: 'linear-gradient(90deg, #00C896, #4D7FFF)',
-          borderRadius: '0 2px 2px 0',
-          width: phase === 'enter' ? '10%' : phase === 'glow' ? '65%' : '100%',
-          transition: 'width 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        }} />
+      {/* Barre de progression */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0, left: 0, right: 0,
+          height: 3,
+          background: 'rgba(255,255,255,0.05)',
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            background: 'linear-gradient(90deg, #00C896, #4D7FFF)',
+            borderRadius: '0 2px 2px 0',
+            transition: 'width 1.8s ease',
+            width: animate ? '100%' : '5%',
+          }}
+        />
       </div>
     </div>
   )
