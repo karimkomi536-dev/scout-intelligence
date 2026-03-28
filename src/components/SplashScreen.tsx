@@ -25,12 +25,6 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
 
   const iconScale = isEnter ? 0.3 : isPunch || isExit ? 12 : 1
 
-  const iconShadow = phase === 'glow'
-    ? '0 0 40px rgba(0,200,150,0.6), 0 0 80px rgba(0,200,150,0.3)'
-    : isPunch
-    ? '0 0 80px rgba(0,200,150,0.9), 0 0 160px rgba(0,200,150,0.5)'
-    : 'none'
-
   return (
     <div
       style={{
@@ -66,36 +60,49 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         style={{
           position: 'relative',
           zIndex: 2,
+          transform: `scale(${iconScale})`,
+          opacity: isEnter ? 0 : 1,
+          transition: isPunch || isExit
+            ? 'transform 0.35s cubic-bezier(0.55, 0, 1, 0.45), opacity 0.4s ease'
+            : 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease',
+        }}
+      >
+        <div style={{
           width: 96,
           height: 96,
-          borderRadius: isPunch || isExit ? 8 : 22,
-          background: '#0D1525',
-          border: isPunch
-            ? '1px solid rgba(0,200,150,0.6)'
-            : '1px solid rgba(0,200,150,0.2)',
+          borderRadius: 22,
+          background: 'radial-gradient(circle at 50% 50%, #112018, #080F0C)',
+          border: '2px solid rgba(0,200,150,0.5)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transform: `scale(${iconScale})`,
-          opacity: isEnter ? 0 : 1,
-          boxShadow: iconShadow,
-          transition: isPunch || isExit
-            ? 'transform 0.35s cubic-bezier(0.55, 0, 1, 0.45), box-shadow 0.2s ease, border-radius 0.35s ease'
-            : 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease, box-shadow 0.4s ease',
-        }}
-      >
-        <svg width="54" height="54" viewBox="0 0 192 192">
-          <polygon
-            points="112,20 60,105 95,105 80,172 140,87 105,87"
-            fill="#00C896"
-            style={{
-              filter: phase === 'glow' || isPunch
-                ? 'drop-shadow(0 0 8px #00C896)'
-                : 'none',
-              transition: 'filter 0.3s ease',
-            }}
-          />
-        </svg>
+          boxShadow: phase === 'glow' || isPunch
+            ? '0 0 0 1px rgba(0,200,150,0.3), 0 0 20px rgba(0,200,150,0.5), 0 0 40px rgba(0,200,150,0.25)'
+            : '0 0 0 1px rgba(0,200,150,0.15), 0 0 8px rgba(0,200,150,0.15)',
+          transition: 'box-shadow 0.4s ease',
+        }}>
+          <svg width="54" height="54" viewBox="0 0 512 512">
+            <defs>
+              <filter id="bg" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="6" result="b"/>
+                <feMerge>
+                  <feMergeNode in="b"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+            <polygon
+              points="296,80 176,272 248,272 216,432 352,240 278,240"
+              fill="#00C896"
+              filter="url(#bg)"
+            />
+            <polygon
+              points="296,80 176,272 248,272 216,432 352,240 278,240"
+              fill="#1FFFC0"
+              opacity="0.4"
+            />
+          </svg>
+        </div>
       </div>
 
       {/* TITRE — disparaît au punch */}
