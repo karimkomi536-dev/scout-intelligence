@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import VizionLogo from '../components/VizionLogo'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -56,9 +57,9 @@ export default function Register() {
       }}>
         {/* Logo */}
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 'bold', color: '#3b82f6' }}>
-            ⚽ VIZION
-          </h1>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+            <VizionLogo size="lg" />
+          </div>
           <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
             Football Scouting Intelligence
           </p>

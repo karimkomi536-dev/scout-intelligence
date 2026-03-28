@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Database, BarChart2, Share2, CheckCircle, ArrowRight,
-  Zap, Users,
+  Users,
 } from 'lucide-react'
 import WaitlistForm from '../components/WaitlistForm'
+import VizionLogo from '../components/VizionLogo'
 import { useIsMobile } from '../hooks/useIsMobile'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -126,9 +127,8 @@ function DashboardMockup() {
         overflow: 'hidden',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', paddingLeft: '4px' }}>
-          <Zap size={12} color={T.green} fill={T.green} />
-          <span style={{ fontSize: '12px', fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>VIZION</span>
+        <div style={{ marginBottom: '12px', paddingLeft: '4px' }}>
+          <VizionLogo size="sm" />
         </div>
         {/* User card */}
         <div style={{
@@ -284,11 +284,8 @@ function Nav({ isMobile }: { isMobile: boolean }) {
       borderBottom: `1px solid ${T.border}`,
     }}>
       {/* Logo */}
-      <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Zap size={16} color={T.green} fill={T.green} />
-        <span style={{ fontSize: '18px', fontWeight: 800, color: T.text, letterSpacing: '-0.02em' }}>
-          VIZION
-        </span>
+      <Link to="/" style={{ textDecoration: 'none' }}>
+        <VizionLogo size="md" />
       </Link>
 
       {!isMobile && (
@@ -933,9 +930,8 @@ function Footer({ isMobile }: { isMobile: boolean }) {
       gap: '16px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Zap size={13} color={T.green} fill={T.green} />
-        <span style={{ fontSize: '14px', fontWeight: 700, color: T.text }}>VIZION</span>
-        <span style={{ fontSize: '12px', color: T.muted, marginLeft: '6px' }}>© 2026</span>
+        <VizionLogo size="sm" />
+        <span style={{ fontSize: '12px', color: T.muted }}>© 2026</span>
       </div>
 
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>

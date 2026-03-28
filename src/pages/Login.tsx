@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import VizionLogo from '../components/VizionLogo'
 
 export default function Login() {
   const { signIn } = useAuth()
@@ -47,9 +48,9 @@ export default function Login() {
       }}>
         {/* Logo */}
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 'bold', color: '#3b82f6' }}>
-            ⚽ VIZION
-          </h1>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+            <VizionLogo size="lg" />
+          </div>
           <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
             Football Scouting Intelligence
           </p>

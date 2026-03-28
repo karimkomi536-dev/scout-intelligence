@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Zap, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import VizionLogo from '../components/VizionLogo'
 
 const T = {
   bg:      '#0A0E1B',
@@ -29,8 +30,7 @@ export default function Privacy() {
       {/* Nav */}
       <div style={{ borderBottom: `1px solid ${T.border}`, padding: '16px 48px', display: 'flex', alignItems: 'center', gap: '16px' }}>
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
-          <Zap size={16} color="#00C896" fill="#00C896" />
-          <span style={{ fontSize: '16px', fontWeight: 700, color: T.text }}>VIZION</span>
+          <VizionLogo size="sm" />
         </Link>
       </div>
 

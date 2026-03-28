@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { CheckCircle, XCircle, Loader, UserPlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import VizionLogo from '../components/VizionLogo'
 
 type Invitation = {
   id: string
@@ -124,7 +125,7 @@ export default function AcceptInvitation() {
       }}>
         {/* Header */}
         <div style={{ padding: '28px 32px 20px', borderBottom: '1px solid #1f2937' }}>
-          <span style={{ fontSize: '20px', fontWeight: 700, color: '#3b82f6' }}>⚡ VIZION</span>
+          <VizionLogo size="lg" />
           <p style={{ fontSize: '11px', color: '#6b7280', margin: '4px 0 0' }}>Football Scouting Intelligence</p>
         </div>
 

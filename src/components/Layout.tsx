@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
   Scale, Settings, Zap, Menu, X, Target, Download,
 } from 'lucide-react'
+import VizionLogo from './VizionLogo'
 
 // Browser install prompt event (not in standard TS lib)
 interface BeforeInstallPromptEvent extends Event {
@@ -91,12 +92,7 @@ function SidebarContent({
       {/* ── ZONE 1 : Logo ──────────────────────────────────────────────── */}
       <div style={{ padding: '20px 24px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Zap size={18} color="var(--accent-green)" fill="var(--accent-green)" />
-            <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-              VIZION
-            </span>
-          </div>
+          <VizionLogo size="md" />
           {onClose && (
             <button
               onClick={onClose}
@@ -465,12 +461,7 @@ export default function Layout() {
               <Menu size={20} />
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Zap size={14} color="var(--accent-green)" fill="var(--accent-green)" />
-              <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-                VIZION
-              </span>
-            </div>
+            <VizionLogo size="md" />
 
             <NotificationBell />
           </header>
