@@ -1,5 +1,7 @@
+import * as Sentry from '@sentry/react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import ErrorFallback from './components/ErrorFallback'
 import { CompareProvider } from './contexts/CompareContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
@@ -66,4 +68,6 @@ function App() {
   )
 }
 
-export default App
+export default Sentry.withErrorBoundary(App, {
+  fallback: <ErrorFallback />,
+})
