@@ -1,20 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-  <!-- Fond carré arrondi navy -->
-  <rect width="192" height="192" rx="40" fill="#0A0E1B"/>
-  <!-- Glow effect -->
   <defs>
-    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
+    <filter id="g" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
-  <!-- Éclair vert centré -->
+  <rect width="192" height="192" rx="40" fill="#0A0E1B"/>
   <polygon
     points="112,20 60,105 95,105 80,172 140,87 105,87"
     fill="#00C896"
-    filter="url(#glow)"
+    filter="url(#g)"
   />
 </svg>

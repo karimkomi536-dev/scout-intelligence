@@ -25,19 +25,18 @@ import Terms from './pages/Terms'
 import SplashScreen from './components/SplashScreen'
 
 function App() {
-  // Show splash only once per browser session (not on every navigation)
-  const [showSplash, setShowSplash] = useState<boolean>(() => {
-    return !sessionStorage.getItem('vizion-splash-shown')
-  })
+  const [splashDone, setSplashDone] = useState<boolean>(
+    () => sessionStorage.getItem('vizion-splash') === '1'
+  )
 
   function handleSplashDone() {
-    sessionStorage.setItem('vizion-splash-shown', 'true')
-    setShowSplash(false)
+    sessionStorage.setItem('vizion-splash', '1')
+    setSplashDone(true)
   }
 
   return (
     <>
-      {showSplash && <SplashScreen onDone={handleSplashDone} />}
+      {!splashDone && <SplashScreen onDone={handleSplashDone} />}
 
       <CompareProvider>
       <AuthProvider>
