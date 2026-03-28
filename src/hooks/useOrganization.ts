@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -22,46 +22,53 @@ export interface OrganizationState {
   switchOrganization: (orgId: string) => Promise<void>
 }
 
+// Error codes that mean "no data" — not retriable, not fatal
+const NO_DATA_CODES = new Set(['PGRST116', '406'])
+
 export function useOrganization(): OrganizationState {
   const { user } = useAuth()
 
   const [organization, setOrganization] = useState<Organization | null>(null)
-  const [role, setRole] = useState<OrgRole | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [role, setRole]                 = useState<OrgRole | null>(null)
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState<string | null>(null)
+
+  // Guard: fetch exactly once per user session — never re-run on TOKEN_REFRESHED
+  const fetchedRef = useRef(false)
 
   useEffect(() => {
+    // User logged out — reset everything so next login triggers a fresh fetch
     if (!user) {
+      fetchedRef.current = false
       setOrganization(null)
       setRole(null)
       setLoading(false)
       return
     }
 
+    // Already fetched for this session — do nothing
+    if (fetchedRef.current) return
+
     fetchOrganization(user.id)
-  }, [user])
+  }, [user?.id]) // ← stable primitive: won't re-run on TOKEN_REFRESHED
 
   async function fetchOrganization(userId: string) {
     setLoading(true)
     setError(null)
 
     try {
-      // 1. Récupère le profil complet (select * pour éviter 406 sur colonnes manquantes)
+      // 1. Profile → get active org id
       const { data, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .single()
 
-      console.log('Profile fetch result:', data, profileError)
-
-      // PGRST116 = no rows found (user sans profil) — traiter comme plan free, ne pas crasher
       if (profileError) {
-        if (profileError.code === 'PGRST116' || profileError.code === '406') {
-          console.log('No profile row found — defaulting to free plan')
+        // No profile row yet (new account) → free plan, not an error
+        if (NO_DATA_CODES.has(profileError.code)) {
           setOrganization(null)
           setRole(null)
-          setLoading(false)
           return
         }
         throw profileError
@@ -70,14 +77,13 @@ export function useOrganization(): OrganizationState {
       const activeOrgId = data?.organization_id
 
       if (!activeOrgId) {
-        // User sans org (nouveau compte, pas encore invité)
+        // Authenticated but not yet in an org → free plan
         setOrganization(null)
         setRole(null)
-        setLoading(false)
         return
       }
 
-      // 2. Récupère les détails de l'org et le rôle en parallèle
+      // 2. Org details + member role in parallel
       const [orgResult, memberResult] = await Promise.all([
         supabase
           .from('organizations')
@@ -93,23 +99,33 @@ export function useOrganization(): OrganizationState {
           .single(),
       ])
 
-      if (orgResult.error) throw orgResult.error
+      // 406 / PGRST116 from either table → org not accessible, fall back to free
+      if (orgResult.error) {
+        if (NO_DATA_CODES.has(orgResult.error.code)) {
+          setOrganization(null)
+          setRole(null)
+          return
+        }
+        throw orgResult.error
+      }
 
       setOrganization(orgResult.data as Organization)
       setRole((memberResult.data?.role as OrgRole) ?? null)
+
     } catch (err) {
       console.error('fetchOrganization error:', err)
       setError(err instanceof Error ? err.message : 'Failed to load organization')
       setOrganization(null)
       setRole(null)
     } finally {
+      // Mark as done — success or error, do not retry automatically
+      fetchedRef.current = true
       setLoading(false)
     }
   }
 
   /**
-   * Bascule l'organisation active d'un user (si membre de plusieurs orgs).
-   * Met à jour profiles.organization_id côté Supabase et recharge l'état local.
+   * Manually switch active org. Resets the guard so the new org is fetched.
    */
   async function switchOrganization(orgId: string) {
     if (!user) return
@@ -128,7 +144,8 @@ export function useOrganization(): OrganizationState {
       return
     }
 
-    // Recharge avec la nouvelle org active
+    // Allow fetchOrganization to run again for the new org
+    fetchedRef.current = false
     await fetchOrganization(user.id)
   }
 
