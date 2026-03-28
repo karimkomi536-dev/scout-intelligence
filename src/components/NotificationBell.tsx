@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, TrendingUp, Users, Bookmark, CheckCheck } from 'lucide-react'
+import { Bell, TrendingUp, Users, Bookmark, CheckCheck, ArrowLeftRight, CalendarClock } from 'lucide-react'
 import { useNotifications } from '../hooks/useNotifications'
 import type { Notification } from '../hooks/useNotifications'
 import { useState } from 'react'
@@ -20,15 +20,19 @@ function relativeTime(dateStr: string): string {
 }
 
 const TYPE_ICON: Record<Notification['type'], React.ReactNode> = {
-  score_change:     <TrendingUp  size={13} />,
-  new_player:       <Users       size={13} />,
-  shortlist_update: <Bookmark    size={13} />,
+  score_change:       <TrendingUp     size={13} />,
+  new_player:         <Users          size={13} />,
+  shortlist_update:   <Bookmark       size={13} />,
+  transfer:           <ArrowLeftRight size={13} />,
+  contract_expiring:  <CalendarClock  size={13} />,
 }
 
 const TYPE_COLOR: Record<Notification['type'], string> = {
-  score_change:     '#4D7FFF',
-  new_player:       '#00C896',
-  shortlist_update: '#9B6DFF',
+  score_change:       '#4D7FFF',
+  new_player:         '#00C896',
+  shortlist_update:   '#9B6DFF',
+  transfer:           '#ef4444',
+  contract_expiring:  '#F5A623',
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useAlertPrefs } from './useAlertPrefs'
 
 export interface Notification {
   id: string
   user_id: string
-  type: 'score_change' | 'new_player' | 'shortlist_update'
+  type: 'score_change' | 'new_player' | 'shortlist_update' | 'transfer' | 'contract_expiring'
   title: string
   message: string
   player_id: string | null
@@ -15,7 +16,8 @@ export interface Notification {
 
 export function useNotifications() {
   const { user } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const { prefs: alertPrefs } = useAlertPrefs()
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
   // Use user?.id (stable string primitive) — not `user` (object ref)
@@ -29,15 +31,15 @@ export function useNotifications() {
       return
     }
 
-    // Initial fetch — 10 most recent
+    // Initial fetch — 20 most recent (fetch more than we show so filters don't empty the list)
     supabase
       .from('notifications')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(10)
+      .limit(20)
       .then(({ data }) => {
-        if (data) setNotifications(data as Notification[])
+        if (data) setAllNotifications(data as Notification[])
         setLoading(false)
       })
 
@@ -53,8 +55,8 @@ export function useNotifications() {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          setNotifications(prev =>
-            [payload.new as Notification, ...prev].slice(0, 10)
+          setAllNotifications(prev =>
+            [payload.new as Notification, ...prev].slice(0, 20)
           )
         }
       )
@@ -66,8 +68,7 @@ export function useNotifications() {
   }, [userId])
 
   const markAsRead = useCallback(async (id: string) => {
-    // Optimistic update
-    setNotifications(prev =>
+    setAllNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, read: true } : n))
     )
     await supabase.from('notifications').update({ read: true }).eq('id', id)
@@ -75,13 +76,20 @@ export function useNotifications() {
 
   const markAllAsRead = useCallback(async () => {
     if (!userId) return
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    setAllNotifications(prev => prev.map(n => ({ ...n, read: true })))
     await supabase
       .from('notifications')
       .update({ read: true })
       .eq('user_id', userId)
       .eq('read', false)
   }, [userId])
+
+  // Apply alert type filters from user preferences
+  const notifications = allNotifications.filter(n => {
+    if (n.type === 'transfer')          return alertPrefs.transfer
+    if (n.type === 'contract_expiring') return alertPrefs.contract_expiring
+    return true
+  })
 
   const unreadCount = notifications.filter(n => !n.read).length
 

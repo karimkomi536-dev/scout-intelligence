@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Lock, Save, RotateCcw, CheckCircle,
   UserPlus, Trash2, X, Users, Mail,
+  ArrowLeftRight, CalendarClock, Bell,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,6 +12,7 @@ import { calculateScore, getScoreLabel, DEFAULT_GROUP_WEIGHTS, getPosGroup } fro
 import type { PosGroup, ScoringWeights } from '../utils/scoring'
 import type { OrgRole } from '../hooks/useOrganization'
 import type { Player } from '../types/player'
+import { useAlertPrefs } from '../hooks/useAlertPrefs'
 
 // ── Scoring types & helpers ───────────────────────────────────────────────────
 
@@ -191,6 +193,7 @@ export default function Settings() {
   const { user } = useAuth()
   const { weights: orgWeights, isProPlan, orgId, loading } = useScoringProfile()
   const { organization, role: currentUserRole } = useOrganization()
+  const { prefs: alertPrefs, toggle: toggleAlert } = useAlertPrefs()
 
   const isEnterprise = organization?.plan === 'enterprise'
   const isAdmin = currentUserRole === 'admin'
@@ -758,6 +761,94 @@ export default function Settings() {
             )}
           </div>
         )}
+      </SectionCard>
+
+      {/* ── ALERTES MERCATO ────────────────────────────────────────────────── */}
+      <SectionCard>
+        <SectionHeader
+          title="Alertes mercato"
+          subtitle="Recevez des notifications pour les joueurs de votre shortlist"
+          badge={<Bell size={14} color="#F5A623" />}
+        />
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {([
+            {
+              key:   'transfer' as const,
+              icon:  <ArrowLeftRight size={16} />,
+              color: '#ef4444',
+              label: 'Alertes transfert',
+              desc:  'Notifié quand un joueur shortlisté change de club',
+            },
+            {
+              key:   'contract_expiring' as const,
+              icon:  <CalendarClock size={16} />,
+              color: '#F5A623',
+              label: 'Fin de contrat',
+              desc:  'Notifié quand un contrat expire dans moins de 6 mois',
+            },
+          ] as const).map(({ key, icon, color, label, desc }) => {
+            const active = alertPrefs[key]
+            return (
+              <div
+                key={key}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '14px',
+                  padding: '14px 16px',
+                  background: active ? `${color}08` : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${active ? color + '25' : 'rgba(255,255,255,0.06)'}`,
+                  borderRadius: '12px',
+                  transition: 'all 200ms ease',
+                }}
+              >
+                {/* Icon badge */}
+                <div style={{
+                  width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+                  background: active ? `${color}18` : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${active ? color + '30' : 'rgba(255,255,255,0.08)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: active ? color : 'var(--text-muted)',
+                  transition: 'all 200ms ease',
+                }}>
+                  {icon}
+                </div>
+
+                {/* Label */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: active ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {label}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {desc}
+                  </p>
+                </div>
+
+                {/* Toggle */}
+                <button
+                  onClick={() => toggleAlert(key)}
+                  role="switch"
+                  aria-checked={active}
+                  style={{
+                    width: '42px', height: '24px', borderRadius: '12px', flexShrink: 0,
+                    border: 'none', cursor: 'pointer', padding: 0,
+                    background: active ? color : 'rgba(255,255,255,0.12)',
+                    position: 'relative',
+                    transition: 'background 200ms ease',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute',
+                    top: '3px',
+                    left: active ? '21px' : '3px',
+                    width: '18px', height: '18px', borderRadius: '50%',
+                    background: 'white',
+                    transition: 'left 200ms ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.30)',
+                  }} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
       </SectionCard>
 
       {/* ── INVITE MODAL ───────────────────────────────────────────────────── */}
