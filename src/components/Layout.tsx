@@ -392,6 +392,7 @@ export default function Layout() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
         }}>
           <SidebarContent {...sidebarProps} />
         </aside>
@@ -440,17 +441,21 @@ export default function Layout() {
 
         {/* ── Top bar ────────────────────────────────────────────────────── */}
         {isMobile ? (
-          /* Mobile top bar */
+          /* Mobile top bar — fixed, respects Dynamic Island / notch */
           <header style={{
-            height: '56px',
-            minHeight: '56px',
-            backgroundColor: 'var(--bg-sidebar)',
+            position: 'fixed',
+            top: 0, left: 0, right: 0,
+            zIndex: 100,
+            backgroundColor: '#0A0E1B',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
+            paddingTop: 'env(safe-area-inset-top, 0px)',
+            paddingLeft: '16px',
+            paddingRight: '16px',
+            paddingBottom: '0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 16px',
-            flexShrink: 0,
+            minHeight: 'calc(56px + env(safe-area-inset-top, 0px))',
           }}>
             {/* Burger button */}
             <button
@@ -529,9 +534,13 @@ export default function Layout() {
         <main style={{
           flex: 1,
           overflowY: 'auto',
-          padding: isMobile
-            ? '16px 16px calc(80px + env(safe-area-inset-bottom))'
-            : '28px',
+          WebkitOverflowScrolling: 'touch' as const,
+          ...(isMobile ? {
+            marginTop: 'calc(56px + env(safe-area-inset-top, 0px))',
+            padding: '16px 16px calc(72px + env(safe-area-inset-bottom, 0px))',
+          } : {
+            padding: '28px',
+          }),
         }}>
           <Outlet />
         </main>
@@ -547,13 +556,15 @@ export default function Layout() {
             bottom: 0,
             left: 0,
             right: 0,
-            height: '60px',
-            paddingBottom: 'env(safe-area-inset-bottom)',
+            height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             backgroundColor: '#0D1525',
             borderTop: '1px solid rgba(255,255,255,0.08)',
             display: 'flex',
             alignItems: 'stretch',
             zIndex: 80,
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
           }}>
             {BOTTOM_NAV_ITEMS.map(({ to, icon: Icon, label }) => {
               const active = location.pathname.startsWith(to)
