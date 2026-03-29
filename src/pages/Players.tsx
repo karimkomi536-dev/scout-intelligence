@@ -8,6 +8,11 @@ import { calculateScore, getScoreLabel, getPosGroup } from '../utils/scoring'
 import { useScoringProfile } from '../hooks/useScoringProfile'
 import { usePlayerFilters } from '../hooks/usePlayerFilters'
 import { useCompare } from '../contexts/CompareContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../hooks/useToast'
+import { usePressable } from '../hooks/usePressable'
+import { SkeletonCard } from '../components/Skeleton'
+import { ToastContainer } from '../components/Toast'
 import AdvancedSearch from '../components/AdvancedSearch'
 import type { Player } from '../types/player'
 
@@ -159,7 +164,7 @@ function SwipeableCard({
       {...handlers}
       style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px', userSelect: 'none', touchAction: 'pan-y' }}
     >
-      {/* Swipe-left background: Shortlist (red) */}
+      {/* Swipe-left background: Dismiss (red) */}
       <div style={{
         position: 'absolute', top: 0, right: 0, bottom: 0, width: '80px',
         background: `rgba(239,68,68,${0.85 * leftReveal})`,
@@ -169,22 +174,22 @@ function SwipeableCard({
         pointerEvents: 'none',
         transition: animating ? 'opacity 200ms ease' : 'none',
       }}>
-        <Heart size={18} color="white" fill="white" />
-        <span style={{ fontSize: '8px', fontWeight: 700, color: 'white', letterSpacing: '0.07em' }}>SHORTLIST</span>
+        <X size={18} color="white" />
+        <span style={{ fontSize: '8px', fontWeight: 700, color: 'white', letterSpacing: '0.07em' }}>IGNORER</span>
       </div>
 
-      {/* Swipe-right background: Compare (blue) */}
+      {/* Swipe-right background: Shortlist (green) */}
       <div style={{
         position: 'absolute', top: 0, left: 0, bottom: 0, width: '80px',
-        background: `rgba(77,127,255,${0.85 * rightReveal})`,
+        background: `rgba(0,200,150,${0.85 * rightReveal})`,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
         borderRadius: '12px 0 0 12px',
         opacity: rightReveal,
         pointerEvents: 'none',
         transition: animating ? 'opacity 200ms ease' : 'none',
       }}>
-        <Scale size={18} color="white" />
-        <span style={{ fontSize: '8px', fontWeight: 700, color: 'white', letterSpacing: '0.07em' }}>COMPARER</span>
+        <Heart size={18} color="white" fill="white" />
+        <span style={{ fontSize: '8px', fontWeight: 700, color: 'white', letterSpacing: '0.07em' }}>SHORTLIST</span>
       </div>
 
       {/* Translating card */}
@@ -204,12 +209,161 @@ function SwipeableCard({
 
 // ── Players page ──────────────────────────────────────────────────────────────
 
+// ── MobilePlayerCard ──────────────────────────────────────────────────────────
+// Extracted so it can use hooks (usePressable) — can't call hooks inside .map()
+
+function MobilePlayerCard({
+  player, label, meta, grad, inComp,
+  onDismiss, onShortlist, onNavigate,
+}: {
+  player: Player & { _score: number }
+  label: string
+  meta: { color: string; glow: string }
+  grad: string
+  inComp: boolean
+  onDismiss: () => void
+  onShortlist: () => void
+  onNavigate: () => void
+}) {
+  const cardPress  = usePressable()
+  const shortPress = usePressable()
+
+  const initials = player.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+
+  return (
+    <SwipeableCard
+      onSwipeLeft={onDismiss}
+      onSwipeRight={onShortlist}
+    >
+      <div
+        onClick={onNavigate}
+        {...cardPress.handlers}
+        style={{
+          ...cardPress.style,
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#0D1525',
+          border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: '12px',
+          padding: '14px 16px',
+          cursor: 'pointer',
+        }}
+      >
+        {/* Row 1: avatar + name + label badge + score */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Avatar */}
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+            background: grad,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '13px', fontWeight: 700, color: 'white',
+          }}>
+            {initials}
+          </div>
+
+          {/* Name + club + position */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {player.name}
+              </p>
+              <span style={{
+                flexShrink: 0,
+                fontFamily: 'var(--font-mono)', fontSize: '8px', fontWeight: 700,
+                color: meta.color, background: `${meta.color}12`,
+                border: `1px solid ${meta.color}28`, borderRadius: '4px',
+                padding: '1px 5px', letterSpacing: '0.06em',
+              }}>
+                {label}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
+              {player.team}
+              {player.primary_position ? ` · ${player.primary_position}` : ''}
+              {player.age ? ` · ${player.age} ans` : ''}
+            </p>
+          </div>
+
+          {/* Score ring */}
+          <div style={{ flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+            <svg width="36" height="36">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2.5" />
+              <circle cx="18" cy="18" r="14" fill="none"
+                stroke={meta.color} strokeWidth="2.5"
+                strokeDasharray={String(2 * Math.PI * 14)}
+                strokeDashoffset={String(2 * Math.PI * 14 * (1 - player._score / 100))}
+                strokeLinecap="round" transform="rotate(-90 18 18)"
+                style={{ filter: `drop-shadow(0 0 3px ${meta.color})` }}
+              />
+              <text x="18" y="22" textAnchor="middle" fill={meta.color}
+                style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 600 }}>
+                {player._score}
+              </text>
+            </svg>
+          </div>
+        </div>
+
+        {/* Row 2: score bar */}
+        <div style={{ height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden', margin: '10px 0 8px' }}>
+          <div style={{
+            height: '100%',
+            width: `${player._score}%`,
+            background: meta.color,
+            borderRadius: '2px',
+            boxShadow: `0 0 6px ${meta.color}80`,
+          }} />
+        </div>
+
+        {/* Row 3: shortlist button */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+          <button
+            {...shortPress.handlers}
+            onClick={onShortlist}
+            style={{
+              ...shortPress.style,
+              display: 'flex', alignItems: 'center', gap: '5px',
+              padding: '6px 12px',
+              background: 'rgba(0,200,150,0.08)',
+              border: '1px solid rgba(0,200,150,0.22)',
+              borderRadius: '8px',
+              color: '#00C896',
+              fontSize: '11px', fontWeight: 700,
+              cursor: 'pointer',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <Heart size={11} fill="#00C896" />
+            Shortlist
+          </button>
+
+          {inComp && (
+            <span style={{
+              marginLeft: '6px',
+              alignSelf: 'center',
+              fontSize: '8px', fontWeight: 700, color: '#4D7FFF',
+              background: 'rgba(77,127,255,0.15)',
+              border: '1px solid rgba(77,127,255,0.35)',
+              borderRadius: '4px', padding: '1px 5px',
+            }}>
+              COMP.
+            </span>
+          )}
+        </div>
+      </div>
+    </SwipeableCard>
+  )
+}
+
+// ── Players page ──────────────────────────────────────────────────────────────
+
 export default function Players() {
   const navigate = useNavigate()
   const { filters, set, reset, hasActiveFilters, activeFilterCount, serialize, restore } = usePlayerFilters()
   const { isSelected, toggle, ids: compareIds } = useCompare()
   const isMobile = useIsMobile()
   const { weights: scoringWeights } = useScoringProfile()
+  const { user } = useAuth()
+  const { toasts, showToast, dismiss } = useToast()
 
   const [players, setPlayers]   = useState<Player[]>([])
   const [loading, setLoading]   = useState(true)
@@ -218,6 +372,13 @@ export default function Players() {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [showFiltersDrawer, setShowFiltersDrawer]       = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch]     = useState(false)
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Pull-to-refresh
+  const pullStartY  = useRef(0)
+  const [pullY, setPullY]               = useState(0)
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false)
 
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search)
   useEffect(() => {
@@ -259,18 +420,78 @@ export default function Players() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, filters.positions.join(','), filters.leagues.join(','),
       filters.labels.join(','), filters.ageMin, filters.ageMax, filters.foot,
-      filters.minScore, filters.maxValueM, filters.xgMin, filters.minutesMin])
+      filters.minScore, filters.maxValueM, filters.xgMin, filters.minutesMin,
+      refreshKey])
 
   function toggleValue(list: string[], value: string) {
     return list.includes(value) ? list.filter(x => x !== value) : [...list, value]
+  }
+
+  // ── Quick-add to shortlist (mobile card button) ────────────────────────────
+  async function handleQuickShortlist(player: Player) {
+    if (!user) return
+    try {
+      // Find or create first group
+      const { data: groups } = await supabase
+        .from('shortlist_groups')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at')
+        .limit(1)
+      let listId = groups?.[0]?.id
+      if (!listId) {
+        const { data: newGroup } = await supabase
+          .from('shortlist_groups')
+          .insert({ user_id: user.id, name: 'Ma shortlist' })
+          .select('id')
+          .single()
+        listId = newGroup?.id
+      }
+      if (!listId) throw new Error('Impossible de créer la shortlist')
+      await supabase.from('shortlists').insert({
+        user_id: user.id, player_id: player.id,
+        list_id: listId, tags: [], position_index: 0,
+      })
+      showToast('✓ Ajouté à la shortlist', 'success')
+    } catch {
+      showToast('Joueur déjà dans la shortlist', 'info')
+    }
+  }
+
+  // ── Pull-to-refresh handlers ───────────────────────────────────────────────
+  function onPullTouchStart(e: React.TouchEvent) {
+    const main = document.querySelector('main')
+    if (main && main.scrollTop === 0) {
+      pullStartY.current = e.touches[0].clientY
+    } else {
+      pullStartY.current = -1
+    }
+  }
+
+  function onPullTouchMove(e: React.TouchEvent) {
+    if (pullStartY.current < 0) return
+    const delta = e.touches[0].clientY - pullStartY.current
+    if (delta > 0) setPullY(Math.min(delta, 90))
+  }
+
+  function onPullTouchEnd() {
+    if (pullY > 60 && !isPullRefreshing) {
+      setIsPullRefreshing(true)
+      setDismissed(new Set())
+      setRefreshKey(k => k + 1)
+      setTimeout(() => setIsPullRefreshing(false), 800)
+    }
+    setPullY(0)
+    pullStartY.current = -1
   }
 
   const scored: PlayerWithScore[] = players.map(p => ({
     ...p,
     _score: calculateScore(p, scoringWeights[getPosGroup(p.primary_position)]),
   }))
-  const totalPages = Math.ceil(scored.length / PAGE_SIZE)
-  const paginated  = scored.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const visible    = scored.filter(p => !dismissed.has(p.id))
+  const totalPages = Math.ceil(visible.length / PAGE_SIZE)
+  const paginated  = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // ── Shared filter content (used in desktop panel & mobile drawer) ────────────
 
@@ -450,7 +671,32 @@ export default function Players() {
 
   if (isMobile) {
     return (
-      <div style={{ color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div
+        style={{ color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '12px' }}
+        onTouchStart={onPullTouchStart}
+        onTouchMove={onPullTouchMove}
+        onTouchEnd={onPullTouchEnd}
+      >
+        <ToastContainer toasts={toasts} onDismiss={dismiss} />
+
+        {/* Pull-to-refresh indicator */}
+        {(pullY > 0 || isPullRefreshing) && (
+          <div style={{
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            height: Math.max(pullY, isPullRefreshing ? 40 : 0),
+            overflow: 'hidden', transition: isPullRefreshing ? 'none' : 'height 100ms',
+          }}>
+            <div style={{
+              width: 24, height: 24,
+              border: '2px solid rgba(0,200,150,0.2)',
+              borderTopColor: '#00C896',
+              borderRadius: '50%',
+              animation: isPullRefreshing ? 'spin 0.8s linear infinite' : undefined,
+              opacity: pullY > 60 || isPullRefreshing ? 1 : pullY / 60,
+              transition: 'opacity 100ms',
+            }} />
+          </div>
+        )}
 
         {/* Sticky search + filter row */}
         <div style={{
@@ -516,96 +762,36 @@ export default function Players() {
         {/* Result count */}
         {!loading && (
           <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-            {scored.length} joueur{scored.length !== 1 ? 's' : ''} trouvé{scored.length !== 1 ? 's' : ''}
+            {visible.length} joueur{visible.length !== 1 ? 's' : ''} trouvé{visible.length !== 1 ? 's' : ''}
           </p>
         )}
 
         {/* Cards */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
-            Chargement…
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} />)}
           </div>
-        ) : scored.length === 0 ? emptyState : (
+        ) : visible.length === 0 ? emptyState : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {paginated.map(player => {
-              const label   = getScoreLabel(player._score)
-              const meta    = LABEL_META[label] ?? LABEL_META['LOW PRIORITY']
-              const grad    = POS_GRADIENTS[player.primary_position] ?? 'linear-gradient(135deg,#4A5A70,#2E3D52)'
-              const initials = player.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
-              const inComp  = isSelected(player.id)
-
+              const label = getScoreLabel(player._score)
+              const meta  = LABEL_META[label] ?? LABEL_META['LOW PRIORITY']
+              const grad  = POS_GRADIENTS[player.primary_position] ?? 'linear-gradient(135deg,#4A5A70,#2E3D52)'
               return (
-                <SwipeableCard
+                <MobilePlayerCard
                   key={player.id}
-                  onSwipeLeft={() => navigate('/shortlist')}
-                  onSwipeRight={() => (compareIds.length < 3 || inComp) && toggle(player.id)}
-                >
-                  <div
-                    onClick={() => navigate(`/players/${player.id}`)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '12px',
-                      background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: '12px', padding: '14px',
-                      cursor: 'pointer', transition: 'border-color 150ms',
-                    }}
-                  >
-                    {/* Avatar */}
-                    <div style={{
-                      width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-                      background: grad,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '15px', fontWeight: 700, color: 'white',
-                    }}>
-                      {initials}
-                    </div>
-
-                    {/* Info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: '0 0 3px', fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {player.name}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{
-                          fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-                          color: meta.color, background: `${meta.color}15`,
-                          border: `1px solid ${meta.color}30`, borderRadius: '4px', padding: '1px 6px',
-                        }}>
-                          {player.primary_position}
-                        </span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {player.team}
-                          {player.age ? ` · ${player.age} ans` : ''}
-                        </span>
-                      </div>
-                      <span style={{
-                        display: 'inline-block', marginTop: '4px',
-                        fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 700,
-                        color: meta.color, background: `${meta.color}12`,
-                        border: `1px solid ${meta.color}25`, borderRadius: '4px', padding: '1px 6px',
-                        letterSpacing: '0.06em',
-                      }}>
-                        {label}
-                      </span>
-                    </div>
-
-                    {/* Score ring + compare badge */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0 }}
-                      onClick={e => e.stopPropagation()}>
-                      <ScoreRing score={player._score} color={meta.color} />
-                      {inComp && (
-                        <span style={{
-                          fontSize: '8px', fontWeight: 700, color: '#4D7FFF',
-                          background: 'rgba(77,127,255,0.15)',
-                          border: '1px solid rgba(77,127,255,0.35)',
-                          borderRadius: '4px', padding: '1px 5px',
-                          letterSpacing: '0.04em',
-                        }}>
-                          COMP.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </SwipeableCard>
+                  player={player}
+                  label={label}
+                  meta={meta}
+                  grad={grad}
+                  inComp={isSelected(player.id)}
+                  onDismiss={() => {
+                    setDismissed(prev => new Set([...prev, player.id]))
+                    showToast('Joueur retiré de la vue', 'info')
+                  }}
+                  onShortlist={() => handleQuickShortlist(player)}
+                  onNavigate={() => navigate(`/players/${player.id}`)}
+                />
               )
             })}
           </div>
@@ -643,11 +829,9 @@ export default function Players() {
               overflowY: 'auto',
               animation: 'fadeIn 0.2s ease',
             }}>
-              {/* Drag handle */}
               <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 4px' }}>
                 <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
               </div>
-              {/* Drawer header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingTop: '4px' }}>
                 <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>Filtres</span>
                 <button
@@ -669,7 +853,7 @@ export default function Players() {
                 }}
               >
                 Voir les résultats
-                {!loading && ` (${scored.length})`}
+                {!loading && ` (${visible.length})`}
               </button>
             </div>
           </>
@@ -849,7 +1033,7 @@ export default function Players() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
           Chargement…
         </div>
-      ) : scored.length === 0 ? emptyState : (
+      ) : visible.length === 0 ? emptyState : (
         <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           {/* Table header */}
           <div style={{

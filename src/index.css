@@ -105,3 +105,19 @@ html, body {
 button:not([style*="height"]):not([style*="width"]) {
   min-height: 44px;
 }
+
+/* ── Input focus state ────────────────────────────────────────────────────── */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+  border-color: rgba(0,200,150,0.5) !important;
+  box-shadow: 0 0 0 3px rgba(0,200,150,0.10) !important;
+  caret-color: #00C896;
+}
+
+/* ── Input base style ─────────────────────────────────────────────────────── */
+input, textarea, select {
+  -webkit-appearance: none;
+  appearance: none;
+}
