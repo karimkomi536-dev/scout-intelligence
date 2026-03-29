@@ -14,7 +14,8 @@
     "snapshot": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python snapshot_players.py",
     "scrape:values": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python scrape_market_values.py",
     "import:api-football": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python import_api_football.py",
-    "scrape:understat": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python scrape_understat.py"
+    "scrape:understat": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python scrape_understat.py",
+    "import:big5-2425": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv/Scripts/python run_pipeline.py --preset big5-2425"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -3,9 +3,11 @@ transform.py — Data cleaning and scoring for VIZION
 
 Steps:
   1. Clean nulls and normalise position names
-  2. Compute overall_score (0-100) per position group, normalised within league+position
-  3. Assign scout_label (ELITE / TOP PROSPECT / INTERESTING / TO MONITOR / LOW PRIORITY)
-  4. Build individual_stats JSON for the radar chart (6 axes)
+  2. Compute per-90 stats (xG/90, goals/90, assists/90)
+  3. Flag is_u23 (age <= 23)
+  4. Compute overall_score (0-100) per position group, normalised within league+position
+  5. Assign scout_label (ELITE / TOP PROSPECT / INTERESTING / TO MONITOR / LOW PRIORITY)
+  6. Build individual_stats JSON for the radar chart (6 axes)
 """
 
 import json
@@ -52,9 +54,8 @@ POSITION_MAP: dict[str, str] = {
 }
 
 # Scoring weights by position category
-# Values are (stat_column, weight) — weights sum to 1.0
 SCORING_WEIGHTS: dict[str, list[tuple[str, float]]] = {
-    "ATT": [  # ST, LW, RW
+    "ATT": [
         ("xg",                   0.25),
         ("goals",                0.20),
         ("xa",                   0.15),
@@ -62,7 +63,7 @@ SCORING_WEIGHTS: dict[str, list[tuple[str, float]]] = {
         ("shot_creating_actions",0.10),
         ("minutes_factor",       0.15),
     ],
-    "MID": [  # CM, CAM, CDM
+    "MID": [
         ("key_passes",           0.20),
         ("pass_completion_rate", 0.20),
         ("xa",                   0.15),
@@ -70,14 +71,14 @@ SCORING_WEIGHTS: dict[str, list[tuple[str, float]]] = {
         ("progressive_passes",   0.15),
         ("tackles",              0.15),
     ],
-    "DEF": [  # CB, LB, RB
+    "DEF": [
         ("tackles",              0.25),
         ("interceptions",        0.20),
         ("clearances",           0.20),
         ("blocks",               0.15),
         ("pass_completion_rate", 0.20),
     ],
-    "GK": [],  # Insufficient GK stats from FBref free tier → use default score
+    "GK": [],
 }
 
 POSITION_CATEGORY: dict[str, str] = {
@@ -98,7 +99,7 @@ LABEL_THRESHOLDS = [
 
 class DataTransformer:
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        log.info(f"Transforming {len(df)} players…")
+        log.info(f"Transforming {len(df)} players...")
         df = df.copy()
 
         df = self._clean_nulls(df)
@@ -106,10 +107,16 @@ class DataTransformer:
         df = self._add_minutes_factor(df)
         df = self._compute_scores(df)
         df = self._assign_labels(df)
+        df = self._add_per90_stats(df)
+        df = self._add_u23_flag(df)
         df = self._build_individual_stats(df)
         df = self._final_types(df)
 
-        log.info(f"Transformation complete. Score range: {df['scout_score'].min():.0f} – {df['scout_score'].max():.0f}")
+        log.info(
+            f"Transformation complete. "
+            f"Score range: {df['scout_score'].min():.0f} - {df['scout_score'].max():.0f}  "
+            f"U23: {df['is_u23'].sum()} players"
+        )
         return df
 
     # ─── Step 1: Clean nulls ─────────────────────────────────────────────────
@@ -127,7 +134,6 @@ class DataTransformer:
             else:
                 df[col] = 0
 
-        # Text columns
         for col in ("name", "team", "nationality", "foot", "competition"):
             if col not in df.columns:
                 df[col] = "Unknown"
@@ -144,10 +150,8 @@ class DataTransformer:
     def _normalise_positions(self, df: pd.DataFrame) -> pd.DataFrame:
         def map_pos(raw: str) -> str:
             raw = str(raw).strip()
-            # Direct lookup
             if raw in POSITION_MAP:
                 return POSITION_MAP[raw]
-            # Partial match
             raw_up = raw.upper()
             if "GK" in raw_up or "GOAL" in raw_up:
                 return "GK"
@@ -157,7 +161,7 @@ class DataTransformer:
                 return "ST"
             if "MF" in raw_up or "MID" in raw_up:
                 return "CM"
-            return "CM"  # default
+            return "CM"
 
         if "position" in df.columns:
             df["primary_position"] = df["position"].apply(map_pos)
@@ -191,7 +195,6 @@ class DataTransformer:
                 if col in df.columns:
                     raw[mask] += df.loc[mask, col] * weight
 
-            # Normalise to 0-100 within this position group
             group_vals = raw[mask]
             vmin, vmax = group_vals.min(), group_vals.max()
             if vmax > vmin:
@@ -201,11 +204,9 @@ class DataTransformer:
 
             df.loc[mask, "raw_score"] = normalised
 
-        # GK default
         gk_mask = df["primary_position"] == "GK"
         df.loc[gk_mask, "raw_score"] = 65.0
 
-        # Slight age adjustment: boost players under 23 by up to 5 points
         young_mask = df["age"] < 23
         youth_bonus = ((23 - df.loc[young_mask, "age"]) * 1.0).clip(0, 5)
         df.loc[young_mask, "raw_score"] = (df.loc[young_mask, "raw_score"] + youth_bonus).clip(0, 100)
@@ -225,7 +226,29 @@ class DataTransformer:
         df["scout_label"] = df["scout_score"].apply(get_label)
         return df
 
-    # ─── Step 6: Individual stats JSON (radar chart) ──────────────────────────
+    # ─── Step 6: Per-90 derived stats ─────────────────────────────────────────
+
+    def _add_per90_stats(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Compute per-90-minute rates for xG, goals, and assists.
+        Safe divide: players with 0 minutes get NaN.
+        """
+        nineties = df["minutes_played"].replace(0, np.nan) / 90
+
+        df["xg_per90"]      = (df["xg"]      / nineties).round(3)
+        df["goals_per90"]   = (df["goals"]    / nineties).round(3)
+        df["assists_per90"] = (df["assists"]  / nineties).round(3)
+
+        return df
+
+    # ─── Step 7: U23 flag ────────────────────────────────────────────────────
+
+    def _add_u23_flag(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Flag players aged 23 or under — used by scouts to filter young talent."""
+        df["is_u23"] = df["age"] <= 23
+        return df
+
+    # ─── Step 8: Individual stats JSON (radar chart) ──────────────────────────
 
     def _build_individual_stats(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -235,7 +258,7 @@ class DataTransformer:
           pace       — position + age heuristic (FBref has no speed data)
           mental     — shot creating actions, pressure success rate
           tactical   — interceptions, blocks, progressive passes
-          potential  — young player bonus (age < 23), capped at 100
+          potential  — young player bonus (age <= 23), capped at 100
         """
         def _norm(series: pd.Series) -> pd.Series:
             vmin, vmax = series.min(), series.max()
@@ -243,51 +266,45 @@ class DataTransformer:
                 return ((series - vmin) / (vmax - vmin) * 100).clip(0, 100)
             return pd.Series(50.0, index=series.index)
 
-        # Technique
         tech = (
             _norm(df["pass_completion_rate"]) * 0.40 +
             _norm(df["key_passes"])           * 0.35 +
             _norm(df["progressive_passes"])   * 0.25
         )
-
-        # Physical
         phys = (
             _norm(df["pressures"])   * 0.40 +
             _norm(df["tackles"])     * 0.35 +
             _norm(df["clearances"])  * 0.25
         )
 
-        # Pace — positional base + slight age penalty
-        PACE_BASE = {"ST": 80, "LW": 82, "RW": 82, "CAM": 72, "CM": 65,
-                     "CDM": 62, "LB": 70, "RB": 70, "CB": 58, "GK": 45}
+        PACE_BASE = {
+            "ST": 80, "LW": 82, "RW": 82, "CAM": 72, "CM": 65,
+            "CDM": 62, "LB": 70, "RB": 70, "CB": 58, "GK": 45,
+        }
         pace_base = df["primary_position"].map(PACE_BASE).fillna(60).astype(float)
         pace = (pace_base - (df["age"] - 23).clip(0) * 1.5).clip(0, 100)
 
-        # Mental
         mental = (
             _norm(df["shot_creating_actions"]) * 0.50 +
             _norm(df["pressure_success_rate"]) * 0.50
         )
-
-        # Tactical
         tactical = (
-            _norm(df["interceptions"])        * 0.40 +
-            _norm(df["blocks"])               * 0.30 +
-            _norm(df["progressive_passes"])   * 0.30
+            _norm(df["interceptions"])      * 0.40 +
+            _norm(df["blocks"])             * 0.30 +
+            _norm(df["progressive_passes"]) * 0.30
         )
 
-        # Potential — only meaningful for players under 23
         potential = pd.Series(50.0, index=df.index)
-        young = df["age"] < 23
-        potential[young] = ((23 - df.loc[young, "age"]) * 1.2 + df.loc[young, "scout_score"]).clip(0, 100)
+        young  = df["age"] <= 23   # aligned with is_u23 threshold
+        potential[young]  = ((23 - df.loc[young,  "age"]) * 1.2 + df.loc[young,  "scout_score"]).clip(0, 100)
         potential[~young] = (df.loc[~young, "scout_score"] * 0.8).clip(0, 100)
 
         def to_json(row) -> str:
             return json.dumps({
-                "technique": round(float(tech[row.name]),   1),
-                "physical":  round(float(phys[row.name]),   1),
-                "pace":      round(float(pace[row.name]),   1),
-                "mental":    round(float(mental[row.name]), 1),
+                "technique": round(float(tech[row.name]),    1),
+                "physical":  round(float(phys[row.name]),    1),
+                "pace":      round(float(pace[row.name]),    1),
+                "mental":    round(float(mental[row.name]),  1),
                 "tactical":  round(float(tactical[row.name]),1),
                 "potential": round(float(potential[row.name]),1),
             })
@@ -295,21 +312,21 @@ class DataTransformer:
         df["individual_stats"] = df.apply(to_json, axis=1)
         return df
 
-    # ─── Step 7: Final types and cleanup ─────────────────────────────────────
+    # ─── Step 9: Final types and cleanup ─────────────────────────────────────
 
     def _final_types(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Ensure age is int
-        df["age"] = df["age"].astype(int)
+        df["age"]   = df["age"].astype(int)
+        df["is_u23"] = df["is_u23"].astype(bool)
 
-        # Drop internal columns
         df = df.drop(columns=["raw_score", "minutes_factor", "position"], errors="ignore")
 
-        # Reorder with the most important columns first
         priority = [
             "name", "age", "team", "primary_position", "competition",
             "nationality", "foot", "scout_score", "scout_label",
+            "is_u23",
             "minutes_played", "appearances", "goals", "assists",
             "xg", "xa", "shot_creating_actions",
+            "xg_per90", "goals_per90", "assists_per90",
             "tackles", "interceptions", "blocks", "clearances",
             "pressures", "pressure_success_rate",
             "pass_completion_rate", "progressive_passes", "key_passes",
