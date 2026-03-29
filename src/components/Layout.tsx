@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
-  Scale, Settings, Zap, Menu, X, Target, Download,
+  Scale, Settings, Zap, X, Target, Download,
 } from 'lucide-react'
 import VizionLogo from './VizionLogo'
 
@@ -31,13 +31,6 @@ const NAV_ITEMS = [
   { to: '/shadow-team', icon: Target,          label: 'Shadow Team' },
 ]
 
-const BOTTOM_NAV_ITEMS = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/players',   icon: Users,           label: 'Joueurs'   },
-  { to: '/shortlist', icon: Bookmark,        label: 'Shortlist' },
-  { to: '/compare',   icon: Scale,           label: 'Compare'   },
-]
-
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':  'Dashboard',
   '/players':    'Joueurs',
@@ -48,6 +41,70 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings':   'Paramètres',
   '/shadow-team': 'Shadow Team',
 }
+
+// ── Inline SVG icons for bottom nav ──────────────────────────────────────────
+
+function IconDashboard({ active }: { active: boolean }) {
+  const sw = active ? 2.2 : 1.7
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+    </svg>
+  )
+}
+
+function IconPlayers({ active }: { active: boolean }) {
+  const sw = active ? 2.2 : 1.7
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M3 21v-2a6 6 0 0 1 12 0v2"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      <path d="M21 21v-2a4 4 0 0 0-3-3.87"/>
+    </svg>
+  )
+}
+
+function IconLive({ active }: { active: boolean }) {
+  const sw = active ? 2.2 : 1.7
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3" fill={active ? 'currentColor' : 'none'}/>
+    </svg>
+  )
+}
+
+function IconShortlist({ active }: { active: boolean }) {
+  const sw = active ? 2.2 : 1.7
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill={active ? 'currentColor' : 'none'}/>
+    </svg>
+  )
+}
+
+function IconMenu({ active }: { active: boolean }) {
+  const sw = active ? 2.2 : 1.7
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="6"  x2="20" y2="6"/>
+      <line x1="4" y1="12" x2="20" y2="12"/>
+      <line x1="4" y1="18" x2="20" y2="18"/>
+    </svg>
+  )
+}
+
+// ── Bottom nav items ──────────────────────────────────────────────────────────
+
+const BOTTOM_NAV_ITEMS = [
+  { to: '/dashboard',   Icon: IconDashboard,  label: 'Dashboard' },
+  { to: '/players',     Icon: IconPlayers,    label: 'Players'   },
+  { to: '/shadow-team', Icon: IconLive,       label: 'Live'      },
+  { to: '/shortlist',   Icon: IconShortlist,  label: 'Shortlist' },
+]
 
 // ── Avatar gradient by first letter ──────────────────────────────────────────
 
@@ -71,7 +128,7 @@ function isActiveCheck(to: string, pathname: string) {
   return pathname.startsWith(to)
 }
 
-// ── Sidebar inner content (shared desktop + drawer) ──────────────────────────
+// ── Sidebar inner content (desktop only) ─────────────────────────────────────
 
 function SidebarContent({
   displayName, displayEmail, initials, location, signOut, onClose, onInstall, plan,
@@ -214,7 +271,6 @@ function SidebarContent({
       {/* ── ZONE 4 : Footer ────────────────────────────────────────────── */}
       <div style={{ padding: '12px 12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {plan === 'enterprise' ? (
-          /* Enterprise plan indicator */
           <div style={{
             background: 'rgba(0,200,150,0.06)',
             border: '1px solid rgba(0,200,150,0.18)',
@@ -230,7 +286,6 @@ function SidebarContent({
             </p>
           </div>
         ) : (
-          /* Free / Pro upgrade CTA */
           <div style={{
             background: 'rgba(245,166,35,0.08)',
             border: '1px solid rgba(245,166,35,0.20)',
@@ -255,7 +310,6 @@ function SidebarContent({
           </div>
         )}
 
-        {/* Install PWA button — shown only when browser fires beforeinstallprompt */}
         {onInstall && (
           <button
             onClick={() => { onClose?.(); onInstall() }}
@@ -322,17 +376,26 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
-  const [showProfileSheet, setShowProfileSheet] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [tappedNav, setTappedNav] = useState<string | null>(null)
+  const touchStartY = useRef(0)
 
   const plan = organization?.plan ?? 'free'
 
-  // Close drawer on route change
+  // Close sheet on route change
   useEffect(() => {
-    setSidebarOpen(false)
+    setMenuOpen(false)
   }, [location.pathname])
+
+  // Lock body scroll when sheet is open
+  useEffect(() => {
+    if (isMobile) {
+      document.body.style.overflow = menuOpen ? 'hidden' : ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [menuOpen, isMobile])
 
   // Capture PWA install prompt
   useEffect(() => {
@@ -362,6 +425,22 @@ export default function Layout() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
+
+  // Swipe down to dismiss bottom sheet
+  function onSheetTouchStart(e: React.TouchEvent) {
+    touchStartY.current = e.touches[0].clientY
+  }
+  function onSheetTouchEnd(e: React.TouchEvent) {
+    const delta = e.changedTouches[0].clientY - touchStartY.current
+    if (delta > 80) setMenuOpen(false)
+  }
+
+  // Tap scale animation
+  function handleNavTap(to: string) {
+    setTappedNav(to)
+    setTimeout(() => setTappedNav(null), 150)
+    navigate(to)
+  }
 
   const displayName = user?.email?.split('@')[0] ?? 'Scout'
   const displayEmail = user?.email ?? ''
@@ -399,42 +478,6 @@ export default function Layout() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SIDEBAR DRAWER — mobile only (slide-in overlay)
-      ══════════════════════════════════════════════════════════════════════ */}
-      {isMobile && (
-        <>
-          {/* Backdrop */}
-          <div
-            onClick={() => setSidebarOpen(false)}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 49,
-              background: 'rgba(0,0,0,0.60)',
-              opacity: sidebarOpen ? 1 : 0,
-              pointerEvents: sidebarOpen ? 'auto' : 'none',
-              transition: 'opacity 250ms cubic-bezier(0.4,0,0.2,1)',
-            }}
-          />
-          {/* Drawer panel */}
-          <aside style={{
-            position: 'fixed',
-            top: 0, left: 0, bottom: 0,
-            width: '260px',
-            zIndex: 50,
-            backgroundColor: 'var(--bg-sidebar)',
-            borderRight: '1px solid rgba(255,255,255,0.06)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            transform: sidebarOpen ? 'translateX(0)' : 'translateX(-260px)',
-            transition: 'transform 250ms cubic-bezier(0.4,0,0.2,1)',
-            paddingTop: 'env(safe-area-inset-top)',
-          }}>
-            <SidebarContent {...sidebarProps} onClose={() => setSidebarOpen(false)} />
-          </aside>
-        </>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
           MAIN AREA
       ══════════════════════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -446,29 +489,53 @@ export default function Layout() {
             position: 'fixed',
             top: 0, left: 0, right: 0,
             zIndex: 100,
-            backgroundColor: '#0A0E1B',
+            backgroundColor: 'rgba(10,14,27,0.92)',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
             paddingTop: 'env(safe-area-inset-top, 0px)',
-            paddingLeft: '16px',
-            paddingRight: '16px',
-            paddingBottom: '0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             minHeight: 'calc(56px + env(safe-area-inset-top, 0px))',
+            padding: 'env(safe-area-inset-top, 0px) 16px 0',
           }}>
-            {/* Burger button */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '4px' }}
-              aria-label="Ouvrir le menu"
-            >
-              <Menu size={20} />
-            </button>
+            {/* Inner row — sits below the safe area */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', height: '56px' }}>
+              <VizionLogo size="sm" />
 
-            <VizionLogo size="md" />
+              <span style={{
+                position: 'absolute',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                letterSpacing: '0.04em',
+                fontFamily: 'var(--font-mono)',
+                textTransform: 'uppercase',
+                pointerEvents: 'none',
+              }}>
+                {pageTitle}
+              </span>
 
-            <NotificationBell />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <NotificationBell />
+                <button
+                  onClick={() => setMenuOpen(true)}
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    background: avatarGradient(displayName),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '11px', fontWeight: 700, color: 'white',
+                    border: 'none', cursor: 'pointer', flexShrink: 0,
+                  }}
+                  aria-label="Ouvrir le menu"
+                >
+                  {initials}
+                </button>
+              </div>
+            </div>
           </header>
         ) : (
           /* Desktop top bar */
@@ -553,179 +620,276 @@ export default function Layout() {
         <>
           <nav style={{
             position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
+            bottom: 0, left: 0, right: 0,
             height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-            backgroundColor: '#0D1525',
-            borderTop: '1px solid rgba(255,255,255,0.08)',
+            backgroundColor: 'rgba(10,14,27,0.95)',
+            borderTop: '1px solid rgba(255,255,255,0.07)',
             display: 'flex',
             alignItems: 'stretch',
             zIndex: 80,
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
           }}>
-            {BOTTOM_NAV_ITEMS.map(({ to, icon: Icon, label }) => {
+            {BOTTOM_NAV_ITEMS.map(({ to, Icon, label }) => {
               const active = location.pathname.startsWith(to)
+              const tapped = tappedNav === to
               return (
                 <button
                   key={to}
-                  onClick={() => navigate(to)}
+                  onClick={() => handleNavTap(to)}
                   style={{
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '4px',
+                    gap: '3px',
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
-                    color: active ? '#00C896' : '#5A7090',
+                    color: active ? '#00C896' : '#4A6080',
                     padding: '8px 0',
                     position: 'relative',
-                    transition: 'color 150ms ease',
+                    transform: tapped ? 'scale(0.88)' : 'scale(1)',
+                    transition: 'transform 120ms cubic-bezier(0.34,1.56,0.64,1), color 150ms ease',
+                    WebkitTapHighlightColor: 'transparent',
                   }}
                 >
-                  {/* Active indicator dot */}
                   {active && (
                     <span style={{
                       position: 'absolute',
-                      top: '6px',
-                      width: '4px', height: '4px',
+                      top: '5px',
+                      width: '3px', height: '3px',
                       borderRadius: '50%',
                       background: '#00C896',
                       boxShadow: '0 0 6px #00C896',
                     }} />
                   )}
-                  <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-                  {active && (
-                    <span style={{
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      letterSpacing: '0.02em',
-                      lineHeight: 1,
-                    }}>
-                      {label}
-                    </span>
-                  )}
+                  <Icon active={active} />
+                  <span style={{
+                    fontSize: '9px',
+                    fontWeight: active ? 700 : 500,
+                    fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.06em',
+                    lineHeight: 1,
+                    opacity: active ? 1 : 0.6,
+                    textTransform: 'uppercase',
+                  }}>
+                    {label}
+                  </span>
                 </button>
               )
             })}
 
-            {/* Profile button */}
+            {/* Menu button */}
             <button
-              onClick={() => setShowProfileSheet(v => !v)}
+              onClick={() => setMenuOpen(v => !v)}
               style={{
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '4px',
+                gap: '3px',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: showProfileSheet ? '#00C896' : '#5A7090',
+                color: menuOpen ? '#00C896' : '#4A6080',
                 padding: '8px 0',
-                transition: 'color 150ms ease',
+                transform: tappedNav === 'menu' ? 'scale(0.88)' : 'scale(1)',
+                transition: 'transform 120ms cubic-bezier(0.34,1.56,0.64,1), color 150ms ease',
+                WebkitTapHighlightColor: 'transparent',
               }}
             >
-              <div style={{
-                width: '24px', height: '24px', borderRadius: '50%',
-                background: showProfileSheet ? avatarGradient(displayName) : 'rgba(255,255,255,0.10)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '9px', fontWeight: 700, color: 'white',
-                border: showProfileSheet ? '1.5px solid #00C896' : '1.5px solid transparent',
-                transition: 'all 150ms',
+              <IconMenu active={menuOpen} />
+              <span style={{
+                fontSize: '9px',
+                fontWeight: menuOpen ? 700 : 500,
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.06em',
+                lineHeight: 1,
+                opacity: menuOpen ? 1 : 0.6,
+                textTransform: 'uppercase',
               }}>
-                {initials}
-              </div>
-              {showProfileSheet && (
-                <span style={{ fontSize: '10px', fontWeight: 600, lineHeight: 1 }}>Profil</span>
-              )}
+                Menu
+              </span>
             </button>
           </nav>
 
-          {/* Profile sheet */}
-          {showProfileSheet && (
-            <>
-              <div
-                onClick={() => setShowProfileSheet(false)}
-                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 85 }}
-              />
-              <div style={{
+          {/* ── Bottom Sheet (Menu drawer) ──────────────────────────────── */}
+          <>
+            {/* Backdrop */}
+            <div
+              onClick={() => setMenuOpen(false)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 89,
+                background: 'rgba(0,0,0,0.65)',
+                opacity: menuOpen ? 1 : 0,
+                pointerEvents: menuOpen ? 'auto' : 'none',
+                transition: 'opacity 300ms ease',
+              }}
+            />
+
+            {/* Sheet panel */}
+            <div
+              onTouchStart={onSheetTouchStart}
+              onTouchEnd={onSheetTouchEnd}
+              style={{
                 position: 'fixed',
-                bottom: 'calc(60px + env(safe-area-inset-bottom))',
-                left: '12px',
-                right: '12px',
-                zIndex: 86,
-                background: '#0D1525',
-                border: '1px solid rgba(255,255,255,0.10)',
-                borderRadius: '16px',
-                padding: '20px',
-                animation: 'fadeIn 0.18s ease',
-              }}>
-                {/* User info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                bottom: 0, left: 0, right: 0,
+                zIndex: 90,
+                backgroundColor: '#0D1525',
+                borderRadius: '20px 20px 0 0',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderBottom: 'none',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+                transform: menuOpen ? 'translateY(0)' : 'translateY(100%)',
+                transition: 'transform 350ms cubic-bezier(0.32,0.72,0,1)',
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              {/* Handle bar */}
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+                <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.15)' }} />
+              </div>
+
+              {/* Profile section */}
+              <div style={{ padding: '16px 20px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{
-                    width: '44px', height: '44px', borderRadius: '50%',
+                    width: '48px', height: '48px', borderRadius: '50%',
                     background: avatarGradient(displayName),
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '15px', fontWeight: 700, color: 'white',
+                    fontSize: '16px', fontWeight: 700, color: 'white', flexShrink: 0,
                   }}>
                     {initials}
                   </div>
-                  <div>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
                       {displayName}
                     </p>
-                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {displayEmail}
                     </p>
                   </div>
                 </div>
-                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '16px' }} />
+
                 {/* Plan badge */}
-                {plan === 'enterprise' ? (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    background: 'rgba(0,200,150,0.06)', border: '1px solid rgba(0,200,150,0.18)',
-                    borderRadius: '10px', padding: '10px 12px', marginBottom: '12px',
-                  }}>
-                    <Zap size={13} color="#00C896" fill="#00C896" />
-                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#00C896' }}>Plan Enterprise ✓</p>
-                  </div>
-                ) : (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.20)',
-                    borderRadius: '10px', padding: '10px 12px', marginBottom: '12px',
-                  }}>
-                    <Zap size={13} color="#F5A623" fill="#F5A623" />
-                    <div>
-                      <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#F5A623' }}>Plan Free</p>
-                      <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>Passer à Pro →</p>
+                <div style={{ marginTop: '12px' }}>
+                  {plan === 'enterprise' ? (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      background: 'rgba(0,200,150,0.06)', border: '1px solid rgba(0,200,150,0.18)',
+                      borderRadius: '10px', padding: '8px 12px',
+                    }}>
+                      <Zap size={12} color="#00C896" fill="#00C896" />
+                      <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#00C896' }}>Plan Enterprise ✓</p>
                     </div>
-                  </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.20)',
+                        borderRadius: '10px', padding: '8px 12px', cursor: 'pointer',
+                      }}
+                      onClick={() => { setMenuOpen(false); navigate('/settings') }}
+                    >
+                      <Zap size={12} color="#F5A623" fill="#F5A623" />
+                      <div>
+                        <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#F5A623' }}>Plan Free — Passer à Pro →</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0 20px' }} />
+
+              {/* Navigation links */}
+              <nav style={{ padding: '12px 12px' }}>
+                <p style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '10px',
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.15em',
+                  textTransform: 'uppercase',
+                  padding: '0 8px 8px',
+                  margin: 0,
+                }}>
+                  Navigation
+                </p>
+                {NAV_ITEMS.map(({ to, icon: Icon, label }) => {
+                  const active = location.pathname.startsWith(to)
+                  return (
+                    <button
+                      key={to}
+                      onClick={() => { setMenuOpen(false); navigate(to) }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        width: '100%',
+                        padding: '11px 16px',
+                        borderRadius: '10px',
+                        background: active ? 'rgba(77,127,255,0.12)' : 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: active ? '#4D7FFF' : 'var(--text-secondary)',
+                        fontSize: '14px',
+                        fontWeight: active ? 600 : 500,
+                        textAlign: 'left',
+                        transition: 'background 150ms ease',
+                      }}
+                    >
+                      <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+                      {label}
+                    </button>
+                  )
+                })}
+              </nav>
+
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0 20px' }} />
+
+              {/* Footer actions */}
+              <div style={{ padding: '12px 20px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {installPrompt && (
+                  <button
+                    onClick={() => { setMenuOpen(false); handleInstall() }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '11px 14px',
+                      background: 'rgba(0,200,150,0.08)',
+                      border: '1px solid rgba(0,200,150,0.22)',
+                      borderRadius: '10px',
+                      color: '#00C896',
+                      fontSize: '13px', fontWeight: 600, cursor: 'pointer', width: '100%',
+                    }}
+                  >
+                    <Download size={15} />
+                    Installer l'app
+                  </button>
                 )}
-                {/* Logout */}
                 <button
-                  onClick={() => { setShowProfileSheet(false); signOut() }}
+                  onClick={() => { setMenuOpen(false); signOut() }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
-                    width: '100%', padding: '10px 14px',
-                    background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)',
-                    borderRadius: '8px', color: '#ef4444',
-                    fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                    padding: '11px 14px',
+                    background: 'rgba(239,68,68,0.06)',
+                    border: '1px solid rgba(239,68,68,0.18)',
+                    borderRadius: '10px',
+                    color: '#ef4444',
+                    fontSize: '13px', fontWeight: 600, cursor: 'pointer', width: '100%',
                   }}
                 >
-                  <LogOut size={14} /> Se déconnecter
+                  <LogOut size={15} />
+                  Se déconnecter
                 </button>
               </div>
-            </>
-          )}
+            </div>
+          </>
         </>
       )}
 
