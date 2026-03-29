@@ -5,15 +5,18 @@ Usage:
     venv/Scripts/python import_api_football.py [--dry-run]
 
 Leagues fetched (2024 season):
+    61   Ligue 1 (France)
+    60   Ligue 2 (France)
     39   Premier League (England)
+    40   Championship (England)
     140  La Liga (Spain)
     78   Bundesliga (Germany)
     135  Serie A (Italy)
-    61   Ligue 1 (France)
 
 Limits:
-    Max 40 players per league (2 pages x 20), 200 total.
-    Rate-limited to 1 req/s to respect API-Football daily quotas.
+    Min 500 minutes played filter.
+    Max 80 players per league (4 pages x 20), ~560 total.
+    Rate-limited: 2s between pages, 5s between leagues.
 """
 
 import json
@@ -60,20 +63,27 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 DRY_RUN   = "--dry-run" in sys.argv
 SEASON    = 2024
-SLEEP_SEC = 1.1          # polite rate limit between API-Football requests
+SLEEP_BETWEEN_PAGES    = 2.0   # seconds between pagination requests
+SLEEP_BETWEEN_LEAGUES  = 5.0   # seconds between leagues (API quota courtesy)
 BATCH_SIZE = 25
-MAX_PLAYERS_PER_LEAGUE = 40   # 2 pages x 20
+MAX_PLAYERS_PER_LEAGUE = 80    # 4 pages x 20
+MIN_MINUTES = 500              # skip players with insufficient playing time
 
 LEAGUES = {
+    61:  "Ligue 1",
+    60:  "Ligue 2",
     39:  "Premier League",
+    40:  "Championship",
     140: "La Liga",
     78:  "Bundesliga",
     135: "Serie A",
-    61:  "Ligue 1",
 }
 
-API_BASE = "https://v3.football.api-sports.io"
-HEADERS  = {"x-apisports-key": API_KEY}
+API_BASE = "https://api-football-v1.p.rapidapi.com/v3"
+HEADERS  = {
+    "x-rapidapi-key":  API_KEY,
+    "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
+}
 
 # ── Position mapping ──────────────────────────────────────────────────────────
 # API-Football returns broad position names. Map to VIZION's specific positions.
@@ -202,7 +212,7 @@ def fetch_league_players(league_id: int, league_name: str) -> list[dict]:
             break
 
         page += 1
-        time.sleep(SLEEP_SEC)
+        time.sleep(SLEEP_BETWEEN_PAGES)
 
     return collected[:MAX_PLAYERS_PER_LEAGUE]
 
@@ -238,8 +248,8 @@ def extract_raw(item: dict, league_name: str) -> Optional[dict]:
     appearances = _safe_int(s.get("games", {}).get("appearances"))
     minutes     = _safe_int(s.get("games", {}).get("minutes"))
 
-    # Skip players with fewer than 3 appearances (insufficient data)
-    if appearances < 3:
+    # Skip players with insufficient playing time
+    if minutes < MIN_MINUTES:
         return None
 
     api_pos  = s.get("games", {}).get("position", "Midfielder")
@@ -457,7 +467,7 @@ def main() -> None:
             if raw and raw["name"]:
                 all_raw.append(raw)
 
-        time.sleep(SLEEP_SEC)  # pause between leagues
+        time.sleep(SLEEP_BETWEEN_LEAGUES)  # pause between leagues
 
     log.info(f"\nTotal players extracted after filtering: {len(all_raw)}")
 
