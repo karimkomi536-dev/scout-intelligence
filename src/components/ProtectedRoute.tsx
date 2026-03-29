@@ -1,9 +1,10 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading, authError } = useAuth()
+  const { user, loading, authError, needsOnboarding } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -21,7 +22,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     )
   }
 
-  // Erreur auth (ex : 429 rate limit) — ne pas rediriger vers /login
+  // Auth error (ex: 429 rate limit) — don't redirect to /login
   if (authError) {
     return (
       <div style={{
@@ -48,6 +49,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
+
+  // Redirect to onboarding unless already there
+  if (needsOnboarding && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />
+  }
 
   return <>{children}</>
 }

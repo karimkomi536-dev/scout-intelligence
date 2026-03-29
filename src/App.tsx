@@ -24,6 +24,7 @@ import AcceptInvitation from './pages/AcceptInvitation'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import SplashScreen from './components/SplashScreen'
+import Onboarding from './pages/Onboarding'
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => {
@@ -57,6 +58,11 @@ function App() {
 
             {/* Accept team invitation */}
             <Route path="/invite/:token" element={<AcceptInvitation />} />
+
+            {/* Onboarding — protected, outside Layout */}
+            <Route path="/onboarding" element={
+              <ProtectedRoute><Onboarding /></ProtectedRoute>
+            } />
 
             {/* Legal */}
             <Route path="/privacy" element={<Privacy />} />

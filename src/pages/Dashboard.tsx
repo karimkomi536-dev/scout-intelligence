@@ -9,6 +9,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel } from '../utils/scoring'
 import { useAuth } from '../contexts/AuthContext'
+import { OnboardingChecklist } from '../components/OnboardingChecklist'
 import type { Player } from '../types/player'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -304,6 +305,9 @@ export default function Dashboard() {
 
   return (
     <div style={{ color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+      {/* ── Onboarding checklist ─────────────────────────────────────────────── */}
+      <OnboardingChecklist />
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
