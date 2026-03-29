@@ -9,6 +9,8 @@ import { useScoringProfile } from '../hooks/useScoringProfile'
 import { usePlayerFilters } from '../hooks/usePlayerFilters'
 import { useCompare } from '../contexts/CompareContext'
 import { useAuth } from '../contexts/AuthContext'
+import { usePlan } from '../hooks/usePlan'
+import { UpgradeBanner } from '../components/UpgradeBanner'
 import { useToast } from '../hooks/useToast'
 import { usePressable } from '../hooks/usePressable'
 import { SkeletonCard } from '../components/Skeleton'
@@ -363,10 +365,12 @@ export default function Players() {
   const isMobile = useIsMobile()
   const { weights: scoringWeights } = useScoringProfile()
   const { user } = useAuth()
+  const { limits } = usePlan()
   const { toasts, showToast, dismiss } = useToast()
 
   const [players, setPlayers]   = useState<Player[]>([])
   const [loading, setLoading]   = useState(true)
+  const [totalPlayerCount, setTotalPlayerCount] = useState(0)
   const [leagues, setLeagues]   = useState<string[]>([])
   const [page, setPage]         = useState(1)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -393,6 +397,8 @@ export default function Players() {
       )].sort()
       setLeagues(unique)
     })
+    supabase.from('players').select('id', { count: 'exact', head: true })
+      .then(({ count }) => setTotalPlayerCount(count ?? 0))
   }, [])
 
   useEffect(() => {
@@ -766,6 +772,11 @@ export default function Players() {
           </p>
         )}
 
+        {/* Plan limit banner */}
+        {totalPlayerCount >= limits.maxPlayers && (
+          <UpgradeBanner feature="limite joueurs" />
+        )}
+
         {/* Cards */}
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -899,6 +910,11 @@ export default function Players() {
           </button>
         )}
       </div>
+
+      {/* Plan limit banner */}
+      {totalPlayerCount >= limits.maxPlayers && (
+        <UpgradeBanner feature="limite joueurs" />
+      )}
 
       {/* ── Filter panel ──────────────────────────────────────────────────── */}
       <div style={{

@@ -26,6 +26,8 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import ScoutReportForm from '../components/ScoutReportForm'
 import type { ScoutReport } from '../components/ScoutReportForm'
 import { useOrganization } from '../hooks/useOrganization'
+import { usePlan } from '../hooks/usePlan'
+import { UpgradeBanner, UpgradeModal } from '../components/UpgradeBanner'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -255,6 +257,9 @@ export default function PlayerDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('profil')
 
   const { organization } = useOrganization()
+  const { limits } = usePlan()
+  const [showAiUpgrade, setShowAiUpgrade] = useState(false)
+
   const [scoutReports, setScoutReports]       = useState<ScoutReport[]>([])
   const [showReportForm, setShowReportForm]   = useState(false)
 
@@ -403,6 +408,11 @@ export default function PlayerDetail() {
 
   return (
     <div style={{ color: 'var(--text-primary)', maxWidth: '1000px', animation: 'fadeIn 0.25s ease' }}>
+
+      {/* Upgrade modal */}
+      {showAiUpgrade && (
+        <UpgradeModal feature="rapport IA" onClose={() => setShowAiUpgrade(false)} />
+      )}
 
       {/* Hidden PDF template */}
       <PlayerPDFReport
@@ -579,32 +589,38 @@ export default function PlayerDetail() {
 
               {/* Rapport IA */}
               <button
-                onClick={() => alert('Fonctionnalité bientôt disponible.')}
+                onClick={() => limits.canAIReport ? setActiveTab('ia') : setShowAiUpgrade(true)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   background: 'rgba(155,109,255,0.08)', border: '1px solid rgba(155,109,255,0.25)',
-                  borderRadius: '8px', color: '#9B6DFF', fontSize: '12px', fontWeight: 600,
+                  borderRadius: '8px', color: limits.canAIReport ? '#9B6DFF' : 'var(--text-muted)', fontSize: '12px', fontWeight: 600,
                   padding: '7px 14px', cursor: 'pointer', transition: 'all 150ms ease',
+                  opacity: limits.canAIReport ? 1 : 0.6,
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(155,109,255,0.16)'; e.currentTarget.style.borderColor = 'rgba(155,109,255,0.5)' }}
+                onMouseEnter={e => { if (limits.canAIReport) { e.currentTarget.style.background = 'rgba(155,109,255,0.16)'; e.currentTarget.style.borderColor = 'rgba(155,109,255,0.5)' } }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(155,109,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(155,109,255,0.25)' }}
+                title={limits.canAIReport ? undefined : 'Réservé au plan Pro'}
               >
                 <Sparkles size={13} /> Rapport IA
               </button>
 
               {/* PDF */}
               <button
-                onClick={handleExportPDF}
-                disabled={pdfLoading}
+                onClick={limits.canExportPDF ? handleExportPDF : undefined}
+                disabled={pdfLoading || !limits.canExportPDF}
+                title={limits.canExportPDF ? undefined : 'Export PDF réservé au plan Pro — voir /settings/billing'}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)',
-                  borderRadius: '8px', color: pdfLoading ? 'var(--text-muted)' : 'var(--text-secondary)',
+                  borderRadius: '8px',
+                  color: (pdfLoading || !limits.canExportPDF) ? 'var(--text-muted)' : 'var(--text-secondary)',
                   fontSize: '12px', fontWeight: 600,
-                  padding: '7px 14px', cursor: pdfLoading ? 'not-allowed' : 'pointer',
+                  padding: '7px 14px',
+                  cursor: (pdfLoading || !limits.canExportPDF) ? 'not-allowed' : 'pointer',
+                  opacity: !limits.canExportPDF ? 0.5 : 1,
                   transition: 'all 150ms ease',
                 }}
-                onMouseEnter={e => { if (!pdfLoading) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                onMouseEnter={e => { if (!pdfLoading && limits.canExportPDF) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
               >
                 {pdfLoading
@@ -1139,9 +1155,13 @@ export default function PlayerDetail() {
                   </>
                 )}
 
+                {!limits.canAIReport && (
+                  <UpgradeBanner feature="rapport IA" compact />
+                )}
+
                 {aiStatus !== 'success' && (
                   <button
-                    onClick={() => generateReport(player)}
+                    onClick={() => limits.canAIReport ? generateReport(player) : setShowAiUpgrade(true)}
                     disabled={aiStatus === 'loading'}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '8px',

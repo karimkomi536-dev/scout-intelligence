@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, X, Search } from 'lucide-react'
+import { usePlan } from '../hooks/usePlan'
+import { UpgradeBanner } from '../components/UpgradeBanner'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
   ResponsiveContainer, Legend,
@@ -158,6 +160,7 @@ export default function Compare() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(false)
+  const { limits } = usePlan()
 
   const ids = (['p1', 'p2', 'p3'] as const)
     .map(k => searchParams.get(k))
@@ -186,7 +189,7 @@ export default function Compare() {
   }
 
   function addPlayer(id: string) {
-    if (ids.length >= 3 || ids.includes(id)) return
+    if (ids.length >= limits.maxCompare || ids.includes(id)) return
     const p = new URLSearchParams(searchParams)
     p.set(`p${ids.length + 1}`, id)
     setSearchParams(p, { replace: true })
@@ -235,11 +238,18 @@ export default function Compare() {
         <div>
           <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 4px' }}>Comparateur</h2>
           <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
-            {players.length > 0 ? `${players.length} joueur${players.length > 1 ? 's' : ''} — ${ids.length < 3 ? 'ajoutez-en ' + (3 - ids.length) + ' de plus (optionnel)' : 'comparaison complète'}` : 'Sélectionnez 2 à 3 joueurs'}
+            {players.length > 0
+              ? `${players.length} joueur${players.length > 1 ? 's' : ''} — ${ids.length < limits.maxCompare ? 'ajoutez-en ' + (limits.maxCompare - ids.length) + ' de plus (optionnel)' : 'comparaison complète'}`
+              : `Sélectionnez 2 à ${limits.maxCompare} joueurs`}
           </p>
         </div>
-        {ids.length < 3 && <PlayerSearchBox onSelect={addPlayer} existingIds={ids} />}
+        {ids.length < limits.maxCompare && <PlayerSearchBox onSelect={addPlayer} existingIds={ids} />}
       </div>
+
+      {/* Upgrade banner — shown when free plan has hit the 2-player compare limit */}
+      {ids.length >= limits.maxCompare && limits.maxCompare < 3 && (
+        <UpgradeBanner feature="comparateur 3" />
+      )}
 
       {/* Empty state */}
       {!loading && players.length === 0 && (
