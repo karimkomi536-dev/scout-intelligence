@@ -10,6 +10,6 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     // Let the SDK manage refresh; suppress 429 by not retrying immediately
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
   },
 })
