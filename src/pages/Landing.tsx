@@ -40,6 +40,10 @@ const STYLES = `
     from { opacity:0; transform:translateY(18px); }
     to   { opacity:1; transform:translateY(0); }
   }
+  @keyframes slideDown {
+    from { opacity:0; transform:translateY(-8px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
   .landing-nav-link { color: ${T.muted}; text-decoration:none; font-size:14px; font-weight:500; transition:color 0.2s; }
   .landing-nav-link:hover { color: ${T.text}; }
   .landing-feature-card { transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
@@ -272,42 +276,155 @@ function DashboardMockup() {
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
 function Nav({ isMobile }: { isMobile: boolean }) {
-  return (
-    <nav style={{
-      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: isMobile ? '0 20px' : '0 48px',
-      height: '64px',
-      background: 'rgba(10,14,27,0.82)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      borderBottom: `1px solid ${T.border}`,
-    }}>
-      {/* Logo */}
-      <Link to="/" style={{ textDecoration: 'none' }}>
-        <VizionLogo size="md" />
-      </Link>
+  const [menuOpen, setMenuOpen] = useState(false)
 
-      {!isMobile && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-          <a href="#features" className="landing-nav-link">Fonctionnalités</a>
-          <a href="#pricing"  className="landing-nav-link">Pricing</a>
-          <Link to="/login"   className="landing-nav-link">Connexion</Link>
+  return (
+    <>
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        backgroundColor: 'rgba(10,14,27,0.92)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: `1px solid ${T.border}`,
+        // KEY: padding-top = iOS status bar / Dynamic Island height
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+      }}>
+        {/* Inner row — sits below the safe area */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: `0 ${isMobile ? '20px' : '48px'}`,
+          height: '60px',
+          maxWidth: '1280px',
+          margin: '0 auto',
+        }}>
+          {/* Logo */}
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <VizionLogo size="md" />
+          </Link>
+
+          {/* Desktop nav links */}
+          {!isMobile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+              <a href="#features" className="landing-nav-link">Fonctionnalités</a>
+              <a href="#pricing"  className="landing-nav-link">Pricing</a>
+              <Link to="/login"   className="landing-nav-link">Connexion</Link>
+            </div>
+          )}
+
+          {/* Desktop CTA */}
+          {!isMobile && (
+            <Link to="/register" className="landing-cta-primary" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              background: T.blue, color: 'white',
+              fontSize: '13px', fontWeight: 700,
+              padding: '9px 18px', borderRadius: '8px',
+              textDecoration: 'none',
+              boxShadow: '0 0 24px rgba(77,127,255,0.35)',
+            }}>
+              Commencer <ArrowRight size={13} />
+            </Link>
+          )}
+
+          {/* Mobile hamburger */}
+          {isMobile && (
+            <button
+              onClick={() => setMenuOpen(v => !v)}
+              aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+              style={{
+                width: 44, height: 44,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: 8,
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              {menuOpen ? (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <line x1="2" y1="2" x2="16" y2="16" stroke="#E2EAF4" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="16" y1="2" x2="2" y2="16" stroke="#E2EAF4" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <line x1="2" y1="4" x2="16" y2="4" stroke="#E2EAF4" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="2" y1="9" x2="16" y2="9" stroke="#E2EAF4" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="2" y1="14" x2="16" y2="14" stroke="#E2EAF4" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile dropdown menu */}
+      {isMobile && menuOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 'calc(60px + env(safe-area-inset-top, 0px))',
+          left: 0, right: 0,
+          backgroundColor: '#0D1525',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          padding: '8px 0',
+          zIndex: 99,
+          animation: 'slideDown 0.2s ease',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+        }}>
+          {[
+            { label: 'Fonctionnalités', href: '#features' },
+            { label: 'Pricing',         href: '#pricing'  },
+          ].map(({ label, href }) => (
+            <a
+              key={label}
+              href={href}
+              onClick={() => setMenuOpen(false)}
+              style={{
+                display: 'block',
+                padding: '14px 24px',
+                fontSize: '16px', fontWeight: 500,
+                color: '#E2EAF4', textDecoration: 'none',
+                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                minHeight: '44px',
+              }}
+            >
+              {label}
+            </a>
+          ))}
+          <Link
+            to="/login"
+            onClick={() => setMenuOpen(false)}
+            style={{
+              display: 'block',
+              padding: '14px 24px',
+              fontSize: '16px', fontWeight: 500,
+              color: '#E2EAF4', textDecoration: 'none',
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              minHeight: '44px',
+            }}
+          >
+            Connexion
+          </Link>
+          <div style={{ padding: '12px 20px' }}>
+            <Link
+              to="/register"
+              onClick={() => setMenuOpen(false)}
+              style={{
+                display: 'block', textAlign: 'center',
+                padding: '14px',
+                backgroundColor: T.blue,
+                color: 'white',
+                borderRadius: '10px',
+                fontWeight: 700, fontSize: '16px',
+                textDecoration: 'none',
+                boxShadow: '0 0 20px rgba(77,127,255,0.30)',
+              }}
+            >
+              Commencer →
+            </Link>
+          </div>
         </div>
       )}
-
-      <Link to="/register" className="landing-cta-primary" style={{
-        display: 'inline-flex', alignItems: 'center', gap: '6px',
-        background: T.blue, color: 'white',
-        fontSize: '13px', fontWeight: 700,
-        padding: '9px 18px', borderRadius: '8px',
-        textDecoration: 'none',
-        boxShadow: '0 0 24px rgba(77,127,255,0.35)',
-      }}>
-        Commencer
-        {!isMobile && <ArrowRight size={13} />}
-      </Link>
-    </nav>
+    </>
   )
 }
 
@@ -320,7 +437,12 @@ function Hero({ isMobile }: { isMobile: boolean }) {
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       textAlign: 'center',
-      padding: isMobile ? '100px 20px 60px' : '120px 48px 80px',
+      paddingTop: isMobile
+        ? 'calc(60px + env(safe-area-inset-top, 0px) + 40px)'
+        : '120px',
+      paddingBottom: isMobile ? '60px' : '80px',
+      paddingLeft:  isMobile ? '20px' : '48px',
+      paddingRight: isMobile ? '20px' : '48px',
       position: 'relative', overflow: 'hidden',
     }}>
       {/* Radial glow — top left (blue) */}
