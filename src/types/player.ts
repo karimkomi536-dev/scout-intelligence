@@ -38,4 +38,7 @@ export interface Player {
   key_passes: number
   individual_stats: IndividualStats | null
   market_value_eur: number | null
+  xg_understat: number | null
+  xa_understat: number | null
+  np_xg:        number | null
 }

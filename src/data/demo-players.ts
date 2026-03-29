@@ -1,6 +1,10 @@
 import type { Player } from '../types/player'
 
-export const DEMO_PLAYERS: Player[] = [
+// Demo players don't have Understat xG data — null is correct here
+type DemoPlayer = Omit<Player, 'xg_understat' | 'xa_understat' | 'np_xg'>
+const _NULL_XG = { xg_understat: null, xa_understat: null, np_xg: null } as const
+
+const _raw: DemoPlayer[] = [
   // ── ELITE ─────────────────────────────────────────────────────────────────
   {
     id: 'demo-1',
@@ -971,3 +975,5 @@ export const DEMO_PLAYERS: Player[] = [
     market_value_eur: 70000,
   },
 ]
+
+export const DEMO_PLAYERS: Player[] = _raw.map(p => ({ ...p, ..._NULL_XG }))

@@ -791,36 +791,70 @@ export default function PlayerDetail() {
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px' }}>
-              {[
-                { label: 'Matchs',           value: fmt(player.appearances, 0) },
-                { label: 'Minutes',          value: fmt(player.minutes_played, 0) },
-                { label: 'Buts',             value: fmt(player.goals, 0) },
-                { label: 'Passes déc.',      value: fmt(player.assists, 0) },
-                { label: 'xG',               value: fmt(player.xg) },
-                { label: 'xA',               value: fmt(player.xa) },
-                { label: 'SCA',              value: fmt(player.shot_creating_actions, 0) },
-                { label: 'Tacles',           value: fmt(player.tackles, 0) },
-                { label: 'Interceptions',    value: fmt(player.interceptions, 0) },
-                { label: 'Blocs',            value: fmt(player.blocks, 0) },
-                { label: 'Dégagements',      value: fmt(player.clearances, 0) },
-                { label: 'Pressions',        value: fmt(player.pressures, 0) },
-                { label: 'Réus. pression',   value: player.pressure_success_rate ? fmt(player.pressure_success_rate) + '%' : '—' },
-                { label: 'Réus. passes',     value: player.pass_completion_rate ? fmt(player.pass_completion_rate) + '%' : '—' },
-                { label: 'Passes prog.',     value: fmt(player.progressive_passes, 0) },
-                { label: 'Passes clés',      value: fmt(player.key_passes, 0) },
-              ].map(({ label: statLabel, value }) => (
+              {((): { label: string; value: string; dual?: { v1: string; v2: string } }[] => {
+                const hasDualXg = player.xg_understat != null
+                const hasDualXa = player.xa_understat != null
+                return [
+                  { label: 'Matchs',          value: fmt(player.appearances, 0) },
+                  { label: 'Minutes',         value: fmt(player.minutes_played, 0) },
+                  { label: 'Buts',            value: fmt(player.goals, 0) },
+                  { label: 'Passes déc.',     value: fmt(player.assists, 0) },
+                  hasDualXg
+                    ? { label: 'xG', value: fmt(player.xg), dual: { v1: `FBref : ${fmt(player.xg)}`, v2: `Understat : ${fmt(player.xg_understat)}` } }
+                    : { label: 'xG', value: fmt(player.xg) },
+                  hasDualXa
+                    ? { label: 'xA', value: fmt(player.xa), dual: { v1: `FBref : ${fmt(player.xa)}`, v2: `Understat : ${fmt(player.xa_understat)}` } }
+                    : { label: 'xA', value: fmt(player.xa) },
+                  { label: 'SCA',             value: fmt(player.shot_creating_actions, 0) },
+                  { label: 'Tacles',          value: fmt(player.tackles, 0) },
+                  { label: 'Interceptions',   value: fmt(player.interceptions, 0) },
+                  { label: 'Blocs',           value: fmt(player.blocks, 0) },
+                  { label: 'Dégagements',     value: fmt(player.clearances, 0) },
+                  { label: 'Pressions',       value: fmt(player.pressures, 0) },
+                  { label: 'Réus. pression',  value: player.pressure_success_rate ? fmt(player.pressure_success_rate) + '%' : '—' },
+                  { label: 'Réus. passes',    value: player.pass_completion_rate ? fmt(player.pass_completion_rate) + '%' : '—' },
+                  { label: 'Passes prog.',    value: fmt(player.progressive_passes, 0) },
+                  { label: 'Passes clés',     value: fmt(player.key_passes, 0) },
+                ]
+              })().map(({ label: statLabel, value, dual }) => (
                 <div key={statLabel} style={{
                   background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  border: `1px solid ${dual ? 'rgba(0,200,150,0.18)' : 'rgba(255,255,255,0.05)'}`,
                   borderRadius: '10px',
                   padding: '12px 14px',
                 }}>
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
-                    {statLabel}
-                  </p>
-                  <p style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', margin: 0 }}>
-                    {value}
-                  </p>
+                  {/* Label row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: '6px' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0, fontFamily: 'var(--font-mono)' }}>
+                      {statLabel}
+                    </p>
+                    {dual && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                        color: '#00C896', background: 'rgba(0,200,150,0.12)',
+                        border: '1px solid rgba(0,200,150,0.25)',
+                        borderRadius: 4, padding: '1px 5px',
+                      }}>
+                        2 sources
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Value */}
+                  {dual ? (
+                    <div>
+                      <p style={{ fontSize: '11px', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 600, margin: '0 0 2px' }}>
+                        {dual.v1}
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#00C896', fontFamily: 'var(--font-mono)', fontWeight: 600, margin: 0 }}>
+                        {dual.v2}
+                      </p>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', margin: 0 }}>
+                      {value}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
