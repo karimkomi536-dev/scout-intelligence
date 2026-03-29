@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+/// <reference types="vitest/globals" />
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 
@@ -15,5 +16,14 @@ export default defineConfig({
   ],
   build: {
     sourcemap: true,
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    coverage: {
+      provider: 'v8',
+      include: ['src/utils/**'],
+      reporter: ['text', 'html'],
+    },
   },
 })

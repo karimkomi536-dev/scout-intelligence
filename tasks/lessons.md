@@ -42,3 +42,8 @@ Utiliser useRef (pas useState) comme guard anti-boucle dans les useEffect. Un re
 Vérifier compatibilité plugins avec version Vite avant npm install (vite-plugin-pwa incompatible Vite 8 → manifest.json manuel dans /public).
 Utiliser Write au lieu de Edit pour les fichiers volumineux ou lorsqu'un Edit échoue.
 Tester npm run build avant de pusher — les warnings @tailwind dans VS Code CSS sont normaux (pas des erreurs de build).
+
+[2026-03-28] | commits locaux jamais poussés → bug "inexistant" en prod pendant plusieurs sessions |
+Avant tout debug d'un problème prod (404, asset manquant, feature absente) : vérifier git log origin/main..HEAD.
+Si des commits sont en avance → git push D'ABORD, attendre le deploy, PUIS diagnostiquer.
+Ne jamais régénérer des assets ou modifier du code sans avoir d'abord confirmé que la version en prod est à jour.
