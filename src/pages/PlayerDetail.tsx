@@ -16,6 +16,7 @@ import type { PosGroup } from '../utils/scoring'
 import { useScoringProfile } from '../hooks/useScoringProfile'
 import { useScoutReport } from '../hooks/useScoutReport'
 import { useSimilarPlayers } from '../hooks/useSimilarPlayers'
+import { useFixtures } from '../hooks/useFixtures'
 import SimilarPlayers from '../components/SimilarPlayers'
 import { useCompare } from '../contexts/CompareContext'
 import { PlayerPDFReport } from '../components/PlayerPDFReport'
@@ -269,6 +270,7 @@ export default function PlayerDetail() {
   const { report: aiReport, status: aiStatus, error: aiError, generateReport, reset: resetReport } = useScoutReport()
   const [includeInPDF, setIncludeInPDF] = useState(false)
   const { similar, loading: similarLoading } = useSimilarPlayers(player)
+  const { fixtures, loading: fixturesLoading, hasTeam } = useFixtures(player?.team)
 
   useEffect(() => {
     if (!id) return
@@ -1267,6 +1269,79 @@ export default function PlayerDetail() {
               </div>
             )}
           </div>
+
+          {/* ── PROCHAINS MATCHS ──────────────────────────────────────────────────── */}
+          {hasTeam && (
+            <div style={{
+              background:   'var(--surface2)',
+              border:       '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '14px',
+              padding:      '24px',
+              marginBottom: '20px',
+            }}>
+              <p style={{
+                fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+                textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px', margin: '0 0 16px',
+              }}>
+                Prochains matchs
+              </p>
+
+              {fixturesLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 13 }}>
+                  <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                  Chargement…
+                </div>
+              ) : fixtures.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+                  Aucun match programmé.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {fixtures.map(f => (
+                    <div key={f.id} style={{
+                      display:      'flex',
+                      alignItems:   'center',
+                      gap:          10,
+                      padding:      '10px 14px',
+                      background:   'rgba(255,255,255,0.02)',
+                      border:       '1px solid rgba(255,255,255,0.05)',
+                      borderRadius: '10px',
+                    }}>
+                      {/* Home/Away badge */}
+                      <span style={{
+                        flexShrink:   0,
+                        fontSize:     10,
+                        fontWeight:   700,
+                        letterSpacing: '0.06em',
+                        borderRadius: 5,
+                        padding:      '2px 7px',
+                        color:        f.isHome ? '#00C896' : '#FB923C',
+                        background:   f.isHome ? 'rgba(0,200,150,0.12)' : 'rgba(251,146,60,0.12)',
+                        border:       `1px solid ${f.isHome ? 'rgba(0,200,150,0.25)' : 'rgba(251,146,60,0.25)'}`,
+                      }}>
+                        {f.isHome ? 'Domicile' : 'Extérieur'}
+                      </span>
+
+                      {/* Match info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {f.homeTeam} vs {f.awayTeam}
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                          {f.formattedDate}
+                        </p>
+                      </div>
+
+                      {/* Competition */}
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {f.competition}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── SIMILAR PLAYERS ───────────────────────────────────────────────────── */}
           <SimilarPlayers similar={similar} loading={similarLoading} />
