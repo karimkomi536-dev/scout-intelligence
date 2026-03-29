@@ -26,6 +26,7 @@ import Terms from './pages/Terms'
 import SplashScreen from './components/SplashScreen'
 import Onboarding from './pages/Onboarding'
 import Demo from './pages/Demo'
+import CronLogs from './pages/admin/CronLogs'
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => {
@@ -90,7 +91,8 @@ function App() {
               <Route path="upload"      element={<Upload />} />
               <Route path="settings"         element={<Settings />} />
               <Route path="settings/billing" element={<Billing />} />
-              <Route path="shadow-team" element={<ShadowTeam />} />
+              <Route path="shadow-team"  element={<ShadowTeam />} />
+              <Route path="admin/cron"   element={<CronLogs />} />
             </Route>
 
             {/* Fallback */}
