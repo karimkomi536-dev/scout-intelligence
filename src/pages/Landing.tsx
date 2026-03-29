@@ -531,7 +531,7 @@ function Hero({ isMobile }: { isMobile: boolean }) {
             <ArrowRight size={16} />
           </Link>
 
-          <a href="#features" className="landing-cta-outline" style={{
+          <Link to="/demo" className="landing-cta-outline" style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
             background: 'transparent',
             border: '1px solid rgba(255,255,255,0.15)',
@@ -541,7 +541,7 @@ function Hero({ isMobile }: { isMobile: boolean }) {
             textDecoration: 'none', transition: 'border-color 0.2s, color 0.2s',
           }}>
             Voir la démo
-          </a>
+          </Link>
         </div>
 
         {/* Social proof */}

@@ -25,6 +25,7 @@ import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import SplashScreen from './components/SplashScreen'
 import Onboarding from './pages/Onboarding'
+import Demo from './pages/Demo'
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => {
@@ -63,6 +64,9 @@ function App() {
             <Route path="/onboarding" element={
               <ProtectedRoute><Onboarding /></ProtectedRoute>
             } />
+
+            {/* Demo — public, no auth required */}
+            <Route path="/demo" element={<Demo />} />
 
             {/* Legal */}
             <Route path="/privacy" element={<Privacy />} />
