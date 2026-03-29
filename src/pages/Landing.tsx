@@ -758,6 +758,13 @@ const PLANS = [
 
 function Pricing({ isMobile }: { isMobile: boolean }) {
   const [annual, setAnnual] = useState(false)
+  const { user } = useAuth()
+
+  function planCtaLink(plan: typeof PLANS[number]) {
+    if (plan.id === 'pro') return user ? '/settings/billing' : '/register'
+    if (plan.id === 'enterprise') return 'mailto:contact@vizion.app?subject=Enterprise'
+    return plan.ctaTo
+  }
 
   return (
     <section id="pricing" style={{
@@ -888,7 +895,7 @@ function Pricing({ isMobile }: { isMobile: boolean }) {
               {plan.desc}
             </p>
 
-            <Link to={plan.ctaTo} style={{
+            <Link to={planCtaLink(plan)} style={{
               display: 'block', textAlign: 'center',
               background: plan.featured ? T.blue : 'transparent',
               border: `1px solid ${plan.featured ? T.blue : T.border}`,
