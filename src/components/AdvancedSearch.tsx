@@ -326,6 +326,44 @@ export default function AdvancedSearch({
               </div>
             )}
 
+            {/* Forme */}
+            <div>
+              <Label>Forme</Label>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {([
+                  { type: 'hot',       emoji: '🔥', label: 'En feu',        color: '#ef4444' },
+                  { type: 'rising',    emoji: '📈', label: 'En hausse',     color: '#00C896' },
+                  { type: 'stable',    emoji: '➡️', label: 'Stable',        color: '#9B6DFF' },
+                  { type: 'declining', emoji: '📉', label: 'En baisse',     color: '#F5A623' },
+                  { type: 'cold',      emoji: '❄️', label: 'En difficulté', color: '#64748B' },
+                ] as const).map(({ type, emoji, label, color }) => {
+                  const active = filters.trends.includes(type)
+                  return (
+                    <button key={type}
+                      onClick={() => onSet({ trends: toggleList(filters.trends, type) })}
+                      style={{
+                        background:   active ? `${color}20` : 'transparent',
+                        color:        active ? color : T.muted,
+                        border:       `1px solid ${active ? color + '60' : T.border}`,
+                        borderRadius: '20px',
+                        padding:      '4px 12px',
+                        fontSize:     '12px',
+                        fontWeight:   active ? 600 : 400,
+                        cursor:       'pointer',
+                        transition:   'all 150ms',
+                        whiteSpace:   'nowrap',
+                        display:      'flex',
+                        alignItems:   'center',
+                        gap:          '4px',
+                      }}
+                    >
+                      {emoji} {label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             {/* Pied dominant */}
             <div>
               <Label>Pied dominant</Label>

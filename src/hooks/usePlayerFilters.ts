@@ -5,6 +5,7 @@ export interface PlayerFilters {
   positions:  string[]
   leagues:    string[]
   labels:     string[]   // ELITE | TOP PROSPECT | INTERESTING | TO MONITOR | LOW PRIORITY
+  trends:     string[]   // hot | rising | stable | declining | cold
   ageMin:     number
   ageMax:     number
   foot:       string     // '' | 'Left' | 'Right'
@@ -19,6 +20,7 @@ const DEFAULTS: PlayerFilters = {
   positions:  [],
   leagues:    [],
   labels:     [],
+  trends:     [],
   ageMin:     16,
   ageMax:     40,
   foot:       '',
@@ -36,6 +38,7 @@ export function usePlayerFilters() {
     positions:  searchParams.getAll('pos'),
     leagues:    searchParams.getAll('league'),
     labels:     searchParams.getAll('label'),
+    trends:     searchParams.getAll('trend'),
     ageMin:     Number(searchParams.get('age_min')    ?? DEFAULTS.ageMin),
     ageMax:     Number(searchParams.get('age_max')    ?? DEFAULTS.ageMax),
     foot:       searchParams.get('foot')              ?? DEFAULTS.foot,
@@ -49,6 +52,7 @@ export function usePlayerFilters() {
     (filters.positions.length > 0 ? 1 : 0) +
     (filters.leagues.length   > 0 ? 1 : 0) +
     (filters.labels.length    > 0 ? 1 : 0) +
+    (filters.trends.length    > 0 ? 1 : 0) +
     (filters.foot !== ''          ? 1 : 0) +
     ((filters.ageMin > 16 || filters.ageMax < 40) ? 1 : 0) +
     (filters.minScore   > 0 ? 1 : 0) +
@@ -65,6 +69,7 @@ export function usePlayerFilters() {
     next.positions.forEach(v =>                   p.append('pos',      v))
     next.leagues.forEach(v =>                     p.append('league',   v))
     next.labels.forEach(v =>                      p.append('label',    v))
+    next.trends.forEach(v =>                      p.append('trend',    v))
     if (next.ageMin !== DEFAULTS.ageMin)          p.set('age_min',     String(next.ageMin))
     if (next.ageMax !== DEFAULTS.ageMax)          p.set('age_max',     String(next.ageMax))
     if (next.foot)                                p.set('foot',        next.foot)

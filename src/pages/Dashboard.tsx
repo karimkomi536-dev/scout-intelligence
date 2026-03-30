@@ -10,7 +10,6 @@ import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel } from '../utils/scoring'
 import { useAuth } from '../contexts/AuthContext'
 import { OnboardingChecklist } from '../components/OnboardingChecklist'
-import { TrendBadge } from '../components/TrendBadge'
 import { ScoreSparkline } from '../components/ScoreSparkline'
 import { getTrend } from '../utils/trend'
 import type { Player } from '../types/player'
@@ -267,11 +266,11 @@ export default function Dashboard() {
   const countByLabel = (label: string) => scored.filter(p => p._label === label).length
   const top5 = [...scored].sort((a, b) => b._score - a._score).slice(0, 5)
 
-  // Hot players: score ≥ 70, simulated as rising
+  // Top progressions: players with rising/hot simulated trend, top 3 by score
   const hotPlayers = scored
-    .filter(p => p._score >= 70)
+    .filter(p => p._score >= 65)
     .sort((a, b) => b._score - a._score)
-    .slice(0, 5)
+    .slice(0, 3)
 
   // Area chart: distribution by label per score bucket (10-point buckets)
   const buckets: Record<number, Record<string, number>> = {}
@@ -455,19 +454,23 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <TrendingUp size={16} color="#00C896" />
-              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Joueurs en forme</h3>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Top 3 progressions</h3>
             </div>
-            <button onClick={() => navigate('/players')} style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', fontSize: '11px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
-              Voir tous →
+            <button
+              onClick={() => navigate('/players?trend=hot&trend=rising')}
+              style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', fontSize: '11px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+            >
+              En forme →
             </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {hotPlayers.map(p => {
+            {hotPlayers.map((p, rank) => {
               const meta = LABEL_META[p._label] ?? LABEL_META['LOW PRIORITY']
               const initials = p.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
               const simScores = p._score >= 85 ? [p._score - 8, p._score - 4, p._score]
                               : [p._score - 3, p._score - 1, p._score]
               const trend = getTrend(simScores)
+              const delta = simScores[simScores.length - 1] - simScores[0]
               return (
                 <div key={p.id}
                   onClick={() => navigate(`/players/${p.id}`)}
@@ -479,6 +482,9 @@ export default function Dashboard() {
                   onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', width: '14px', textAlign: 'center', flexShrink: 0 }}>
+                    {rank + 1}
+                  </span>
                   <div style={{
                     width: 32, height: 32, borderRadius: '50%',
                     background: `${meta.color}20`, border: `1px solid ${meta.color}40`,
@@ -492,7 +498,14 @@ export default function Dashboard() {
                     <p style={{ margin: '2px 0 0', fontSize: '10px', color: 'var(--text-muted)' }}>{p.primary_position} · {p.team}</p>
                   </div>
                   <ScoreSparkline scores={simScores} width={48} height={20} />
-                  <TrendBadge trend={trend} size="sm" />
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 700,
+                    color: trend.color, background: `${trend.color}12`,
+                    border: `1px solid ${trend.color}30`,
+                    borderRadius: '4px', padding: '2px 6px', flexShrink: 0,
+                  }}>
+                    +{delta.toFixed(0)} pts
+                  </span>
                 </div>
               )
             })}

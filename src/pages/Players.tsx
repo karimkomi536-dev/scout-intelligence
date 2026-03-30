@@ -530,7 +530,14 @@ export default function Players() {
     return map
   }, [scored])
 
-  const visible    = scored.filter(p => !dismissed.has(p.id))
+  const visible    = scored.filter(p => {
+    if (dismissed.has(p.id)) return false
+    if (filters.trends.length > 0) {
+      const t = getSimulatedTrend(p._score)
+      if (!filters.trends.includes(t.type)) return false
+    }
+    return true
+  })
   const totalPages = Math.ceil(visible.length / PAGE_SIZE)
   const paginated  = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
