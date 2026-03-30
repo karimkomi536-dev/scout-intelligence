@@ -30,6 +30,8 @@ import { useOrganization } from '../hooks/useOrganization'
 import { usePlan } from '../hooks/usePlan'
 import { UpgradeBanner, UpgradeModal } from '../components/UpgradeBanner'
 import { TrendBadge } from '../components/TrendBadge'
+import FixturesList from '../components/FixturesList'
+import PlayerStatusBadge from '../components/PlayerStatusBadge'
 import { getTrend } from '../utils/trend'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -786,6 +788,28 @@ export default function PlayerDetail() {
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── Agenda ──────────────────────────────────────────────────────── */}
+          {player.team && (
+            <div style={{
+              background: 'var(--surface2)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '14px',
+              padding: '24px',
+              marginTop: radarData.length > 0 ? 0 : undefined,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <p style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em',
+                  textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0,
+                }}>
+                  Prochains matchs
+                </p>
+                <PlayerStatusBadge status="fit" />
+              </div>
+              <FixturesList club={player.team} />
             </div>
           )}
         </>
