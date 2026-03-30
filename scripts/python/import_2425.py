@@ -1,10 +1,11 @@
 """
 import_2425.py — Import 2024-25 saison, zéro doublon.
 
-Source de données : API-Football (RapidAPI)
-  - FBref est bloqué par Cloudflare (HTTP 403) et soccerdata est
-    incompatible avec Python 3.14. API-Football est la seule source
-    fiable pour les données 2024-25.
+Source de données : API-Football (api-sports.io, plan gratuit)
+  - Le plan gratuit n'expose PAS /players (stats nulles).
+  - Il expose /players/topscorers, /players/topassists,
+    /players/topyellowcards — stats complètes, ~20 joueurs chacun.
+  - 3 endpoints × 7 ligues = 21 requêtes (limite : 100/jour, 10/min).
 
 Stratégie anti-doublon (3 niveaux) :
   1. Déduplication en mémoire (normalize avant de constituer la liste)
@@ -62,12 +63,13 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 DRY_RUN = "--dry-run" in sys.argv
 
-SEASON                 = 2024
-SLEEP_BETWEEN_PAGES    = 2.0
-SLEEP_BETWEEN_LEAGUES  = 5.0
-MAX_PLAYERS_PER_LEAGUE = 80
-MIN_MINUTES            = 500
-BATCH_SIZE             = 25
+SEASON             = 2024
+SLEEP_BETWEEN_REQS = 7.0   # 10 req/min max → 6s safe, 7s comfortable
+MIN_MINUTES        = 500
+BATCH_SIZE         = 25
+
+# Endpoints disponibles sur le plan gratuit (chacun retourne ~20 joueurs)
+TOP_ENDPOINTS = ["topscorers", "topassists", "topyellowcards"]
 
 LEAGUES = {
     61:  {"name": "Ligue 1",        "country": "France"},
@@ -177,45 +179,40 @@ def _clamp(v: float) -> float:
 
 
 def fetch_league_players(league_id: int, league_name: str) -> list[dict]:
-    """Récupère MAX_PLAYERS_PER_LEAGUE joueurs pour une ligue via API-Football."""
+    """
+    Récupère les joueurs d'une ligue via les endpoints top* du plan gratuit.
+    Appelle topscorers, topassists, topyellowcards (~20 joueurs chacun).
+    """
     collected = []
-    page = 1
 
-    while len(collected) < MAX_PLAYERS_PER_LEAGUE:
-        log.info(f"  [{league_name}] page {page}...")
+    for endpoint in TOP_ENDPOINTS:
+        log.info(f"  [{league_name}] {endpoint}...")
         try:
             resp = requests.get(
-                f"{API_BASE}/players",
+                f"{API_BASE}/players/{endpoint}",
                 headers=HEADERS,
-                params={"season": SEASON, "league": league_id, "page": page},
+                params={"season": SEASON, "league": league_id},
                 timeout=20,
             )
             resp.raise_for_status()
             data = resp.json()
         except requests.HTTPError as e:
-            log.warning(f"  HTTP error {league_name} page {page}: {e}")
-            break
+            log.warning(f"  HTTP error {league_name}/{endpoint}: {e}")
+            time.sleep(SLEEP_BETWEEN_REQS)
+            continue
 
         api_errors = data.get("errors", {})
         if api_errors:
-            log.warning(f"  API error: {api_errors}")
-            break
+            log.warning(f"  API error {endpoint}: {api_errors}")
+            time.sleep(SLEEP_BETWEEN_REQS)
+            continue
 
         items = data.get("response", [])
-        if not items:
-            break
-
         collected.extend(items)
-        log.info(f"  [{league_name}] +{len(items)} (total: {len(collected)})")
+        log.info(f"  [{league_name}] {endpoint}: +{len(items)} (total: {len(collected)})")
+        time.sleep(SLEEP_BETWEEN_REQS)
 
-        paging = data.get("paging", {})
-        if page >= paging.get("total", 1) or page >= MAX_PLAYERS_PER_LEAGUE // 20:
-            break
-
-        page += 1
-        time.sleep(SLEEP_BETWEEN_PAGES)
-
-    return collected[:MAX_PLAYERS_PER_LEAGUE]
+    return collected
 
 
 def extract_raw(item: dict, league_name: str) -> Optional[dict]:
@@ -431,7 +428,6 @@ def main() -> None:
             if raw and raw["name"]:
                 all_raw.append(raw)
 
-        time.sleep(SLEEP_BETWEEN_LEAGUES)
 
     log.info(f"\nTotal extrait apres filtre {MIN_MINUTES}min : {len(all_raw)} joueurs")
 
