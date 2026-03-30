@@ -32,6 +32,7 @@ import { UpgradeBanner, UpgradeModal } from '../components/UpgradeBanner'
 import { TrendBadge } from '../components/TrendBadge'
 import FixturesList from '../components/FixturesList'
 import PlayerStatusBadge from '../components/PlayerStatusBadge'
+import PercentileBadge from '../components/PercentileBadge'
 import { getTrend } from '../utils/trend'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -556,7 +557,7 @@ export default function PlayerDetail() {
               })()}
             </div>
 
-            {/* Trend badge */}
+            {/* Trend + Percentile badges */}
             {(() => {
               const trend = getTrend(
                 score >= 85 ? [score - 8, score - 4, score]
@@ -565,8 +566,16 @@ export default function PlayerDetail() {
                 : [score + 5, score + 2, score]
               )
               return (
-                <div style={{ marginBottom: '16px', display: 'flex', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+                <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
                   <TrendBadge trend={trend} size="md" />
+                  {player.primary_position && player.competition && (
+                    <PercentileBadge
+                      playerId={player.id}
+                      score={score}
+                      position={player.primary_position}
+                      league={player.competition}
+                    />
+                  )}
                 </div>
               )
             })()}

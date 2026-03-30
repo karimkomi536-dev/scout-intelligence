@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, Heart, Scale, RotateCcw, Users, SlidersHorizontal } from 'lucide-react'
 import { useSwipeable } from 'react-swipeable'
@@ -19,6 +19,7 @@ import AdvancedSearch from '../components/AdvancedSearch'
 import { TrendBadge } from '../components/TrendBadge'
 import { ScoreSparkline } from '../components/ScoreSparkline'
 import { getTrend } from '../utils/trend'
+import { getPercentile } from '../utils/percentile'
 import type { Player } from '../types/player'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -229,7 +230,7 @@ function SwipeableCard({
 // Extracted so it can use hooks (usePressable) — can't call hooks inside .map()
 
 function MobilePlayerCard({
-  player, label, meta, grad, inComp,
+  player, label, meta, grad, inComp, percentile,
   onDismiss, onShortlist, onNavigate,
 }: {
   player: Player & { _score: number }
@@ -237,6 +238,7 @@ function MobilePlayerCard({
   meta: { color: string; glow: string }
   grad: string
   inComp: boolean
+  percentile?: number
   onDismiss: () => void
   onShortlist: () => void
   onNavigate: () => void
@@ -302,7 +304,11 @@ function MobilePlayerCard({
           </div>
 
           {/* Score ring */}
-          <div style={{ flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <div
+            style={{ flexShrink: 0 }}
+            onClick={e => e.stopPropagation()}
+            title={percentile != null ? `Top ${percentile}% des ${player.primary_position}` : undefined}
+          >
             <svg width="36" height="36">
               <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2.5" />
               <circle cx="18" cy="18" r="14" fill="none"
@@ -513,6 +519,17 @@ export default function Players() {
     ...p,
     _score: calculateScore(p, scoringWeights[getPosGroup(p.primary_position)]),
   }))
+
+  const scoresByPosition = useMemo(() => {
+    const map: Record<string, number[]> = {}
+    scored.forEach(p => {
+      const pos = p.primary_position || 'MID'
+      if (!map[pos]) map[pos] = []
+      map[pos].push(p._score)
+    })
+    return map
+  }, [scored])
+
   const visible    = scored.filter(p => !dismissed.has(p.id))
   const totalPages = Math.ceil(visible.length / PAGE_SIZE)
   const paginated  = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -806,6 +823,8 @@ export default function Players() {
               const label = getScoreLabel(player._score)
               const meta  = LABEL_META[label] ?? LABEL_META['LOW PRIORITY']
               const grad  = POS_GRADIENTS[player.primary_position] ?? 'linear-gradient(135deg,#4A5A70,#2E3D52)'
+              const posScores = scoresByPosition[player.primary_position] ?? []
+              const pct = getPercentile(player._score, posScores)
               return (
                 <MobilePlayerCard
                   key={player.id}
@@ -814,6 +833,7 @@ export default function Players() {
                   meta={meta}
                   grad={grad}
                   inComp={isSelected(player.id)}
+                  percentile={pct}
                   onDismiss={() => {
                     setDismissed(prev => new Set([...prev, player.id]))
                     showToast('Joueur retiré de la vue', 'info')
@@ -1151,7 +1171,10 @@ export default function Players() {
                 <div style={{ padding: '12px 8px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}>
                   {player.age ?? '—'}
                 </div>
-                <div style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div
+                  style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  title={`Top ${getPercentile(player._score, scoresByPosition[player.primary_position] ?? [])}% des ${player.primary_position}`}
+                >
                   <ScoreRing score={player._score} color={meta.color} />
                   <ScoreSparkline scores={getSimulatedScores(player._score)} width={40} height={18} />
                 </div>
