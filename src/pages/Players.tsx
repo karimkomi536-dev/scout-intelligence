@@ -16,6 +16,9 @@ import { usePressable } from '../hooks/usePressable'
 import { SkeletonCard } from '../components/Skeleton'
 import { ToastContainer } from '../components/Toast'
 import AdvancedSearch from '../components/AdvancedSearch'
+import { TrendBadge } from '../components/TrendBadge'
+import { ScoreSparkline } from '../components/ScoreSparkline'
+import { getTrend } from '../utils/trend'
 import type { Player } from '../types/player'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -41,6 +44,17 @@ const POS_GRADIENTS: Record<string, string> = {
   LW:  'linear-gradient(135deg,#ef4444,#F5A623)',
   RW:  'linear-gradient(135deg,#ef4444,#F5A623)',
   ST:  'linear-gradient(135deg,#ef4444,#9B6DFF)',
+}
+
+function getSimulatedScores(score: number): number[] {
+  if (score >= 85) return [score - 8, score - 4, score]
+  if (score >= 70) return [score - 3, score - 1, score]
+  if (score >= 50) return [score, score, score]
+  return [score + 5, score + 2, score]
+}
+
+function getSimulatedTrend(score: number) {
+  return getTrend(getSimulatedScores(score))
 }
 
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
@@ -278,6 +292,7 @@ function MobilePlayerCard({
               }}>
                 {label}
               </span>
+              <TrendBadge trend={getSimulatedTrend(player._score)} size="sm" />
             </div>
             <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
               {player.team}
@@ -305,15 +320,18 @@ function MobilePlayerCard({
           </div>
         </div>
 
-        {/* Row 2: score bar */}
-        <div style={{ height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden', margin: '10px 0 8px' }}>
-          <div style={{
-            height: '100%',
-            width: `${player._score}%`,
-            background: meta.color,
-            borderRadius: '2px',
-            boxShadow: `0 0 6px ${meta.color}80`,
-          }} />
+        {/* Row 2: score bar + sparkline */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '10px 0 8px' }}>
+          <div style={{ flex: 1, height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${player._score}%`,
+              background: meta.color,
+              borderRadius: '2px',
+              boxShadow: `0 0 6px ${meta.color}80`,
+            }} />
+          </div>
+          <ScoreSparkline scores={getSimulatedScores(player._score)} width={48} height={20} />
         </div>
 
         {/* Row 3: shortlist button */}
@@ -1133,10 +1151,11 @@ export default function Players() {
                 <div style={{ padding: '12px 8px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}>
                   {player.age ?? '—'}
                 </div>
-                <div style={{ padding: '12px 8px' }}>
+                <div style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <ScoreRing score={player._score} color={meta.color} />
+                  <ScoreSparkline scores={getSimulatedScores(player._score)} width={40} height={18} />
                 </div>
-                <div style={{ padding: '12px 8px' }}>
+                <div style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{
                     fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
                     color: meta.color, background: `${meta.color}12`,
@@ -1148,6 +1167,7 @@ export default function Players() {
                   }}>
                     {label}
                   </span>
+                  <TrendBadge trend={getSimulatedTrend(player._score)} size="sm" />
                 </div>
                 <div style={{ padding: '12px 8px', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {player.competition}

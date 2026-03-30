@@ -10,6 +10,9 @@ import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel } from '../utils/scoring'
 import { useAuth } from '../contexts/AuthContext'
 import { OnboardingChecklist } from '../components/OnboardingChecklist'
+import { TrendBadge } from '../components/TrendBadge'
+import { ScoreSparkline } from '../components/ScoreSparkline'
+import { getTrend } from '../utils/trend'
 import type { Player } from '../types/player'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -264,6 +267,12 @@ export default function Dashboard() {
   const countByLabel = (label: string) => scored.filter(p => p._label === label).length
   const top5 = [...scored].sort((a, b) => b._score - a._score).slice(0, 5)
 
+  // Hot players: score ≥ 70, simulated as rising
+  const hotPlayers = scored
+    .filter(p => p._score >= 70)
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 5)
+
   // Area chart: distribution by label per score bucket (10-point buckets)
   const buckets: Record<number, Record<string, number>> = {}
   scored.forEach(p => {
@@ -439,6 +448,57 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Joueurs en forme ─────────────────────────────────────────────────── */}
+      {hotPlayers.length > 0 && (
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={16} color="#00C896" />
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Joueurs en forme</h3>
+            </div>
+            <button onClick={() => navigate('/players')} style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', fontSize: '11px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
+              Voir tous →
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {hotPlayers.map(p => {
+              const meta = LABEL_META[p._label] ?? LABEL_META['LOW PRIORITY']
+              const initials = p.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
+              const simScores = p._score >= 85 ? [p._score - 8, p._score - 4, p._score]
+                              : [p._score - 3, p._score - 1, p._score]
+              const trend = getTrend(simScores)
+              return (
+                <div key={p.id}
+                  onClick={() => navigate(`/players/${p.id}`)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
+                    background: 'transparent', transition: 'background 150ms',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    background: `${meta.color}20`, border: `1px solid ${meta.color}40`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '10px', fontWeight: 700, color: meta.color, flexShrink: 0,
+                  }}>
+                    {initials}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '10px', color: 'var(--text-muted)' }}>{p.primary_position} · {p.team}</p>
+                  </div>
+                  <ScoreSparkline scores={simScores} width={48} height={20} />
+                  <TrendBadge trend={trend} size="sm" />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom row : Donut + Activity ───────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>

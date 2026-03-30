@@ -29,6 +29,8 @@ import type { ScoutReport } from '../components/ScoutReportForm'
 import { useOrganization } from '../hooks/useOrganization'
 import { usePlan } from '../hooks/usePlan'
 import { UpgradeBanner, UpgradeModal } from '../components/UpgradeBanner'
+import { TrendBadge } from '../components/TrendBadge'
+import { getTrend } from '../utils/trend'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -551,6 +553,21 @@ export default function PlayerDetail() {
                 )
               })()}
             </div>
+
+            {/* Trend badge */}
+            {(() => {
+              const trend = getTrend(
+                score >= 85 ? [score - 8, score - 4, score]
+                : score >= 70 ? [score - 3, score - 1, score]
+                : score >= 50 ? [score, score, score]
+                : [score + 5, score + 2, score]
+              )
+              return (
+                <div style={{ marginBottom: '16px', display: 'flex', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+                  <TrendBadge trend={trend} size="md" />
+                </div>
+              )
+            })()}
 
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
