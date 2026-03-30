@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(__file__))
 from scraper import FBrefScraper, BIG5_LEAGUES, EXTENDED_LEAGUES, ALL_LEAGUES, LEAGUES
 from transform import DataTransformer
-from import_supabase import import_players, print_summary
+from import_supabase import import_players, print_summary, snapshot_players
 
 # ─── Presets ─────────────────────────────────────────────────────────────────
 
@@ -203,6 +203,15 @@ def run(args: argparse.Namespace) -> None:
 
     if args.dry_run:
         result["dry_run_only"] = True
+
+    # ── Step 4: Snapshot history ─────────────────────────────────────────────
+    log.info("=" * 52)
+    log.info("STEP 4/4 -- Saving history snapshots")
+    log.info("=" * 52)
+
+    snap = snapshot_players(df, season, dry_run=args.dry_run)
+    if not args.dry_run:
+        log.info(f"  -> {snap['snapshotted']} snapshots saved to player_history")
 
     # ── Summary ──────────────────────────────────────────────────────────────
     elapsed = time.time() - start

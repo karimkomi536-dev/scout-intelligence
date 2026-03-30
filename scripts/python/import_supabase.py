@@ -207,6 +207,81 @@ def import_players(df: pd.DataFrame, dry_run: bool = False) -> dict:
     }
 
 
+def snapshot_players(df: pd.DataFrame, season: str, dry_run: bool = False) -> dict:
+    """
+    Upsert player_history rows for all players in df.
+    One row per (player_id, season) — updated on every pipeline run.
+    """
+    if dry_run or df.empty:
+        log.info("  snapshot_players: dry-run or empty df — skipped")
+        return {"snapshotted": 0, "errors": 0}
+
+    try:
+        client = _get_supabase_client()
+    except EnvironmentError as e:
+        log.error(str(e))
+        return {"snapshotted": 0, "errors": 1}
+
+    # Build (name, team) → id index from DB
+    try:
+        resp = client.table("players").select("id, name, team").execute()
+        name_team_to_id: dict[tuple, str] = {
+            (r["name"], r.get("team") or ""): r["id"]
+            for r in (resp.data or [])
+        }
+        log.info(f"  snapshot_players: {len(name_team_to_id)} players in DB index")
+    except Exception as e:
+        log.warning(f"  snapshot_players: could not fetch player index: {e}")
+        return {"snapshotted": 0, "errors": 1}
+
+    snapshotted = errors = 0
+
+    for _, row in df.iterrows():
+        name = str(row.get("name", "") or "").strip()
+        team = str(row.get("team", "") or "").strip()
+        player_id = name_team_to_id.get((name, team))
+        if not player_id:
+            continue
+
+        def _safe(val):
+            if pd.isna(val) if not isinstance(val, str) else False:
+                return None
+            if hasattr(val, "item"):
+                return val.item()
+            return val
+
+        snapshot = {
+            "player_id":        player_id,
+            "season":           season,
+            "overall_score":    _safe(row.get("scout_score")),
+            "goals":            _safe(row.get("goals")),
+            "assists":          _safe(row.get("assists")),
+            "xg":               _safe(row.get("xg")),
+            "xa":               _safe(row.get("xa")),
+            "minutes_played":   _safe(row.get("minutes_played")),
+            "appearances":      _safe(row.get("appearances")),
+            "market_value_eur": _safe(row.get("market_value_eur")),
+            "individual_stats": (
+                row["individual_stats"]
+                if isinstance(row.get("individual_stats"), str)
+                else None
+            ),
+        }
+
+        try:
+            client.table("player_history").upsert(
+                snapshot,
+                on_conflict="player_id,season",
+            ).execute()
+            snapshotted += 1
+        except Exception as e:
+            errors += 1
+            log.warning(f"  snapshot error {name} ({team}): {e}")
+
+    log.info(f"  snapshot_players: {snapshotted} upserted, {errors} errors")
+    return {"snapshotted": snapshotted, "errors": errors}
+
+
 def print_summary(df: pd.DataFrame, result: dict) -> None:
     """Print a human-readable import summary."""
     SEP = "=" * 52
