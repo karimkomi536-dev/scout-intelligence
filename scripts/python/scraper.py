@@ -422,3 +422,167 @@ class FBrefScraper:
         result = result.head(self.max_players_per_league).reset_index(drop=True)
 
         return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI: python scraper.py --mode historical --seasons 2018,2019,...,2024
+# ─────────────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import argparse
+    import os
+    import sys
+
+    from dotenv import load_dotenv
+
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+    _env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+    load_dotenv(_env_path)
+
+    sys.path.insert(0, os.path.dirname(__file__))
+    from transform import DataTransformer
+    from import_supabase import snapshot_players
+
+    parser = argparse.ArgumentParser(
+        description="VIZION — historical seasons scraper (FBref → player_history)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Exemples:
+  python scraper.py --mode historical --seasons 2018,2019,2020,2021,2022,2023,2024
+  python scraper.py --mode historical --seasons 2022,2023 --leagues "Ligue 1,Serie A"
+  python scraper.py --mode historical --seasons 2023 --dry-run
+
+AVERTISSEMENT: Ce script prend ~2h, lance-le la nuit.
+        """,
+    )
+
+    parser.add_argument(
+        "--mode", required=True, choices=["historical"],
+        help="Scraper mode (seul 'historical' est supporté ici)",
+    )
+    parser.add_argument(
+        "--seasons", required=True,
+        help="Années de début séparées par virgule, ex: 2018,2019,2020,2021,2022,2023,2024",
+    )
+    parser.add_argument(
+        "--leagues", default=None,
+        help=f'Ligues séparées par virgule (défaut: Big 5). Options: {", ".join(LEAGUES.keys())}',
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="Scrape et transforme, mais N'ECRIT PAS dans Supabase",
+    )
+    parser.add_argument("--max-per-league", type=int, default=80)
+    parser.add_argument("--min-minutes", type=int, default=300)
+
+    args = parser.parse_args()
+
+    # ── Resolve seasons & leagues ──────────────────────────────────────────────
+    try:
+        years = [int(y.strip()) for y in args.seasons.split(",")]
+    except ValueError:
+        log.error("--seasons doit contenir des entiers séparés par virgule, ex: 2018,2019,2020")
+        sys.exit(1)
+
+    seasons = [f"{y}-{y + 1}" for y in years]
+
+    if args.leagues:
+        leagues = [lg.strip() for lg in args.leagues.split(",")]
+        unknown = [lg for lg in leagues if lg not in LEAGUES]
+        if unknown:
+            log.error(f"Ligues inconnues: {unknown}. Disponibles: {list(LEAGUES.keys())}")
+            sys.exit(1)
+    else:
+        leagues = BIG5_LEAGUES
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    print()
+    print("=" * 58)
+    print("  VIZION — Historical FBref Scraper")
+    print("=" * 58)
+    if not args.dry_run:
+        print("  AVERTISSEMENT: Ce script prend ~2h, lance-le la nuit.")
+    print(f"  Saisons    : {', '.join(seasons)}")
+    print(f"  Ligues     : {', '.join(leagues)}")
+    print(f"  Max/ligue  : {args.max_per_league}")
+    print(f"  Min minutes: {args.min_minutes}")
+    print(f"  Dry-run    : {'OUI (pas d ecriture DB)' if args.dry_run else 'NON'}")
+    print(f"  Requetes   : ~{len(seasons) * len(leagues)} appels FBref")
+    print()
+
+    # ── Main loop: season by season ───────────────────────────────────────────
+    total_scraped     = 0
+    total_snapshotted = 0
+    failed_seasons: list[str] = []
+
+    for season_idx, season in enumerate(seasons):
+        log.info(f"{'=' * 52}")
+        log.info(f"Saison {season}  ({season_idx + 1}/{len(seasons)})")
+        log.info(f"{'=' * 52}")
+
+        scraper = FBrefScraper(
+            season=season,
+            max_players_per_league=args.max_per_league,
+            min_minutes=args.min_minutes,
+        )
+
+        try:
+            raw_df = scraper.scrape(leagues=leagues)
+        except KeyboardInterrupt:
+            log.warning("Interrompu par l'utilisateur.")
+            sys.exit(0)
+        except Exception as exc:
+            log.error(f"  Scraping échoué pour {season}: {exc}")
+            failed_seasons.append(season)
+            if season_idx < len(seasons) - 1:
+                time.sleep(5)
+            continue
+
+        if raw_df.empty:
+            log.warning(f"  Aucune donnée pour {season} — saison ignorée")
+            failed_seasons.append(season)
+            if season_idx < len(seasons) - 1:
+                time.sleep(5)
+            continue
+
+        log.info(f"  -> {len(raw_df)} joueurs collectés")
+        total_scraped += len(raw_df)
+
+        # Transform
+        try:
+            df = DataTransformer().transform(raw_df)
+        except Exception as exc:
+            log.error(f"  Transformation échouée pour {season}: {exc}")
+            failed_seasons.append(season)
+            if season_idx < len(seasons) - 1:
+                time.sleep(5)
+            continue
+
+        log.info(f"  -> {len(df)} joueurs transformés")
+
+        # Snapshot → player_history (upsert on player_id, season)
+        snap = snapshot_players(df, season, dry_run=args.dry_run)
+        n_snap = snap.get("snapshotted", 0)
+        total_snapshotted += n_snap
+        log.info(f"  -> {n_snap} lignes upsertées dans player_history")
+
+        # Rate-limit between seasons
+        if season_idx < len(seasons) - 1:
+            log.info(f"  Pause 5s avant la prochaine saison…")
+            time.sleep(5)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    print()
+    print("=" * 58)
+    print("  VIZION — Historical Import Summary")
+    print("=" * 58)
+    print(f"  Saisons traitées  : {len(seasons) - len(failed_seasons)}/{len(seasons)}")
+    print(f"  Joueurs scrapés   : {total_scraped}")
+    print(f"  Lignes player_history: {total_snapshotted}")
+    if failed_seasons:
+        print(f"  Saisons en échec  : {', '.join(failed_seasons)}")
+    print()

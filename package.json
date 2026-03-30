@@ -19,7 +19,9 @@
     "import:2425": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python import_2425.py",
     "import:2425:dry": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python import_2425.py --dry-run",
     "import:history": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python import_history.py",
-    "import:history:dry": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python import_history.py --dry-run"
+    "import:history:dry": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python import_history.py --dry-run",
+    "import:historical": "echo AVERTISSEMENT: Ce script prend ~2h, lance-le la nuit. && cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python scraper.py --mode historical --seasons 2018,2019,2020,2021,2022,2023,2024",
+    "import:historical:dry": "cd scripts/python && set PYTHONIOENCODING=utf-8 && venv\\Scripts\\python scraper.py --mode historical --seasons 2018,2019,2020,2021,2022,2023,2024 --dry-run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
