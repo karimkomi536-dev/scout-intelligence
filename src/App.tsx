@@ -27,6 +27,8 @@ import SplashScreen from './components/SplashScreen'
 import Onboarding from './pages/Onboarding'
 import Demo from './pages/Demo'
 import CronLogs from './pages/admin/CronLogs'
+import DataDashboard from './pages/admin/DataDashboard'
+import AdminRoute from './components/AdminRoute'
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => {
@@ -93,6 +95,7 @@ function App() {
               <Route path="settings/billing" element={<Billing />} />
               <Route path="shadow-team"  element={<ShadowTeam />} />
               <Route path="admin/cron"   element={<CronLogs />} />
+              <Route path="admin/data"   element={<AdminRoute><DataDashboard /></AdminRoute>} />
             </Route>
 
             {/* Fallback */}

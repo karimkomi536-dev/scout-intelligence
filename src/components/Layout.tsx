@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
-  Scale, Settings, Zap, X, Target, Download,
+  Scale, Settings, Zap, X, Target, Download, Database,
 } from 'lucide-react'
 import VizionLogo from './VizionLogo'
 
@@ -131,7 +131,7 @@ function isActiveCheck(to: string, pathname: string) {
 // ── Sidebar inner content (desktop only) ─────────────────────────────────────
 
 function SidebarContent({
-  displayName, displayEmail, initials, location, signOut, onClose, onInstall, plan,
+  displayName, displayEmail, initials, location, signOut, onClose, onInstall, plan, isAdmin,
 }: {
   displayName: string
   displayEmail: string
@@ -141,6 +141,7 @@ function SidebarContent({
   onClose?: () => void
   onInstall?: (() => void) | null
   plan: 'free' | 'pro' | 'enterprise'
+  isAdmin: boolean
 }) {
   const navigate = useNavigate()
 
@@ -266,6 +267,47 @@ function SidebarContent({
             {label}
           </NavLink>
         ))}
+
+        {isAdmin && (
+          <>
+            <p style={{
+              fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)',
+              letterSpacing: '0.15em', textTransform: 'uppercase', padding: '12px 8px 4px',
+            }}>
+              Admin
+            </p>
+            <NavLink
+              to="/admin/data"
+              onClick={onClose}
+              style={({ isActive }) => ({
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '10px 16px', borderRadius: '8px', textDecoration: 'none',
+                fontSize: '14px', fontWeight: isActive ? 600 : 500,
+                color: isActive ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                background: isActive ? 'rgba(77,127,255,0.15)' : 'transparent',
+                borderLeft: isActive ? '2px solid var(--accent-blue)' : '2px solid transparent',
+                transition: 'all 150ms ease',
+              })}
+              onMouseEnter={e => {
+                const el = e.currentTarget
+                if (!el.getAttribute('aria-current')) {
+                  el.style.background = 'rgba(255,255,255,0.04)'
+                  el.style.color = 'var(--text-primary)'
+                }
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget
+                if (!el.getAttribute('aria-current')) {
+                  el.style.background = 'transparent'
+                  el.style.color = 'var(--text-secondary)'
+                }
+              }}
+            >
+              <Database size={18} strokeWidth={isActiveCheck('/admin/data', location.pathname) ? 2.2 : 1.8} />
+              Données
+            </NavLink>
+          </>
+        )}
       </nav>
 
       {/* ── ZONE 4 : Footer ────────────────────────────────────────────── */}
@@ -372,7 +414,7 @@ function SidebarContent({
 
 export default function Layout() {
   const { user, signOut } = useAuth()
-  const { organization } = useOrganization()
+  const { organization, role } = useOrganization()
   const location = useLocation()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -453,6 +495,7 @@ export default function Layout() {
   const sidebarProps = {
     displayName, displayEmail, initials, location, signOut, plan,
     onInstall: installPrompt ? handleInstall : null,
+    isAdmin: role === 'admin',
   }
 
   return (
