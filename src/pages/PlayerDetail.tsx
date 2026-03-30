@@ -9,6 +9,7 @@ import {
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart, Area,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel, getRadarAxes, getPosGroup } from '../utils/scoring'
@@ -237,7 +238,7 @@ function NoteCard({ note }: { note: ScoutNote }) {
 
 // ── Tab type ───────────────────────────────────────────────────────────────────
 
-type Tab = 'profil' | 'stats' | 'notes' | 'ia' | 'rapports'
+type Tab = 'profil' | 'stats' | 'evolution' | 'notes' | 'ia' | 'rapports'
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -261,6 +262,7 @@ export default function PlayerDetail() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const baseNoteRef = useRef('')  // text in textarea before recording starts
   const [activeTab, setActiveTab] = useState<Tab>('profil')
+  const [statToggle, setStatToggle] = useState<'goals' | 'assists' | 'minutes' | 'xg'>('goals')
 
   const { organization } = useOrganization()
   const { limits } = usePlan()
@@ -269,7 +271,7 @@ export default function PlayerDetail() {
   const [scoutReports, setScoutReports]       = useState<ScoutReport[]>([])
   const [showReportForm, setShowReportForm]   = useState(false)
 
-  const { snapshots, loading: historyLoading } = usePlayerHistory(id)
+  const { history, snapshots, loading: historyLoading } = usePlayerHistory(id)
   const { weights: scoringWeights } = useScoringProfile()
   const speech = useSpeechRecognition()
   const { report: aiReport, status: aiStatus, error: aiError, generateReport, reset: resetReport } = useScoutReport()
@@ -703,8 +705,8 @@ export default function PlayerDetail() {
         marginBottom: '20px',
         gap: '4px',
       }}>
-        {(['profil', 'stats', 'notes', 'ia'] as Tab[]).map(tab => {
-          const labels: Record<Tab, string> = { profil: 'Profil', stats: 'Stats', notes: 'Notes', ia: 'IA', rapports: 'Rapports' }
+        {(['profil', 'stats', 'evolution', 'notes', 'ia'] as Tab[]).map(tab => {
+          const labels: Record<Tab, string> = { profil: 'Profil', stats: 'Stats', evolution: 'Évolution', notes: 'Notes', ia: 'IA', rapports: 'Rapports' }
           const isActive = activeTab === tab
           return (
             <button
@@ -984,6 +986,182 @@ export default function PlayerDetail() {
           </div>
         </>
       )}
+
+      {/* ── ÉVOLUTION ─────────────────────────────────────────────────────────── */}
+      {activeTab === 'evolution' && (() => {
+        const evoScoreData = history.map(h => ({
+          season: h.season,
+          score:  h.overall_score ?? 0,
+        }))
+        const evoStatData = history.map(h => ({
+          season:  h.season,
+          goals:   h.goals ?? 0,
+          assists: h.assists ?? 0,
+          minutes: h.minutes_played ?? 0,
+          xg:      snapshots.find(s => s.season === h.season)?.xg ?? 0,
+        }))
+        const seasonDelta = history.length >= 2
+          ? (history[history.length - 1].overall_score ?? 0) - (history[0].overall_score ?? 0)
+          : null
+        const STAT_LABELS: Record<string, string> = { goals: 'Buts', assists: 'Passes déc.', minutes: 'Minutes', xg: 'xG' }
+        const STAT_COLOR: Record<string, string>  = { goals: '#ef4444', assists: '#4D7FFF', minutes: '#F5A623', xg: '#00C896' }
+        const TOOLTIP_STYLE = {
+          background: '#0D1525',
+          border: '1px solid rgba(255,255,255,0.10)',
+          borderRadius: '8px',
+          fontSize: '12px',
+          color: 'var(--text-primary)',
+        }
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* ── Score chart ─────────────────────────────────────────── */}
+            <div style={{ background: 'var(--surface2)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>
+                  Score global par saison
+                </p>
+                {seasonDelta !== null && (
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700,
+                    color: seasonDelta >= 0 ? '#00C896' : '#ef4444',
+                    background: seasonDelta >= 0 ? 'rgba(0,200,150,0.10)' : 'rgba(239,68,68,0.10)',
+                    border: `1px solid ${seasonDelta >= 0 ? 'rgba(0,200,150,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                    borderRadius: '5px', padding: '2px 8px',
+                  }}>
+                    {seasonDelta >= 0 ? '↑' : '↓'} {seasonDelta >= 0 ? '+' : ''}{seasonDelta.toFixed(1)} pts sur la période
+                  </span>
+                )}
+              </div>
+              {historyLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                  <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Chargement…
+                </div>
+              ) : evoScoreData.length < 2 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '32px 0' }}>
+                  Données insuffisantes — {evoScoreData.length} / 2 saisons disponibles
+                </p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={evoScoreData} margin={{ top: 8, right: 16, bottom: 4, left: -10 }}>
+                    <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="season" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any} axisLine={false} tickLine={false} tickCount={5} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'Score']} labelStyle={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '11px' }} />
+                    <Line type="monotone" dataKey="score" stroke={labelColor} strokeWidth={2.5}
+                      dot={{ fill: labelColor, r: 4, strokeWidth: 0 }}
+                      activeDot={{ r: 6, fill: labelColor, strokeWidth: 0 }}
+                      style={{ filter: `drop-shadow(0 0 8px ${labelColor}90)` }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* ── Stats chart ─────────────────────────────────────────── */}
+            <div style={{ background: 'var(--surface2)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>
+                  {STAT_LABELS[statToggle]} par saison
+                </p>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {(['goals', 'assists', 'minutes', 'xg'] as const).map(s => (
+                    <button key={s} onClick={() => setStatToggle(s)} style={{
+                      padding: '3px 10px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                      fontFamily: 'var(--font-mono)', letterSpacing: '0.06em',
+                      background: statToggle === s ? `${STAT_COLOR[s]}18` : 'transparent',
+                      border: `1px solid ${statToggle === s ? STAT_COLOR[s] + '50' : 'rgba(255,255,255,0.10)'}`,
+                      color: statToggle === s ? STAT_COLOR[s] : 'var(--text-muted)',
+                    }}>
+                      {STAT_LABELS[s]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {evoStatData.length < 2 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '32px 0' }}>
+                  Données insuffisantes
+                </p>
+              ) : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={evoStatData} margin={{ top: 8, right: 16, bottom: 4, left: -10 }}>
+                    <defs>
+                      <linearGradient id="statGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor={STAT_COLOR[statToggle]} stopOpacity={0.25} />
+                        <stop offset="95%" stopColor={STAT_COLOR[statToggle]} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="season" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' } as any} axisLine={false} tickLine={false} tickCount={4} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, STAT_LABELS[statToggle]]} labelStyle={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '11px' }} />
+                    <Area type="monotone" dataKey={statToggle}
+                      stroke={STAT_COLOR[statToggle]} strokeWidth={2}
+                      fill="url(#statGrad)"
+                      dot={{ fill: STAT_COLOR[statToggle], r: 3, strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: STAT_COLOR[statToggle], strokeWidth: 0 }}
+                      style={{ filter: `drop-shadow(0 0 6px ${STAT_COLOR[statToggle]}70)` }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* ── Season table ────────────────────────────────────────── */}
+            {history.length > 0 && (
+              <div style={{ background: 'var(--surface2)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '24px' }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                  Historique par saison
+                </p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        {['Saison', 'Score', 'Buts', 'Passes déc.', 'Minutes', 'Matchs', 'Valeur'].map(h => (
+                          <th key={h} style={{ padding: '8px 12px', textAlign: h === 'Saison' ? 'left' : 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map((h, i) => {
+                        const prev = history[i - 1]
+                        const scoreDiff = prev && prev.overall_score != null && h.overall_score != null
+                          ? h.overall_score - prev.overall_score : null
+                        const arrow = scoreDiff == null ? null
+                          : scoreDiff > 0 ? <span style={{ color: '#00C896' }}>↑</span>
+                          : scoreDiff < 0 ? <span style={{ color: '#ef4444' }}>↓</span>
+                          : <span style={{ color: '#64748B' }}>→</span>
+                        const isLast = i === history.length - 1
+                        return (
+                          <tr key={h.season} style={{ borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.04)', background: isLast ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+                            <td style={{ padding: '10px 12px', fontWeight: isLast ? 700 : 400, color: isLast ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                              {h.season}
+                            </td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: labelColor }}>
+                              {h.overall_score != null ? h.overall_score.toFixed(1) : '—'}
+                              {arrow && <span style={{ marginLeft: '6px' }}>{arrow}</span>}
+                            </td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{h.goals ?? '—'}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{h.assists ?? '—'}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{h.minutes_played ?? '—'}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{h.appearances ?? '—'}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', color: '#F5A623' }}>
+                              {h.market_value_eur != null ? `${(h.market_value_eur / 1_000_000).toFixed(1)}M €` : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── SCOUT NOTES ───────────────────────────────────────────────────────── */}
       {activeTab === 'notes' && (
