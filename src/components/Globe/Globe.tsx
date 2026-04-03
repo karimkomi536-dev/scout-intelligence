@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 export interface GlobePin {
-  lat:         number
-  lng:         number
-  count:       number
-  country:     string
-  label:       string
+  lat:          number
+  lng:          number
+  count:        number
+  country:      string
+  label:        string
   labelCounts?: Partial<Record<string, number>>
 }
 
@@ -19,302 +19,308 @@ interface GlobeProps {
   height?:          number
 }
 
-function toXYZ(lat: number, lng: number, r = 1.02): THREE.Vector3 {
-  const phi   = (90 - lat) * (Math.PI / 180)
-  const theta = (lng + 180) * (Math.PI / 180)
-  return new THREE.Vector3(
-    -r * Math.sin(phi) * Math.cos(theta),
-     r * Math.cos(phi),
-     r * Math.sin(phi) * Math.sin(theta),
-  )
-}
+// ── Land detection ────────────────────────────────────────────────────────────
 
-function pinColor(label: string): number {
-  if (label === 'ELITE')        return 0x00e5a0
-  if (label === 'TOP PROSPECT') return 0x3d8eff
-  return 0xff9f43
-}
-
-const LAND_LATLNG: [number, number][] = [
-  // Europe
+const LAND_POINTS: [number, number][] = [
   [48,2],[51,0],[52,13],[48,16],[41,12],[40,-3],[38,-9],
   [51,4],[56,10],[60,11],[64,26],[59,18],[47,8],[46,14],
   [42,23],[38,22],[37,14],[53,18],[50,20],[47,19],[44,26],
-  [55,37],[59,30],[56,24],[54,25],[52,21],[48,35],
-  // Afrique
+  [55,37],[59,30],[56,24],[54,25],[52,21],[48,35],[60,30],
   [36,3],[33,-5],[14,-14],[12,-2],[5,-1],[-4,15],
   [-26,28],[-30,31],[-4,40],[15,32],[9,38],[0,37],
-  [7,2],[4,18],[-11,17],[20,13],[30,31],[24,15],
-  // Amérique du Nord
+  [7,2],[4,18],[-11,17],[20,13],[30,31],[24,15],[16,43],
   [40,-74],[38,-77],[42,-83],[45,-73],[37,-122],[34,-118],
   [47,-122],[29,-95],[43,-79],[39,-105],[35,-90],[33,-84],
   [25,-80],[48,-98],[51,-114],[54,-124],[19,-99],[21,-102],
-  // Amérique du Sud
   [-23,-46],[-34,-58],[-12,-77],[-16,-68],[-4,-39],
   [-8,-35],[-15,-47],[-3,-60],[5,-52],[-33,-71],[-38,-63],
-  // Asie
   [35,139],[34,108],[39,116],[55,82],[43,76],[51,71],
   [23,113],[13,100],[1,103],[14,120],[22,88],[28,77],
   [19,73],[17,82],[31,121],[37,127],[35,136],[33,130],
-  [60,30],[56,44],[52,55],[48,68],[43,51],[41,69],
-  [38,35],[33,44],[36,52],[32,53],[25,55],[24,46],
-  // Australie
+  [56,44],[52,55],[48,68],[43,51],[41,69],[38,35],
+  [33,44],[36,52],[32,53],[25,55],[24,46],[21,39],
   [-33,151],[-37,145],[-27,153],[-35,138],[-31,116],[-23,133],
 ]
 
 function isLand(lat: number, lng: number): boolean {
-  return LAND_LATLNG.some(([pLat, pLng]) => {
-    return Math.sqrt((lat - pLat) ** 2 + (lng - pLng) ** 2) < 7
-  })
+  return LAND_POINTS.some(([pLat, pLng]) =>
+    Math.sqrt((lat - pLat) ** 2 + (lng - pLng) ** 2) < 7
+  )
 }
+
+// ── Canvas texture builder ────────────────────────────────────────────────────
+
+function buildGlobeTexture(): HTMLCanvasElement {
+  const W = 2048, H = 1024
+  const canvas = document.createElement('canvas')
+  canvas.width = W; canvas.height = H
+  const ctx = canvas.getContext('2d')!
+
+  // Fond océan
+  ctx.fillStyle = '#060914'
+  ctx.fillRect(0, 0, W, H)
+
+  // Grille hexagonale
+  const R = 18
+  const HW = R * Math.sqrt(3)
+  const HH = R * 1.5
+
+  let row = 0
+  for (let y = R; y < H + R; y += HH) {
+    const offset = row % 2 === 1 ? HW / 2 : 0
+    for (let x = offset; x < W + HW; x += HW) {
+      const lng  = (x / W) * 360 - 180
+      const lat  = 90 - (y / H) * 180
+      const land = isLand(lat, lng)
+
+      ctx.beginPath()
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 6
+        const hx = x + (R - 1) * Math.cos(angle)
+        const hy = y + (R - 1) * Math.sin(angle)
+        i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy)
+      }
+      ctx.closePath()
+
+      if (land) {
+        ctx.fillStyle = '#1C1050'
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(100,70,220,0.7)'
+        ctx.lineWidth = 0.8
+        ctx.stroke()
+      } else {
+        ctx.fillStyle = '#080C1A'
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(20,35,80,0.5)'
+        ctx.lineWidth = 0.5
+        ctx.stroke()
+      }
+    }
+    row++
+  }
+
+  // Grille de coordonnées néon
+  ctx.strokeStyle = 'rgba(0,229,160,0.07)'
+  ctx.lineWidth = 0.8
+  for (let i = 0; i <= 12; i++) {
+    ctx.beginPath(); ctx.moveTo(i * W / 12, 0); ctx.lineTo(i * W / 12, H); ctx.stroke()
+  }
+  for (let i = 0; i <= 6; i++) {
+    ctx.beginPath(); ctx.moveTo(0, i * H / 6); ctx.lineTo(W, i * H / 6); ctx.stroke()
+  }
+
+  return canvas
+}
+
+// ── Globe component ───────────────────────────────────────────────────────────
 
 export default function Globe({
   pins,
   onCountryClick,
   onHover,
   selectedCountry,
-  width  = 600,
-  height = 500,
+  width  = 480,
+  height = 480,
 }: GlobeProps) {
-  const mountRef = useRef<HTMLDivElement>(null)
+  const mountRef    = useRef<HTMLDivElement>(null)
+  const onHoverRef  = useRef(onHover)
+  const onClickRef  = useRef(onCountryClick)
+  onHoverRef.current  = onHover
+  onClickRef.current  = onCountryClick
 
-  const onHoverRef   = useRef(onHover)
-  const onClickRef   = useRef(onCountryClick)
-  onHoverRef.current = onHover
-  onClickRef.current = onCountryClick
+  const pinMeshesRef = useRef<Array<{ mesh: THREE.Mesh; pin: GlobePin }>>([])
 
-  const stateRef = useRef({
-    autoRotate: true,
-    isDragging: false,
-    prevMouse:  { x: 0, y: 0 },
-  })
-
-  const pinMeshesRef = useRef<Array<{
-    mesh: THREE.Mesh
-    pin:  GlobePin
-    mat:  THREE.MeshPhongMaterial
-  }>>([])
+  // Selected-country glow (reactive, no scene rebuild)
+  useEffect(() => {
+    pinMeshesRef.current.forEach(({ mesh, pin }) => {
+      const sel = selectedCountry != null && pin.country === selectedCountry
+      mesh.scale.setScalar(sel ? 2.2 : 1)
+    })
+  }, [selectedCountry])
 
   useEffect(() => {
     if (!mountRef.current) return
     const mount = mountRef.current
     pinMeshesRef.current = []
 
-    // Scene & camera
+    // ── Scene ──────────────────────────────────────────────────────────────
     const scene  = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
-    camera.position.z = 2.8
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
+    camera.position.z = 2.6
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setSize(width, height)
-    renderer.setPixelRatio(window.devicePixelRatio)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     mount.appendChild(renderer.domElement)
 
-    // ── Globe base sphere (sphère sombre, séparée du hexGroup) ──────────────
-    const globe = new THREE.Mesh(
+    // ── Globe texture ──────────────────────────────────────────────────────
+    const texture = new THREE.CanvasTexture(buildGlobeTexture())
+    const globe   = new THREE.Mesh(
       new THREE.SphereGeometry(1, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x030608 }),
+      new THREE.MeshPhongMaterial({
+        map:       texture,
+        specular:  new THREE.Color(0x111111),
+        shininess: 5,
+      }),
     )
-    scene.add(globe)
 
-    // ── Grille hexagonale sur la surface ────────────────────────────────────
-    const hexGroup = new THREE.Group()
-    const STEP_LAT = 8
-    const STEP_LNG = 10
-    const UP = new THREE.Vector3(0, 0, 1)
+    // ── Atmosphère ─────────────────────────────────────────────────────────
+    const atm1 = new THREE.Mesh(
+      new THREE.SphereGeometry(1.04, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x00E5A0, transparent: true, opacity: 0.06, side: THREE.FrontSide }),
+    )
+    const atm2 = new THREE.Mesh(
+      new THREE.SphereGeometry(1.10, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x3D8EFF, transparent: true, opacity: 0.025, side: THREE.FrontSide }),
+    )
 
-    for (let lat = -80; lat <= 80; lat += STEP_LAT) {
-      for (let lng = -180; lng < 180; lng += STEP_LNG) {
-        const land   = isLand(lat, lng)
-        const center = toXYZ(lat, lng, 1.001)
-        const normal = center.clone().normalize()
+    // ── Globe group (globe + pins tournent ensemble) ───────────────────────
+    const globeGroup = new THREE.Group()
+    globeGroup.add(globe)
+    scene.add(globeGroup)
+    scene.add(atm1)   // atmosphère fixe
+    scene.add(atm2)
 
-        // Hexagone plat
-        const hexGeo = new THREE.CircleGeometry(0.042, 6)
-        const hexMat = new THREE.MeshBasicMaterial({
-          color:       land ? 0x3D2090 : 0x0D1128,
-          transparent: true,
-          opacity:     land ? 1.0 : 0.7,
-          side:        THREE.DoubleSide,
-        })
-        const hex = new THREE.Mesh(hexGeo, hexMat)
-        hex.position.copy(center)
-        hex.quaternion.setFromUnitVectors(UP, normal)
-        hexGroup.add(hex)
+    // ── Éclairage ──────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0x222244, 2.0))
+    const light1 = new THREE.DirectionalLight(0x00E5A0, 1.2)
+    light1.position.set(3, 2, 4); scene.add(light1)
+    const light2 = new THREE.DirectionalLight(0x3D8EFF, 0.8)
+    light2.position.set(-4, -1, 2); scene.add(light2)
+    const light3 = new THREE.DirectionalLight(0xffffff, 0.6)
+    light3.position.set(0, 4, 1); scene.add(light3)
 
-        // Contour hexagone
-        const edgeGeo = new THREE.EdgesGeometry(hexGeo)
-        const edgeMat = new THREE.LineBasicMaterial({
-          color:       land ? 0x8060FF : 0x1A2040,
-          transparent: true,
-          opacity:     land ? 0.8 : 0.4,
-        })
-        const edge = new THREE.LineSegments(edgeGeo, edgeMat)
-        edge.position.copy(center)
-        edge.quaternion.setFromUnitVectors(UP, normal)
-        hexGroup.add(edge)
-      }
+    // ── Pins ───────────────────────────────────────────────────────────────
+    const toVec3 = (lat: number, lng: number, r = 1.05) => {
+      const phi   = (90 - lat) * Math.PI / 180
+      const theta = (lng + 180) * Math.PI / 180
+      return new THREE.Vector3(
+        -r * Math.sin(phi) * Math.cos(theta),
+         r * Math.cos(phi),
+         r * Math.sin(phi) * Math.sin(theta),
+      )
     }
-    scene.add(hexGroup)
-    console.log('[Globe] hexGroup children:', hexGroup.children.length)
 
-    // ── Atmosphère néon ──────────────────────────────────────────────────────
-    scene.add(new THREE.Mesh(
-      new THREE.SphereGeometry(1.05, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x00E5A0, transparent: true, opacity: 0.04, side: THREE.FrontSide }),
-    ))
-    scene.add(new THREE.Mesh(
-      new THREE.SphereGeometry(1.08, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x3D8EFF, transparent: true, opacity: 0.02, side: THREE.FrontSide }),
-    ))
+    const pinObjects: Array<{ mesh: THREE.Mesh; pin: GlobePin }> = []
 
-    // ── Éclairage fort ───────────────────────────────────────────────────────
-    scene.add(new THREE.AmbientLight(0x303060, 2.0))
-    const light1 = new THREE.PointLight(0x00E5A0, 3.0)
-    light1.position.set(4, 3, 4)
-    scene.add(light1)
-    const light2 = new THREE.PointLight(0x6040FF, 2.0)
-    light2.position.set(-4, -2, 3)
-    scene.add(light2)
-    const light3 = new THREE.DirectionalLight(0xffffff, 1.5)
-    light3.position.set(2, 5, 3)
-    scene.add(light3)
+    pins.forEach(pin => {
+      const pos   = toVec3(pin.lat, pin.lng)
+      const color = pin.label === 'ELITE'        ? 0x00E5A0
+                  : pin.label === 'TOP PROSPECT' ? 0x3D8EFF
+                  : 0xFF9F43
+      const size  = Math.min(0.018 + pin.count * 0.003, 0.045)
 
-    // ── Pins (r=1.08, au-dessus des hexagones) ───────────────────────────────
-    const pinMeshes: Array<{ mesh: THREE.Mesh; pin: GlobePin; mat: THREE.MeshPhongMaterial }> = []
-    const rings: Array<{ mesh: THREE.Mesh; phase: number }> = []
+      // Halo
+      const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(size * 2.5, 8, 8),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.2 }),
+      )
+      halo.position.copy(pos)
+      globeGroup.add(halo)
 
-    pins.forEach((pin, idx) => {
-      const pos    = toXYZ(pin.lat, pin.lng, 1.08)
-      const radius = Math.min(0.012 + pin.count * 0.003, 0.05)
-      const color  = pinColor(pin.label)
-
-      const mat  = new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.6 })
-      const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 16), mat)
+      // Pin
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(size, 12, 12),
+        new THREE.MeshBasicMaterial({ color }),
+      )
       mesh.position.copy(pos)
-      globe.add(mesh)
-      pinMeshes.push({ mesh, pin, mat })
-
-      // Ring halo
-      const ringGeo = new THREE.RingGeometry(radius * 1.8, radius * 2.8, 32)
-      const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
-      const ring    = new THREE.Mesh(ringGeo, ringMat)
-      ring.position.copy(pos)
-      ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), pos.clone().normalize())
-      globe.add(ring)
-      rings.push({ mesh: ring, phase: idx * 0.7 })
+      mesh.userData = { country: pin.country }
+      globeGroup.add(mesh)
+      pinObjects.push({ mesh, pin })
     })
 
-    pinMeshesRef.current = pinMeshes
+    pinMeshesRef.current = pinObjects
 
-    // Raycaster
-    const raycaster = new THREE.Raycaster()
-    const mouse     = new THREE.Vector2()
+    // ── Interaction ────────────────────────────────────────────────────────
+    let autoRotate = true
+    let isDragging = false
+    let prevMouse  = { x: 0, y: 0 }
+    let autoTimer: ReturnType<typeof setTimeout>
 
-    // Events
-    const onMouseDown = (e: MouseEvent) => {
-      stateRef.current.isDragging = true
-      stateRef.current.autoRotate = false
-      stateRef.current.prevMouse  = { x: e.clientX, y: e.clientY }
+    const onDown = (e: MouseEvent) => {
+      isDragging = true
+      autoRotate = false
+      clearTimeout(autoTimer)
+      prevMouse  = { x: e.clientX, y: e.clientY }
     }
-    const onMouseMove = (e: MouseEvent) => {
-      if (stateRef.current.isDragging) {
-        const dx = e.clientX - stateRef.current.prevMouse.x
-        const dy = e.clientY - stateRef.current.prevMouse.y
-        globe.rotation.y    += dx * 0.005
-        globe.rotation.x    += dy * 0.005
-        hexGroup.rotation.y  = globe.rotation.y
-        hexGroup.rotation.x  = globe.rotation.x
-        stateRef.current.prevMouse = { x: e.clientX, y: e.clientY }
+    const onMove = (e: MouseEvent) => {
+      if (isDragging) {
+        const dx = e.clientX - prevMouse.x
+        const dy = e.clientY - prevMouse.y
+        globeGroup.rotation.y += dx * 0.005
+        globeGroup.rotation.x += dy * 0.003
+        prevMouse = { x: e.clientX, y: e.clientY }
       }
+      // Hover
       if (onHoverRef.current) {
         const rect = renderer.domElement.getBoundingClientRect()
-        const x    = e.clientX - rect.left
-        const y    = e.clientY - rect.top
-        mouse.x    =  (x / width)  * 2 - 1
-        mouse.y    = -(y / height) * 2 + 1
-        raycaster.setFromCamera(mouse, camera)
-        const hits = raycaster.intersectObjects(pinMeshes.map(p => p.mesh))
+        const mx   = ((e.clientX - rect.left) / width)  * 2 - 1
+        const my   = -((e.clientY - rect.top)  / height) * 2 + 1
+        const ray  = new THREE.Raycaster()
+        ray.setFromCamera(new THREE.Vector2(mx, my), camera)
+        const hits = ray.intersectObjects(pinObjects.map(p => p.mesh))
         if (hits.length > 0) {
-          const hit = pinMeshes.find(p => p.mesh === hits[0].object)
-          if (hit) onHoverRef.current(hit.pin, x, y)
+          const found = pinObjects.find(p => p.mesh === hits[0].object)
+          if (found) onHoverRef.current(found.pin, e.clientX - rect.left, e.clientY - rect.top)
         } else {
           onHoverRef.current(null, 0, 0)
         }
       }
     }
-    const onMouseUp    = () => { stateRef.current.isDragging = false; setTimeout(() => { stateRef.current.autoRotate = true }, 2000) }
-    const onMouseLeave = () => { onHoverRef.current?.(null, 0, 0) }
-    const handleClick  = (e: MouseEvent) => {
+    const onUp = () => {
+      isDragging = false
+      autoTimer  = setTimeout(() => { autoRotate = true }, 2500)
+    }
+    const onLeave = () => { onHoverRef.current?.(null, 0, 0) }
+
+    const raycaster = new THREE.Raycaster()
+    const mouse     = new THREE.Vector2()
+    const onClick   = (e: MouseEvent) => {
       if (!onClickRef.current) return
       const rect = renderer.domElement.getBoundingClientRect()
-      const x    = e.clientX - rect.left
-      const y    = e.clientY - rect.top
-      mouse.x    =  (x / width)  * 2 - 1
-      mouse.y    = -(y / height) * 2 + 1
+      mouse.x =  ((e.clientX - rect.left) / width)  * 2 - 1
+      mouse.y = -((e.clientY - rect.top)  / height) * 2 + 1
       raycaster.setFromCamera(mouse, camera)
-      const hits = raycaster.intersectObjects(pinMeshes.map(p => p.mesh))
+      const hits = raycaster.intersectObjects(pinObjects.map(p => p.mesh))
       if (hits.length > 0) {
-        const hit = pinMeshes.find(p => p.mesh === hits[0].object)
-        if (hit) onClickRef.current(hit.pin.country)
+        const found = pinObjects.find(p => p.mesh === hits[0].object)
+        if (found) onClickRef.current(found.pin.country)
       }
     }
 
-    renderer.domElement.addEventListener('mousedown',  onMouseDown)
-    renderer.domElement.addEventListener('mousemove',  onMouseMove)
-    renderer.domElement.addEventListener('mouseup',    onMouseUp)
-    renderer.domElement.addEventListener('mouseleave', onMouseLeave)
-    renderer.domElement.addEventListener('click',      handleClick)
+    renderer.domElement.addEventListener('mousedown',  onDown)
+    window.addEventListener('mousemove',               onMove)
+    window.addEventListener('mouseup',                 onUp)
+    renderer.domElement.addEventListener('mouseleave', onLeave)
+    renderer.domElement.addEventListener('click',      onClick)
 
-    // ── Animation ────────────────────────────────────────────────────────────
+    // ── Animation ──────────────────────────────────────────────────────────
     let rafId: number
     const animate = () => {
       rafId = requestAnimationFrame(animate)
-
-      if (stateRef.current.autoRotate) {
-        globe.rotation.y    += 0.003
-        hexGroup.rotation.y += 0.003
-      } else {
-        hexGroup.rotation.y = globe.rotation.y
-        hexGroup.rotation.x = globe.rotation.x
-      }
-
-      // Pulse rings
-      const t = performance.now() / 1000
-      rings.forEach(({ mesh, phase }) => {
-        mesh.scale.setScalar(0.8 + 0.4 * Math.sin(t * 2 + phase))
-      })
-
+      if (autoRotate) globeGroup.rotation.y += 0.003
       renderer.render(scene, camera)
     }
     animate()
 
     return () => {
       cancelAnimationFrame(rafId)
-      renderer.domElement.removeEventListener('mousedown',  onMouseDown)
-      renderer.domElement.removeEventListener('mousemove',  onMouseMove)
-      renderer.domElement.removeEventListener('mouseup',    onMouseUp)
-      renderer.domElement.removeEventListener('mouseleave', onMouseLeave)
-      renderer.domElement.removeEventListener('click',      handleClick)
+      clearTimeout(autoTimer)
+      renderer.domElement.removeEventListener('mousedown',  onDown)
+      window.removeEventListener('mousemove',               onMove)
+      window.removeEventListener('mouseup',                 onUp)
+      renderer.domElement.removeEventListener('mouseleave', onLeave)
+      renderer.domElement.removeEventListener('click',      onClick)
       renderer.dispose()
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, height, pins.length])
 
-  // Selected-country glow
-  useEffect(() => {
-    pinMeshesRef.current.forEach(({ mesh, pin, mat }) => {
-      const sel = selectedCountry != null && pin.country === selectedCountry
-      mesh.scale.setScalar(sel ? 2 : 1)
-      mat.emissiveIntensity = sel ? 1.4 : 0.6
-    })
-  }, [selectedCountry])
-
   return (
     <div
       ref={mountRef}
-      style={{ width, height, cursor: 'grab', userSelect: 'none', position: 'relative' }}
+      style={{ width, height, cursor: 'grab', borderRadius: 12, overflow: 'hidden' }}
     />
   )
 }
