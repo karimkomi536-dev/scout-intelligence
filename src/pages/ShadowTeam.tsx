@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lock, Download, X, Search, ChevronDown, Loader2 } from 'lucide-react'
+import { Lock, Download, X, Search, ChevronDown, Loader2, Sparkles, CheckCircle } from 'lucide-react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { supabase } from '../lib/supabase'
@@ -312,6 +312,132 @@ function PlayerPickerModal({ slot, onSelect, onClose }: PickerProps) {
   )
 }
 
+// ── Suggestion panel ──────────────────────────────────────────────────────────
+
+interface SuggestionPanelProps {
+  slot:        Slot
+  suggestions: Player[]
+  loading:     boolean
+  onAssign:    (player: Player) => void
+  onSearch:    () => void
+  onClose:     () => void
+}
+
+function SuggestionPanel({ slot, suggestions, loading, onAssign, onSearch, onClose }: SuggestionPanelProps) {
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(5,8,18,0.50)', backdropFilter:'blur(2px)' }}
+      />
+      <div style={{
+        position:'fixed', top:0, right:0, bottom:0,
+        width:'min(360px, 92vw)', zIndex:301,
+        background:'#0D1525',
+        borderLeft:'1px solid rgba(255,255,255,0.10)',
+        boxShadow:'-16px 0 48px rgba(0,0,0,0.55)',
+        display:'flex', flexDirection:'column',
+        animation:'slideInRight 0.20s cubic-bezier(0.16,1,0.3,1) both',
+        overflow:'hidden',
+      }}>
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'20px 20px 0' }}>
+          <div>
+            <p style={{ margin:0, fontSize:'10px', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.10em', fontFamily:'var(--font-mono)' }}>
+              Suggestions
+            </p>
+            <p style={{ margin:'2px 0 0', fontSize:'16px', fontWeight:800, color:'var(--text-primary)' }}>
+              Top <span style={{ color:'#4D7FFF' }}>{slot.label}</span>
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', display:'flex', padding:'4px' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Search button */}
+        <div style={{ padding:'12px 20px 10px' }}>
+          <button
+            onClick={onSearch}
+            style={{
+              width:'100%', display:'flex', alignItems:'center', gap:'6px',
+              background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.10)',
+              borderRadius:'8px', color:'var(--text-secondary)', fontSize:'12px', fontWeight:600,
+              padding:'8px 12px', cursor:'pointer',
+            }}
+          >
+            <Search size={13} /> Rechercher un joueur…
+          </button>
+        </div>
+
+        <div style={{ height:'1px', background:'rgba(255,255,255,0.07)', margin:'0 20px' }} />
+
+        {/* Player list */}
+        <div style={{ flex:1, overflowY:'auto', padding:'8px 0' }}>
+          {loading ? (
+            <div style={{ display:'flex', justifyContent:'center', padding:'48px', color:'var(--text-muted)' }}>
+              <Loader2 size={20} style={{ animation:'spin 0.7s linear infinite' }} />
+            </div>
+          ) : suggestions.length === 0 ? (
+            <p style={{ textAlign:'center', padding:'32px 20px', color:'var(--text-muted)', fontSize:'13px', margin:0 }}>
+              Aucun joueur disponible pour ce poste
+            </p>
+          ) : suggestions.map((p, idx) => {
+            const label = getScoreLabel(p.scout_score)
+            const color = LABEL_COLOR[label] ?? '#4A5A70'
+            return (
+              <div
+                key={p.id}
+                style={{
+                  display:'flex', alignItems:'center', gap:'10px',
+                  padding:'10px 20px',
+                  borderBottom:'1px solid rgba(255,255,255,0.04)',
+                }}
+              >
+                <span style={{ fontSize:'10px', fontWeight:700, color:'var(--text-muted)', width:'18px', flexShrink:0, fontFamily:'var(--font-mono)' }}>
+                  #{idx + 1}
+                </span>
+                <div style={{
+                  width:'32px', height:'32px', borderRadius:'8px', flexShrink:0,
+                  background:avatarGradient(p.name),
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:'10px', fontWeight:700, color:'white',
+                }}>
+                  {initials(p.name)}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ margin:0, fontSize:'13px', fontWeight:600, color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {p.name}
+                  </p>
+                  <p style={{ margin:0, fontSize:'11px', color:'var(--text-muted)' }}>
+                    {p.primary_position} · {p.team}
+                  </p>
+                </div>
+                <span style={{ fontFamily:'var(--font-mono)', fontSize:'13px', fontWeight:800, color, flexShrink:0 }}>
+                  {p.scout_score}
+                </span>
+                <button
+                  onClick={() => onAssign(p)}
+                  style={{
+                    background:'rgba(77,127,255,0.15)', border:'1px solid rgba(77,127,255,0.30)',
+                    borderRadius:'7px', color:'#4D7FFF', fontSize:'11px', fontWeight:700,
+                    padding:'5px 10px', cursor:'pointer', flexShrink:0,
+                    transition:'background 100ms ease',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(77,127,255,0.30)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(77,127,255,0.15)')}
+                >
+                  Assigner
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ShadowTeam() {
@@ -321,11 +447,16 @@ export default function ShadowTeam() {
   const pitchRef = useRef<HTMLDivElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
 
-  const [formation,    setFormation]   = useState<FormationKey>('4-3-3')
-  const [assignments,  setAssignments] = useState<Assignments>({})
-  const [pickerSlot,   setPickerSlot]  = useState<Slot | null>(null)
-  const [menuSlotId,   setMenuSlotId]  = useState<string | null>(null)
-  const [exporting,    setExporting]   = useState(false)
+  const [formation,          setFormation]          = useState<FormationKey>('4-3-3')
+  const [assignments,        setAssignments]        = useState<Assignments>({})
+  const [pickerSlot,         setPickerSlot]         = useState<Slot | null>(null)
+  const [menuSlotId,         setMenuSlotId]         = useState<string | null>(null)
+  const [exporting,          setExporting]          = useState(false)
+  const [suggestionSlot,     setSuggestionSlot]     = useState<Slot | null>(null)
+  const [suggestions,        setSuggestions]        = useState<Player[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  const [autoBuilding,       setAutoBuilding]       = useState(false)
+  const [toast,              setToast]              = useState<string | null>(null)
 
   // ── Load / save localStorage ──────────────────────────────────────────────
 
@@ -368,6 +499,50 @@ export default function ShadowTeam() {
     })
     setMenuSlotId(null)
   }, [])
+
+  const loadSuggestions = useCallback(async (slot: Slot) => {
+    setSuggestionSlot(slot)
+    setSuggestionsLoading(true)
+    setSuggestions([])
+    const { data } = await supabase
+      .from('players')
+      .select('id,name,team,scout_score,scout_label,age,primary_position,individual_stats')
+      .in('primary_position', slot.compat)
+      .order('scout_score', { ascending: false })
+      .limit(8)
+    setSuggestions((data ?? []) as unknown as Player[])
+    setSuggestionsLoading(false)
+  }, [])
+
+  const assignFromSuggestion = useCallback((player: Player) => {
+    if (!suggestionSlot) return
+    setAssignments(prev => ({ ...prev, [suggestionSlot.id]: player }))
+    setSuggestionSlot(null)
+    setSuggestions([])
+  }, [suggestionSlot])
+
+  const handleAutoBuild = useCallback(async () => {
+    setAutoBuilding(true)
+    const currentSlots = FORMATIONS[formation]
+    const usedIds = new Set(Object.values(assignments).map(p => p.id))
+    const newAssignments = { ...assignments }
+    for (const slot of currentSlots) {
+      if (newAssignments[slot.id]) continue
+      const { data } = await supabase
+        .from('players')
+        .select('id,name,team,scout_score,scout_label,age,primary_position,individual_stats')
+        .in('primary_position', slot.compat)
+        .order('scout_score', { ascending: false })
+        .limit(20)
+      const candidates = (data ?? []) as unknown as Player[]
+      const best = candidates.find(p => !usedIds.has(p.id))
+      if (best) { newAssignments[slot.id] = best; usedIds.add(best.id) }
+    }
+    setAssignments(newAssignments)
+    setAutoBuilding(false)
+    setToast('Équipe construite automatiquement')
+    setTimeout(() => setToast(null), 3000)
+  }, [assignments, formation])
 
   // ── Export PDF ────────────────────────────────────────────────────────────
 
@@ -474,6 +649,23 @@ export default function ShadowTeam() {
             </select>
             <ChevronDown size={13} style={{ position:'absolute', right:'10px', top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)', pointerEvents:'none' }} />
           </div>
+          {/* Auto-build */}
+          <button
+            onClick={handleAutoBuild}
+            disabled={autoBuilding}
+            style={{
+              display:'flex', alignItems:'center', gap:'6px',
+              background:'rgba(155,109,255,0.15)', border:'1px solid rgba(155,109,255,0.30)',
+              borderRadius:'10px', color:'#9B6DFF', fontSize:'13px', fontWeight:600,
+              padding:'8px 16px', cursor: autoBuilding ? 'not-allowed' : 'pointer',
+              opacity: autoBuilding ? 0.6 : 1, transition:'all 150ms ease',
+            }}
+          >
+            {autoBuilding
+              ? <><Loader2 size={13} style={{ animation:'spin 0.7s linear infinite' }} /> Construction…</>
+              : <><Sparkles size={13} /> Construire auto</>
+            }
+          </button>
           {/* Export */}
           <button
             onClick={handleExport}
@@ -606,7 +798,7 @@ export default function ShadowTeam() {
                   ) : (
                     /* Empty slot */
                     <button
-                      onClick={() => setPickerSlot(slot)}
+                      onClick={() => loadSuggestions(slot)}
                       style={{
                         width:'34px', height:'34px', borderRadius:'50%',
                         background:'rgba(255,255,255,0.08)',
@@ -659,7 +851,7 @@ export default function ShadowTeam() {
             textAlign:'center',
           }}>
             <p style={{ fontFamily:'var(--font-mono)', fontSize:'10px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-muted)', margin:'0 0 12px' }}>
-              Score équipe
+              {assigned === 11 ? `Score moyen · ${assigned}/11` : 'Score équipe'}
             </p>
             {tScore > 0 ? (
               <>
@@ -682,6 +874,11 @@ export default function ShadowTeam() {
                 }}>
                   {tLabel}
                 </span>
+                {assigned === 11 && (
+                  <p style={{ margin:'10px 0 0', fontSize:'12px', color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>
+                    Score moyen : {tScore}/100 · {tLabel}
+                  </p>
+                )}
               </>
             ) : (
               <p style={{ color:'var(--text-muted)', fontSize:'13px', margin:0 }}>
@@ -793,6 +990,18 @@ export default function ShadowTeam() {
         </div>
       </div>
 
+      {/* Suggestion panel */}
+      {suggestionSlot && (
+        <SuggestionPanel
+          slot={suggestionSlot}
+          suggestions={suggestions}
+          loading={suggestionsLoading}
+          onAssign={assignFromSuggestion}
+          onSearch={() => { setPickerSlot(suggestionSlot); setSuggestionSlot(null); setSuggestions([]) }}
+          onClose={() => { setSuggestionSlot(null); setSuggestions([]) }}
+        />
+      )}
+
       {/* Player picker modal */}
       {pickerSlot && (
         <PlayerPickerModal
@@ -800,6 +1009,23 @@ export default function ShadowTeam() {
           onSelect={assignPlayer}
           onClose={() => setPickerSlot(null)}
         />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position:'fixed', bottom:'32px', left:'50%', transform:'translateX(-50%)',
+          zIndex:500, display:'flex', alignItems:'center', gap:'8px',
+          background:'#0D1525', border:'1px solid rgba(0,200,150,0.35)',
+          borderRadius:'12px', padding:'12px 20px',
+          boxShadow:'0 8px 32px rgba(0,0,0,0.50)',
+          animation:'fadeIn 0.20s ease',
+          fontSize:'13px', fontWeight:600, color:'var(--text-primary)',
+          whiteSpace:'nowrap',
+        }}>
+          <CheckCircle size={16} color="#00C896" />
+          {toast}
+        </div>
       )}
     </div>
   )

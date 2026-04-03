@@ -54,6 +54,11 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 10px rgba(77, 127, 255, 0.20); }
   50%       { box-shadow: 0 0 24px rgba(77, 127, 255, 0.45); }
