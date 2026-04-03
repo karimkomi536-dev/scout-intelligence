@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { usePlayer } from '../hooks/usePlayer'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { usePlayerHistory } from '../hooks/usePlayerHistory'
 import {
@@ -22,7 +23,6 @@ import SimilarPlayers from '../components/SimilarPlayers'
 import { useCompare } from '../contexts/CompareContext'
 import { PlayerPDFReport } from '../components/PlayerPDFReport'
 import { exportPlayerPDF } from '../utils/exportPDF'
-import type { Player } from '../types/player'
 import type { ScoutNote } from '../components/PlayerPDFReport'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import ScoutReportForm from '../components/ScoutReportForm'
@@ -248,9 +248,7 @@ export default function PlayerDetail() {
   const { isSelected, toggle, ids: compareIds } = useCompare()
   const isMobile = useIsMobile()
 
-  const [player, setPlayer] = useState<Player | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { data: player, isLoading: loading, isError } = usePlayer(id)
   const [notes, setNotes] = useState<ScoutNote[]>([])
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
@@ -281,12 +279,6 @@ export default function PlayerDetail() {
 
   useEffect(() => {
     if (!id) return
-    supabase.from('players').select('*').eq('id', id).single()
-      .then(({ data, error: err }) => {
-        if (err || !data) setError('Joueur introuvable.')
-        else setPlayer(data as Player)
-        setLoading(false)
-      })
     supabase.from('notes').select('id, content, created_at')
       .eq('player_id', id).order('created_at', { ascending: false }).limit(10)
       .then(({ data }) => { if (data) setNotes(data as ScoutNote[]) })
@@ -366,10 +358,10 @@ export default function PlayerDetail() {
     )
   }
 
-  if (error || !player) {
+  if (isError || !player) {
     return (
       <div style={{ padding: '48px 0' }}>
-        <p style={{ color: '#ef4444', marginBottom: '16px', fontSize: '14px' }}>{error || 'Joueur introuvable.'}</p>
+        <p style={{ color: '#ef4444', marginBottom: '16px', fontSize: '14px' }}>Joueur introuvable.</p>
         <button
           onClick={() => navigate('/players')}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: 0 }}

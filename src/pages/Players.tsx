@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { usePlayers } from '../hooks/usePlayers'
 import { Search, X, Heart, Scale, RotateCcw, Users, SlidersHorizontal } from 'lucide-react'
 import { useSwipeable } from 'react-swipeable'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -392,8 +394,7 @@ export default function Players() {
   const { limits } = usePlan()
   const { toasts, showToast, dismiss } = useToast()
 
-  const [players, setPlayers]   = useState<Player[]>([])
-  const [loading, setLoading]   = useState(true)
+  const queryClient = useQueryClient()
   const [totalPlayerCount, setTotalPlayerCount] = useState(0)
   const [leagues, setLeagues]   = useState<string[]>([])
   const [page, setPage]         = useState(1)
@@ -401,7 +402,6 @@ export default function Players() {
   const [showFiltersDrawer, setShowFiltersDrawer]       = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch]     = useState(false)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
-  const [refreshKey, setRefreshKey] = useState(0)
 
   // Pull-to-refresh
   const pullStartY  = useRef(0)
@@ -425,33 +425,28 @@ export default function Players() {
       .then(({ count }) => setTotalPlayerCount(count ?? 0))
   }, [])
 
-  useEffect(() => {
-    setLoading(true)
-    setPage(1)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let q: any = supabase.from('players').select('*')
-    if (debouncedSearch)           q = q.ilike('name', `%${debouncedSearch}%`)
-    if (filters.positions.length)  q = q.in('primary_position', filters.positions)
-    if (filters.leagues.length)    q = q.in('competition', filters.leagues)
-    if (filters.ageMin > 16)       q = q.gte('age', filters.ageMin)
-    if (filters.ageMax < 40)       q = q.lte('age', filters.ageMax)
-    if (filters.foot === 'Left')   q = q.ilike('foot', '%left%')
-    if (filters.foot === 'Right')  q = q.ilike('foot', '%right%')
-    if (filters.minScore   > 0)       q = q.gte('scout_score',      filters.minScore)
-    if (filters.maxValueM  > 0)       q = q.lte('market_value_eur', filters.maxValueM * 1_000_000)
-    if (filters.xgMin      > 0)       q = q.gte('xg',               filters.xgMin)
-    if (filters.minutesMin > 0)       q = q.gte('minutes_played',   filters.minutesMin)
-    if (filters.labels.length > 0)    q = q.in('scout_label',       filters.labels)
-    q.order('scout_score', { ascending: false })
-      .then(({ data }: { data: Player[] | null }) => {
-        setPlayers(data ?? [])
-        setLoading(false)
-      })
+  // ── TanStack Query — cached player fetch ──────────────────────────────────
+  const queryFilters = {
+    search:     debouncedSearch,
+    positions:  filters.positions,
+    leagues:    filters.leagues,
+    ageMin:     filters.ageMin,
+    ageMax:     filters.ageMax,
+    foot:       filters.foot,
+    minScore:   filters.minScore,
+    maxValueM:  filters.maxValueM,
+    xgMin:      filters.xgMin,
+    minutesMin: filters.minutesMin,
+    labels:     filters.labels,
+  }
+  const { data: players = [], isLoading: loading } = usePlayers(queryFilters)
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, filters.positions.join(','), filters.leagues.join(','),
-      filters.labels.join(','), filters.ageMin, filters.ageMax, filters.foot,
-      filters.minScore, filters.maxValueM, filters.xgMin, filters.minutesMin,
-      refreshKey])
+  [debouncedSearch, filters.positions.join(','), filters.leagues.join(','),
+   filters.labels.join(','), filters.ageMin, filters.ageMax, filters.foot,
+   filters.minScore, filters.maxValueM, filters.xgMin, filters.minutesMin])
 
   function toggleValue(list: string[], value: string) {
     return list.includes(value) ? list.filter(x => x !== value) : [...list, value]
@@ -508,7 +503,7 @@ export default function Players() {
     if (pullY > 60 && !isPullRefreshing) {
       setIsPullRefreshing(true)
       setDismissed(new Set())
-      setRefreshKey(k => k + 1)
+      queryClient.invalidateQueries({ queryKey: ['players'] })
       setTimeout(() => setIsPullRefreshing(false), 800)
     }
     setPullY(0)
