@@ -1,34 +1,40 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import * as Sentry from '@sentry/react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import ErrorFallback from './components/ErrorFallback'
 import { CompareProvider } from './contexts/CompareContext'
 import ProtectedRoute from './components/ProtectedRoute'
-import Layout from './components/Layout'
-import Landing from './pages/Landing'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Dashboard from './pages/Dashboard'
-import Players from './pages/Players'
-import PlayerDetail from './pages/PlayerDetail'
-import Compare from './pages/Compare'
-import Shortlist from './pages/Shortlist'
-import SharedShortlist from './pages/SharedShortlist'
-import NewsletterPage from './pages/NewsletterPage'
-import Upload from './pages/Upload'
-import Settings from './pages/Settings'
-import Billing from './pages/Billing'
-import ShadowTeam from './pages/ShadowTeam'
-import AcceptInvitation from './pages/AcceptInvitation'
-import Privacy from './pages/Privacy'
-import Terms from './pages/Terms'
-import SplashScreen from './components/SplashScreen'
-import Onboarding from './pages/Onboarding'
-import Demo from './pages/Demo'
-import CronLogs from './pages/admin/CronLogs'
-import DataDashboard from './pages/admin/DataDashboard'
 import AdminRoute from './components/AdminRoute'
+import Layout from './components/Layout'
+import SplashScreen from './components/SplashScreen'
+import PageLoader from './components/PageLoader'
+
+// ── Lazy page chunks ───────────────────────────────────────────────────────────
+
+const Landing         = lazy(() => import('./pages/Landing'))
+const Login           = lazy(() => import('./pages/Login'))
+const Register        = lazy(() => import('./pages/Register'))
+const Dashboard       = lazy(() => import('./pages/Dashboard'))
+const Players         = lazy(() => import('./pages/Players'))
+const PlayerDetail    = lazy(() => import('./pages/PlayerDetail'))
+const Compare         = lazy(() => import('./pages/Compare'))
+const Shortlist       = lazy(() => import('./pages/Shortlist'))
+const SharedShortlist = lazy(() => import('./pages/SharedShortlist'))
+const NewsletterPage  = lazy(() => import('./pages/NewsletterPage'))
+const Upload          = lazy(() => import('./pages/Upload'))
+const Settings        = lazy(() => import('./pages/Settings'))
+const Billing         = lazy(() => import('./pages/Billing'))
+const ShadowTeam      = lazy(() => import('./pages/ShadowTeam'))
+const AcceptInvitation = lazy(() => import('./pages/AcceptInvitation'))
+const Onboarding      = lazy(() => import('./pages/Onboarding'))
+const Demo            = lazy(() => import('./pages/Demo'))
+const Privacy         = lazy(() => import('./pages/Privacy'))
+const Terms           = lazy(() => import('./pages/Terms'))
+const CronLogs        = lazy(() => import('./pages/admin/CronLogs'))
+const DataDashboard   = lazy(() => import('./pages/admin/DataDashboard'))
+
+// ── App ───────────────────────────────────────────────────────────────────────
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => {
@@ -49,58 +55,60 @@ function App() {
       <CompareProvider>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            {/* Landing — publique, redirige vers /dashboard si déjà connecté */}
-            <Route path="/" element={<Landing />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Landing — publique, redirige vers /dashboard si déjà connecté */}
+              <Route path="/" element={<Landing />} />
 
-            {/* Auth */}
-            <Route path="/login"    element={<Login />} />
-            <Route path="/register" element={<Register />} />
+              {/* Auth */}
+              <Route path="/login"    element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-            {/* Public share view */}
-            <Route path="/shortlist/:token" element={<SharedShortlist />} />
+              {/* Public share view */}
+              <Route path="/shortlist/:token" element={<SharedShortlist />} />
 
-            {/* Accept team invitation */}
-            <Route path="/invite/:token" element={<AcceptInvitation />} />
+              {/* Accept team invitation */}
+              <Route path="/invite/:token" element={<AcceptInvitation />} />
 
-            {/* Onboarding — protected, outside Layout */}
-            <Route path="/onboarding" element={
-              <ProtectedRoute><Onboarding /></ProtectedRoute>
-            } />
+              {/* Onboarding — protected, outside Layout */}
+              <Route path="/onboarding" element={
+                <ProtectedRoute><Onboarding /></ProtectedRoute>
+              } />
 
-            {/* Demo — public, no auth required */}
-            <Route path="/demo" element={<Demo />} />
+              {/* Demo — public, no auth required */}
+              <Route path="/demo" element={<Demo />} />
 
-            {/* Legal */}
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms"   element={<Terms />} />
+              {/* Legal */}
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms"   element={<Terms />} />
 
-            {/* App — protégée par ProtectedRoute */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="dashboard"   element={<Dashboard />} />
-              <Route path="players"     element={<Players />} />
-              <Route path="players/:id" element={<PlayerDetail />} />
-              <Route path="compare"     element={<Compare />} />
-              <Route path="shortlist"   element={<Shortlist />} />
-              <Route path="newsletter"  element={<NewsletterPage />} />
-              <Route path="upload"      element={<Upload />} />
-              <Route path="settings"         element={<Settings />} />
-              <Route path="settings/billing" element={<Billing />} />
-              <Route path="shadow-team"  element={<ShadowTeam />} />
-              <Route path="admin/cron"   element={<CronLogs />} />
-              <Route path="admin/data"   element={<AdminRoute><DataDashboard /></AdminRoute>} />
-            </Route>
+              {/* App — protégée par ProtectedRoute */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="dashboard"        element={<Dashboard />} />
+                <Route path="players"          element={<Players />} />
+                <Route path="players/:id"      element={<PlayerDetail />} />
+                <Route path="compare"          element={<Compare />} />
+                <Route path="shortlist"        element={<Shortlist />} />
+                <Route path="newsletter"       element={<NewsletterPage />} />
+                <Route path="upload"           element={<Upload />} />
+                <Route path="settings"         element={<Settings />} />
+                <Route path="settings/billing" element={<Billing />} />
+                <Route path="shadow-team"      element={<ShadowTeam />} />
+                <Route path="admin/cron"       element={<CronLogs />} />
+                <Route path="admin/data"       element={<AdminRoute><DataDashboard /></AdminRoute>} />
+              </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
       </CompareProvider>
