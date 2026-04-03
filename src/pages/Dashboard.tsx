@@ -385,7 +385,7 @@ export default function Dashboard() {
     <div style={{ color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
       {/* ── Onboarding checklist ───────────────────────────────────────────── */}
-      <OnboardingChecklist />
+      {localStorage.getItem('vizion-checklist-dismissed') !== 'true' && <OnboardingChecklist />}
 
       {/* ── Empty base banner ─────────────────────────────────────────────── */}
       {players.length === 0 && (

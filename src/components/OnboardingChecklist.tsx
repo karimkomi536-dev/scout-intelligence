@@ -44,9 +44,16 @@ export function OnboardingChecklist() {
   // ── ALL hooks declared before any conditional return ─────────────────────────
   const [checklist,     setChecklist]     = useState<Checklist>(DEFAULT_CHECKLIST)
   const [collapsed,     setCollapsed]     = useState(false)
-  const [hidden,        setHidden]        = useState(false)
+  const [hidden,        setHidden]        = useState(() =>
+    localStorage.getItem('vizion-checklist-dismissed') === 'true'
+  )
   const [loading,       setLoading]       = useState(true)
   const [profileLoaded, setProfileLoaded] = useState(false)
+
+  const dismiss = () => {
+    localStorage.setItem('vizion-checklist-dismissed', 'true')
+    setHidden(true)
+  }
 
   // ── Fetch profile + shortlist groups ─────────────────────────────────────────
   useEffect(() => {
@@ -96,7 +103,7 @@ export function OnboardingChecklist() {
   // ── Auto-hide when all done — must be before any conditional return ───────────
   useEffect(() => {
     if (allDone && profileLoaded) {
-      const t = setTimeout(() => setHidden(true), 3000)
+      const t = setTimeout(() => dismiss(), 3000)
       return () => clearTimeout(t)
     }
   }, [allDone, profileLoaded])
@@ -167,7 +174,7 @@ export function OnboardingChecklist() {
         </div>
 
         <button
-          onClick={e => { e.stopPropagation(); setHidden(true) }}
+          onClick={e => { e.stopPropagation(); dismiss() }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.30)', display: 'flex', padding: 4 }}
           title="Masquer définitivement"
         >
