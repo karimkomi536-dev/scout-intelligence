@@ -41,4 +41,5 @@ export interface Player {
   xg_understat: number | null
   xa_understat: number | null
   np_xg:        number | null
+  is_u23?:      boolean | null
 }
