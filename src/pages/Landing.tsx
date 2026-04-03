@@ -1097,7 +1097,7 @@ export default function Landing() {
 
   useEffect(() => {
     if (!loading && user) navigate('/dashboard', { replace: true })
-  }, [user, loading, navigate])
+  }, [user?.id, loading, navigate])
 
   if (loading) return null
 

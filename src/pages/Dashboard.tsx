@@ -47,7 +47,8 @@ const TOOLTIP_STYLE = {
 interface RecentEntry {
   id:         string
   created_at: string
-  players:    { name: string; primary_position: string } | null
+  player_id:  string
+  players?:   { name: string; primary_position: string } | null
 }
 
 interface CronLog {
@@ -238,9 +239,9 @@ export default function Dashboard() {
           .order('scout_score', { ascending: false })
           .limit(3),
 
-        // Recent shortlist activity (7 days) — correct table: shortlist_entries
+        // Recent shortlist activity (7 days)
         supabase.from('shortlist_entries')
-          .select('id, created_at, players:player_id(name, primary_position)')
+          .select('id, created_at, player_id')
           .gte('created_at', sevenDaysAgo)
           .order('created_at', { ascending: false })
           .limit(8),

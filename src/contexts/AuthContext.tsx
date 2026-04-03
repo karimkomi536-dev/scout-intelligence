@@ -20,7 +20,7 @@ async function fetchOnboardingStatus(userId: string): Promise<boolean> {
     .from('profiles')
     .select('onboarding_completed')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   // !data means no profile yet → needs onboarding
   // data.onboarding_completed === false → needs onboarding
   return !(data?.onboarding_completed)

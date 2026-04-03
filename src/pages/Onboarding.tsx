@@ -58,7 +58,7 @@ export default function Onboarding() {
   // Redirect if already onboarded
   useEffect(() => {
     if (!user) navigate('/login', { replace: true })
-  }, [user, navigate])
+  }, [user?.id, navigate])
 
   // ── Step 1 : save profile ──────────────────────────────────────────────────
 
