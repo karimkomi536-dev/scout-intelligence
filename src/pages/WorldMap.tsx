@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy, useRef, useEffect } from 'react'
+import { useState, Suspense, lazy, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X, ArrowRight } from 'lucide-react'
 import { useGlobeData } from '../hooks/useGlobeData'
@@ -92,19 +92,20 @@ export default function WorldMap() {
   const [tooltip, setTooltip] = useState<{ pin: GlobePin; x: number; y: number } | null>(null)
 
   // ── Dynamic map width ────────────────────────────────────────────────────────
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [mapWidth, setMapWidth] = useState(1000)
+  const [mapWidth, setMapWidth] = useState(800)
 
   useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setMapWidth(containerRef.current.offsetWidth)
-      }
+    const calc = () => {
+      // sidebar 260px + main padding 28px × 2 = 316px total on desktop
+      const w = isMobile
+        ? window.innerWidth - 32           // mobile padding 16px × 2
+        : window.innerWidth - 260 - 56     // sidebar + padding
+      setMapWidth(Math.max(600, w))
     }
-    updateWidth()
-    window.addEventListener('resize', updateWidth)
-    return () => window.removeEventListener('resize', updateWidth)
-  }, [])
+    calc()
+    window.addEventListener('resize', calc)
+    return () => window.removeEventListener('resize', calc)
+  }, [isMobile])
 
   const { data: pins = [], isLoading } = useGlobeData(labelFilter === 'all' ? undefined : labelFilter)
   const { data: countryPlayers = [] }  = useCountryPlayers(selectedCountry)
@@ -257,7 +258,6 @@ export default function WorldMap() {
             {/* Hex mode — pleine largeur, sans padding */}
             {viewMode === 'hex' && (
               <div
-                ref={containerRef}
                 style={{
                   width:        '100%',
                   background:   'rgba(255,255,255,0.02)',
