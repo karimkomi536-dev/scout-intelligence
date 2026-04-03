@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import ThreeGlobe from 'three-globe'
 
@@ -22,19 +22,6 @@ interface GlobeProps {
   height?:          number
 }
 
-// three-globe uses radius = 100 units by default
-const R = 100
-
-function toVec3(lat: number, lng: number, r = R + 2): THREE.Vector3 {
-  const phi   = (90 - lat) * Math.PI / 180
-  const theta = (lng + 180) * Math.PI / 180
-  return new THREE.Vector3(
-    -r * Math.sin(phi) * Math.cos(theta),
-     r * Math.cos(phi),
-     r * Math.sin(phi) * Math.sin(theta),
-  )
-}
-
 // ── Globe component ───────────────────────────────────────────────────────────
 
 export default function Globe({
@@ -45,25 +32,35 @@ export default function Globe({
   width  = 480,
   height = 480,
 }: GlobeProps) {
-  const mountRef   = useRef<HTMLDivElement>(null)
-  const onHoverRef = useRef(onHover)
-  const onClickRef = useRef(onCountryClick)
+  const mountRef           = useRef<HTMLDivElement>(null)
+  const onHoverRef         = useRef(onHover)
+  const onClickRef         = useRef(onCountryClick)
+  const globeRef           = useRef<ThreeGlobe | null>(null)
+  const selectedCountryRef = useRef(selectedCountry)
+  const pinsRef            = useRef(pins)
+
   onHoverRef.current = onHover
   onClickRef.current = onCountryClick
 
-  const pinMeshesRef = useRef<Array<{ mesh: THREE.Mesh; pin: GlobePin }>>([])
+  const [tooltipContent, setTooltipContent] = useState<string | null>(null)
+  const [tooltipPos,     setTooltipPos]     = useState({ x: 0, y: 0 })
 
-  // Reactive: highlight selected country pin without rebuilding scene
+  // ── Re-color points when selectedCountry changes (no scene rebuild) ──────────
   useEffect(() => {
-    pinMeshesRef.current.forEach(({ mesh, pin }) => {
-      mesh.scale.setScalar(selectedCountry != null && pin.country === selectedCountry ? 2.2 : 1)
-    })
+    selectedCountryRef.current = selectedCountry
+    globeRef.current?.pointsData([...pinsRef.current])
   }, [selectedCountry])
 
+  // ── Update points when pin data changes (no scene rebuild) ───────────────────
+  useEffect(() => {
+    pinsRef.current = pins
+    globeRef.current?.pointsData([...pins])
+  }, [pins])
+
+  // ── Main scene (rebuilds only on size or pin count change) ───────────────────
   useEffect(() => {
     if (!mountRef.current) return
     const mount = mountRef.current
-    pinMeshesRef.current = []
 
     // ── Renderer ──────────────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -85,32 +82,32 @@ export default function Globe({
     const rim = new THREE.DirectionalLight(0x00E5A0, 1.5)
     rim.position.set(0, -200, -200); scene.add(rim)
 
-    // ── ThreeGlobe (hexagones GeoJSON sur sphère) ──────────────────────────────
+    // ── ThreeGlobe ─────────────────────────────────────────────────────────────
     const globe = new ThreeGlobe({ waitForGlobeReady: false, animateIn: false })
+    globeRef.current = globe
+
     globe
       .hexPolygonResolution(3)
-      .hexPolygonMargin(0.3)
+      .hexPolygonMargin(0.2)
       .hexPolygonUseDots(false)
-      .hexPolygonAltitude(0.005)
+      .hexPolygonAltitude(0.02)
       .showAtmosphere(false)
       .showGraticules(false)
 
     // Ocean material
     const mat = globe.globeMaterial() as THREE.MeshPhongMaterial
-    mat.color            = new THREE.Color(0x0D2137)
-    mat.emissive         = new THREE.Color(0x061018)
+    mat.color             = new THREE.Color(0x0D2137)
+    mat.emissive          = new THREE.Color(0x061018)
     mat.emissiveIntensity = 0.3
-    mat.specular         = new THREE.Color(0x1a3a5c)
-    mat.shininess        = 15
+    mat.specular          = new THREE.Color(0x1a3a5c)
+    mat.shininess         = 15
 
-    // Load GeoJSON countries (served from /public)
+    // GeoJSON continents
     fetch('/ne_110m_admin_0_countries.geojson')
       .then(r => r.json())
       .then((data: { features: object[] }) => {
         globe
           .hexPolygonsData(data.features)
-          .hexPolygonMargin(0.2)
-          .hexPolygonAltitude(0.02)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .hexPolygonColor((feat: any) => {
             const c = feat?.properties?.CONTINENT ?? ''
@@ -121,16 +118,41 @@ export default function Globe({
               case 'South America': return 'rgba(34,211,238,0.95)'
               case 'Asia':          return 'rgba(185,127,255,0.95)'
               case 'Oceania':       return 'rgba(255,90,90,0.95)'
-              case 'Antarctica':    return 'rgba(180,200,220,0.95)'
+              case 'Antarctica':    return 'rgba(180,200,220,0.6)'
               default:              return 'rgba(100,150,255,0.95)'
             }
           })
       })
       .catch(console.error)
 
+    // ── Native points API — positionnement exact garanti par three-globe ───────
+    globe
+      .pointsData([...pinsRef.current])
+      .pointLat((p: object) => (p as GlobePin).lat)
+      .pointLng((p: object) => (p as GlobePin).lng)
+      .pointColor((p: object) => {
+        const pin = p as GlobePin
+        if (selectedCountryRef.current && pin.country === selectedCountryRef.current) return '#FFFFFF'
+        switch (pin.label) {
+          case 'ELITE':        return '#00E5A0'
+          case 'TOP PROSPECT': return '#3D8EFF'
+          default:             return '#FF9F43'
+        }
+      })
+      .pointRadius((p: object) => {
+        const pin  = p as GlobePin
+        const base = Math.min(0.4 + pin.count * 0.06, 1.8)
+        return selectedCountryRef.current && pin.country === selectedCountryRef.current
+          ? base * 1.8
+          : base
+      })
+      .pointAltitude((p: object) => 0.02 + (p as GlobePin).count * 0.004)
+      .pointResolution(12)
+      .pointsMerge(false)
+
     scene.add(globe)
 
-    // ── Atmosphère style Orion (BackSide = halo vu de l'extérieur) ─────────────
+    // ── Atmosphère (BackSide halos) ────────────────────────────────────────────
     scene.add(new THREE.Mesh(
       new THREE.SphereGeometry(106, 64, 64),
       new THREE.MeshBasicMaterial({ color: 0x00E5A0, transparent: true, opacity: 0.15, side: THREE.BackSide }),
@@ -144,56 +166,62 @@ export default function Globe({
       new THREE.MeshBasicMaterial({ color: 0x6030CC, transparent: true, opacity: 0.06, side: THREE.BackSide }),
     ))
 
-    // Wireframe grille néon (tourne avec le globe)
+    // Wireframe grille néon
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(101, 24, 12),
       new THREE.MeshBasicMaterial({ color: 0x00E5A0, wireframe: true, transparent: true, opacity: 0.04 }),
     ))
 
-    // ── Pins joueurs ───────────────────────────────────────────────────────────
-    const pinObjects: Array<{ mesh: THREE.Mesh; pin: GlobePin }> = []
+    // ── Hit detection : sphere intersection → lat/lng → pin search ─────────────
+    // Raycasting against the globe sphere, then find the nearest pin by angle
+    const raycaster = new THREE.Raycaster()
+    const surfaceSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 104) // slightly above surface
 
-    pins.forEach(pin => {
-      const pos   = toVec3(pin.lat, pin.lng)
-      const color = pin.label === 'ELITE'        ? 0x00E5A0
-                  : pin.label === 'TOP PROSPECT' ? 0x3D8EFF
-                  : 0xFF9F43
-      const size  = Math.min(1.8 + pin.count * 0.3, 5)
-
-      const halo = new THREE.Mesh(
-        new THREE.SphereGeometry(size * 2.5, 8, 8),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.2 }),
+    function getHitPin(clientX: number, clientY: number): GlobePin | null {
+      const rect = renderer.domElement.getBoundingClientRect()
+      raycaster.setFromCamera(
+        new THREE.Vector2(
+           ((clientX - rect.left) / width)  * 2 - 1,
+          -((clientY - rect.top)  / height) * 2 + 1,
+        ),
+        camera,
       )
-      halo.position.copy(pos)
-      globe.add(halo)
 
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(size, 12, 12),
-        new THREE.MeshBasicMaterial({ color }),
-      )
-      mesh.position.copy(pos)
-      mesh.userData = { country: pin.country }
-      globe.add(mesh)
-      pinObjects.push({ mesh, pin })
-    })
+      const target = new THREE.Vector3()
+      if (!raycaster.ray.intersectSphere(surfaceSphere, target)) return null
 
-    pinMeshesRef.current = pinObjects
+      // Convert world hit to globe-local space (accounts for rotation)
+      const localPos = globe.worldToLocal(target.clone())
+      const r   = localPos.length()
+      const lat = 90 - Math.acos(Math.max(-1, Math.min(1, localPos.y / r))) * 180 / Math.PI
+      const lng = ((Math.atan2(localPos.z, -localPos.x) * 180 / Math.PI - 180 + 540) % 360) - 180
+
+      let nearest: GlobePin | null = null
+      let minDist = Infinity
+      const THRESHOLD = 10 // degrees
+
+      for (const pin of pinsRef.current) {
+        const dist = Math.sqrt((lat - pin.lat) ** 2 + (lng - pin.lng) ** 2)
+        if (dist < THRESHOLD && dist < minDist) { minDist = dist; nearest = pin }
+      }
+      return nearest
+    }
 
     // ── Controls ───────────────────────────────────────────────────────────────
-    let autoRotate = true
-    let isDragging = false
-    let prevMouse  = { x: 0, y: 0 }
+    let autoRotate  = true
+    let isDragging  = false
+    let didDrag     = false
+    let prevMouse   = { x: 0, y: 0 }
     let autoTimer: ReturnType<typeof setTimeout>
 
-    // Zoom molette
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       const factor = e.deltaY > 0 ? 1.08 : 0.93
-      camera.position.z = Math.max(150, Math.min(600, camera.position.z * factor))
+      camera.position.z = Math.max(150, Math.min(500, camera.position.z * factor))
     }
-
     const onDown = (e: MouseEvent) => {
       isDragging = true
+      didDrag    = false
       autoRotate = false
       clearTimeout(autoTimer)
       prevMouse  = { x: e.clientX, y: e.clientY }
@@ -202,49 +230,42 @@ export default function Globe({
       if (isDragging) {
         const dx = e.clientX - prevMouse.x
         const dy = e.clientY - prevMouse.y
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) didDrag = true
         globe.rotation.y += dx * 0.005
         globe.rotation.x += dy * 0.003
         prevMouse = { x: e.clientX, y: e.clientY }
-      }
-      if (onHoverRef.current) {
-        const rect = renderer.domElement.getBoundingClientRect()
-        const mx   = ((e.clientX - rect.left) / width)  * 2 - 1
-        const my   = -((e.clientY - rect.top)  / height) * 2 + 1
-        const ray  = new THREE.Raycaster()
-        ray.setFromCamera(new THREE.Vector2(mx, my), camera)
-        const hits = ray.intersectObjects(pinObjects.map(p => p.mesh))
-        if (hits.length > 0) {
-          const found = pinObjects.find(p => p.mesh === hits[0].object)
-          if (found) onHoverRef.current(found.pin, e.clientX - rect.left, e.clientY - rect.top)
+      } else {
+        // Hover detection
+        const pin = getHitPin(e.clientX, e.clientY)
+        if (pin) {
+          const label = pin.label
+          setTooltipContent(`${pin.country} · ${pin.count} joueur${pin.count !== 1 ? 's' : ''} · ${label}`)
+          onHoverRef.current?.(pin, e.clientX, e.clientY)
         } else {
-          onHoverRef.current(null, 0, 0)
+          setTooltipContent(null)
+          onHoverRef.current?.(null, 0, 0)
         }
       }
     }
-    const onUp    = () => { isDragging = false; autoTimer = setTimeout(() => { autoRotate = true }, 2500) }
-    const onLeave = () => { onHoverRef.current?.(null, 0, 0) }
-
-    const raycaster = new THREE.Raycaster()
-    const mouse     = new THREE.Vector2()
-    const onClick   = (e: MouseEvent) => {
-      if (!onClickRef.current || isDragging) return
-      const rect = renderer.domElement.getBoundingClientRect()
-      mouse.x =  ((e.clientX - rect.left) / width)  * 2 - 1
-      mouse.y = -((e.clientY - rect.top)  / height) * 2 + 1
-      raycaster.setFromCamera(mouse, camera)
-      const hits = raycaster.intersectObjects(pinObjects.map(p => p.mesh))
-      if (hits.length > 0) {
-        const found = pinObjects.find(p => p.mesh === hits[0].object)
-        if (found) onClickRef.current(found.pin.country)
+    const onUp = (e: MouseEvent) => {
+      if (!didDrag && onClickRef.current) {
+        const pin = getHitPin(e.clientX, e.clientY)
+        if (pin) onClickRef.current(pin.country)
       }
+      isDragging = false
+      didDrag    = false
+      autoTimer  = setTimeout(() => { autoRotate = true }, 2500)
+    }
+    const onLeave = () => {
+      setTooltipContent(null)
+      onHoverRef.current?.(null, 0, 0)
     }
 
     renderer.domElement.addEventListener('wheel',      onWheel, { passive: false })
     renderer.domElement.addEventListener('mousedown',  onDown)
-    window.addEventListener('mousemove',               onMove)
-    window.addEventListener('mouseup',                 onUp)
     renderer.domElement.addEventListener('mouseleave', onLeave)
-    renderer.domElement.addEventListener('click',      onClick)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup',   onUp)
 
     // ── Animation loop ─────────────────────────────────────────────────────────
     let rafId: number
@@ -256,14 +277,14 @@ export default function Globe({
     animate()
 
     return () => {
+      globeRef.current = null
       cancelAnimationFrame(rafId)
       clearTimeout(autoTimer)
       renderer.domElement.removeEventListener('wheel',      onWheel)
       renderer.domElement.removeEventListener('mousedown',  onDown)
-      window.removeEventListener('mousemove',               onMove)
-      window.removeEventListener('mouseup',                 onUp)
       renderer.domElement.removeEventListener('mouseleave', onLeave)
-      renderer.domElement.removeEventListener('click',      onClick)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup',   onUp)
       renderer.dispose()
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
     }
@@ -271,9 +292,32 @@ export default function Globe({
   }, [width, height, pins.length])
 
   return (
-    <div
-      ref={mountRef}
-      style={{ width, height, cursor: 'grab', borderRadius: 12, overflow: 'hidden' }}
-    />
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <div
+        ref={mountRef}
+        style={{ width, height, cursor: 'grab', borderRadius: 12, overflow: 'hidden' }}
+        onMouseMove={e => setTooltipPos({ x: e.clientX, y: e.clientY })}
+      />
+      {tooltipContent && (
+        <div style={{
+          position:      'fixed',
+          left:          tooltipPos.x + 12,
+          top:           tooltipPos.y - 36,
+          background:    'rgba(7,9,15,0.96)',
+          border:        '1px solid rgba(0,229,160,0.4)',
+          borderRadius:  8,
+          padding:       '6px 12px',
+          fontFamily:    'JetBrains Mono, monospace',
+          fontSize:       11,
+          color:         '#E2EAF4',
+          pointerEvents: 'none',
+          zIndex:         1000,
+          whiteSpace:    'nowrap',
+          boxShadow:     '0 0 20px rgba(0,229,160,0.15)',
+        }}>
+          {tooltipContent}
+        </div>
+      )}
+    </div>
   )
 }
