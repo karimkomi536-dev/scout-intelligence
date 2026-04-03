@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, CheckCircle, Circle, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -28,81 +28,93 @@ interface Item {
 }
 
 const ITEMS: Item[] = [
-  { key: 'profile',   label: 'Profil complété',       desc: 'Votre nom et rôle sont renseignés',    cta: 'Voir Settings →',  href: '/settings' },
-  { key: 'player',    label: 'Premier joueur ajouté',  desc: 'Ajoutez un joueur à la base',          cta: 'Voir Joueurs →',   href: '/players' },
-  { key: 'shortlist', label: 'Première shortlist',     desc: 'Créez votre première liste de suivi', cta: 'Voir Shortlist →', href: '/shortlist' },
-  { key: 'pdf',       label: 'Rapport PDF exporté',    desc: 'Exportez la fiche d\'un joueur en PDF', cta: 'Voir un joueur →', href: '/players' },
+  { key: 'profile',   label: 'Profil complété',       desc: 'Votre nom et rôle sont renseignés',     cta: 'Voir Settings →',  href: '/settings' },
+  { key: 'player',    label: 'Premier joueur ajouté',  desc: 'Ajoutez un joueur à la base',           cta: 'Voir Joueurs →',   href: '/players' },
+  { key: 'shortlist', label: 'Première shortlist',     desc: 'Créez votre première liste de suivi',  cta: 'Voir Shortlist →', href: '/shortlist' },
+  { key: 'pdf',       label: 'Rapport PDF exporté',    desc: "Exportez la fiche d'un joueur en PDF", cta: 'Voir un joueur →', href: '/players' },
 ]
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function OnboardingChecklist() {
-  const { user }   = useAuth()
-  const navigate   = useNavigate()
-  const [checklist, setChecklist] = useState<Checklist>(DEFAULT_CHECKLIST)
-  const [collapsed, setCollapsed] = useState(false)
-  const [hidden,    setHidden]    = useState(false)
-  const [loaded,    setLoaded]    = useState(false)
+  const { user }  = useAuth()
+  const navigate  = useNavigate()
+  const userId    = user?.id
 
-  // ── Load from DB ────────────────────────────────────────────────────────────
+  // ── ALL hooks declared before any conditional return ─────────────────────────
+  const [checklist,     setChecklist]     = useState<Checklist>(DEFAULT_CHECKLIST)
+  const [collapsed,     setCollapsed]     = useState(false)
+  const [hidden,        setHidden]        = useState(false)
+  const [loading,       setLoading]       = useState(true)
+  const [profileLoaded, setProfileLoaded] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!user) return
+  // ── Fetch profile + shortlist groups ─────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) { setLoading(false); return }
 
-    const [{ data: profile }, { data: groups }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('onboarding_checklist, full_name')
-        .eq('user_id', user.id)
-        .single(),
-      supabase
-        .from('shortlist_groups')
-        .select('id')
-        .eq('user_id', user.id),
-    ])
+    const fetchData = async () => {
+      try {
+        const [{ data: profile, error: profileError }, { data: groups }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('onboarding_checklist, full_name')
+            .eq('user_id', userId)
+            .single(),
+          supabase
+            .from('shortlist_groups')
+            .select('id')
+            .eq('user_id', userId),
+        ])
 
-    if (!profile) return
+        if (profileError) {
+          console.warn('Profile fetch error:', profileError.code)
+          return
+        }
 
-    const stored: Checklist = { ...DEFAULT_CHECKLIST, ...(profile.onboarding_checklist ?? {}) }
+        if (profile) {
+          const stored: Checklist = { ...DEFAULT_CHECKLIST, ...(profile.onboarding_checklist ?? {}) }
+          stored.profile   = !!(profile.full_name)
+          stored.shortlist = !!(groups && groups.length > 0)
+          setChecklist(stored)
+          setProfileLoaded(true)
+        }
+      } catch (e) {
+        console.warn('Profile fetch failed:', e)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-    // Auto-detect profile completion
-    stored.profile = !!(profile.full_name)
+    fetchData()
+  }, [userId])
 
-    // Auto-detect shortlist
-    stored.shortlist = !!(groups && groups.length > 0)
+  // ── Derived values (computed before useEffect that reads them) ────────────────
+  const completedCount = Object.values(checklist).filter(Boolean).length
+  const total          = ITEMS.length
+  const allDone        = completedCount === total
 
-    setChecklist(stored)
-    setLoaded(true)
-  }, [user])
+  // ── Auto-hide when all done — must be before any conditional return ───────────
+  useEffect(() => {
+    if (allDone && profileLoaded) {
+      const t = setTimeout(() => setHidden(true), 3000)
+      return () => clearTimeout(t)
+    }
+  }, [allDone, profileLoaded])
 
-  useEffect(() => { load() }, [load])
+  // ── Conditional returns — AFTER all hooks ────────────────────────────────────
+  if (loading)              return null
+  if (!profileLoaded)       return null
+  if (hidden)               return null
 
-  // ── Persist to DB whenever checklist changes ────────────────────────────────
-
+  // ── Persist item change to DB ─────────────────────────────────────────────────
   async function updateItem(key: keyof Checklist, value: boolean) {
-    if (!user) return
+    if (!userId) return
     const updated = { ...checklist, [key]: value }
     setChecklist(updated)
     await supabase.from('profiles')
       .update({ onboarding_checklist: updated })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
   }
-
-  // ── Don't render until loaded ───────────────────────────────────────────────
-
-  if (!loaded || hidden) return null
-
-  const completedCount = Object.values(checklist).filter(Boolean).length
-  const total = ITEMS.length
-  const allDone = completedCount === total
-
-  // Auto-hide when all done (after a short delay to show completion)
-  useEffect(() => {
-    if (allDone) {
-      const t = setTimeout(() => setHidden(true), 3000)
-      return () => clearTimeout(t)
-    }
-  }, [allDone])
 
   const pct = Math.round((completedCount / total) * 100)
 
@@ -118,12 +130,12 @@ export function OnboardingChecklist() {
       <div
         onClick={() => setCollapsed(c => !c)}
         style={{
-          display:        'flex',
-          alignItems:     'center',
-          gap:            12,
-          padding:        '14px 18px',
-          cursor:         'pointer',
-          userSelect:     'none',
+          display:    'flex',
+          alignItems: 'center',
+          gap:        12,
+          padding:    '14px 18px',
+          cursor:     'pointer',
+          userSelect: 'none',
         }}
       >
         {/* Progress ring */}
@@ -177,29 +189,27 @@ export function OnboardingChecklist() {
               <div
                 key={item.key}
                 style={{
-                  display:     'flex',
-                  alignItems:  'center',
-                  gap:         12,
-                  padding:     '10px 18px',
-                  opacity:     done ? 0.55 : 1,
-                  transition:  'opacity 300ms',
+                  display:    'flex',
+                  alignItems: 'center',
+                  gap:        12,
+                  padding:    '10px 18px',
+                  opacity:    done ? 0.55 : 1,
+                  transition: 'opacity 300ms',
                 }}
               >
                 <button
                   onClick={() => updateItem(item.key, !done)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: done ? '#00C896' : 'rgba(255,255,255,0.25)', display: 'flex', flexShrink: 0, padding: 0 }}
                 >
-                  {done
-                    ? <CheckCircle size={18} />
-                    : <Circle      size={18} />
-                  }
+                  {done ? <CheckCircle size={18} /> : <Circle size={18} />}
                 </button>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{
-                    fontSize: 13, fontWeight: done ? 400 : 600,
-                    color: done ? 'var(--text-muted)' : 'var(--text-primary)',
-                    margin: 0,
+                    fontSize:       13,
+                    fontWeight:     done ? 400 : 600,
+                    color:          done ? 'var(--text-muted)' : 'var(--text-primary)',
+                    margin:         0,
                     textDecoration: done ? 'line-through' : 'none',
                   }}>
                     {item.label}
