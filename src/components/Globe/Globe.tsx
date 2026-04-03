@@ -35,7 +35,6 @@ function pinColor(label: string): number {
   return 0xff9f43
 }
 
-// Points terrestres précalculés pour la détection continent/océan
 const LAND_LATLNG: [number, number][] = [
   // Europe
   [48,2],[51,0],[52,13],[48,16],[41,12],[40,-3],[38,-9],
@@ -65,8 +64,7 @@ const LAND_LATLNG: [number, number][] = [
 
 function isLand(lat: number, lng: number): boolean {
   return LAND_LATLNG.some(([pLat, pLng]) => {
-    const d = Math.sqrt((lat - pLat) ** 2 + (lng - pLng) ** 2)
-    return d < 7
+    return Math.sqrt((lat - pLat) ** 2 + (lng - pLng) ** 2) < 7
   })
 }
 
@@ -89,8 +87,6 @@ export default function Globe({
     autoRotate: true,
     isDragging: false,
     prevMouse:  { x: 0, y: 0 },
-    rotX: 0,
-    rotY: 0,
   })
 
   const pinMeshesRef = useRef<Array<{
@@ -99,7 +95,6 @@ export default function Globe({
     mat:  THREE.MeshPhongMaterial
   }>>([])
 
-  // ── Main scene ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mountRef.current) return
     const mount = mountRef.current
@@ -115,55 +110,53 @@ export default function Globe({
     renderer.setPixelRatio(window.devicePixelRatio)
     mount.appendChild(renderer.domElement)
 
-    // Globe base sphere — très sombre
-    const globeGeo = new THREE.SphereGeometry(1, 64, 64)
-    const globeMat = new THREE.MeshPhongMaterial({
-      color:     0x040812,
-      emissive:  new THREE.Color(0x010408),
-      shininess: 10,
-    })
-    const globe = new THREE.Mesh(globeGeo, globeMat)
+    // ── Globe base sphere (sphère sombre, séparée du hexGroup) ──────────────
+    const globe = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 64, 64),
+      new THREE.MeshBasicMaterial({ color: 0x030608 }),
+    )
     scene.add(globe)
 
-    // ── Hexagonal surface grid ───────────────────────────────────────────────
+    // ── Grille hexagonale sur la surface ────────────────────────────────────
     const hexGroup = new THREE.Group()
     const STEP_LAT = 8
     const STEP_LNG = 10
+    const UP = new THREE.Vector3(0, 0, 1)
 
     for (let lat = -80; lat <= 80; lat += STEP_LAT) {
       for (let lng = -180; lng < 180; lng += STEP_LNG) {
         const land   = isLand(lat, lng)
         const center = toXYZ(lat, lng, 1.001)
+        const normal = center.clone().normalize()
 
         // Hexagone plat
-        const hexGeo = new THREE.CircleGeometry(0.035, 6)
+        const hexGeo = new THREE.CircleGeometry(0.042, 6)
         const hexMat = new THREE.MeshBasicMaterial({
-          color:       land ? 0x2A1870 : 0x0A0D20,
+          color:       land ? 0x3D2090 : 0x0D1128,
           transparent: true,
-          opacity:     land ? 0.9 : 0.4,
+          opacity:     land ? 1.0 : 0.7,
           side:        THREE.DoubleSide,
         })
         const hex = new THREE.Mesh(hexGeo, hexMat)
         hex.position.copy(center)
-        hex.lookAt(new THREE.Vector3(0, 0, 0))
-        hex.rotateX(Math.PI)
+        hex.quaternion.setFromUnitVectors(UP, normal)
         hexGroup.add(hex)
 
         // Contour hexagone
         const edgeGeo = new THREE.EdgesGeometry(hexGeo)
         const edgeMat = new THREE.LineBasicMaterial({
-          color:       land ? 0x6040E0 : 0x101828,
+          color:       land ? 0x8060FF : 0x1A2040,
           transparent: true,
-          opacity:     land ? 0.6 : 0.2,
+          opacity:     land ? 0.8 : 0.4,
         })
         const edge = new THREE.LineSegments(edgeGeo, edgeMat)
         edge.position.copy(center)
-        edge.lookAt(new THREE.Vector3(0, 0, 0))
-        edge.rotateX(Math.PI)
+        edge.quaternion.setFromUnitVectors(UP, normal)
         hexGroup.add(edge)
       }
     }
     scene.add(hexGroup)
+    console.log('[Globe] hexGroup children:', hexGroup.children.length)
 
     // ── Atmosphère néon ──────────────────────────────────────────────────────
     scene.add(new THREE.Mesh(
@@ -175,24 +168,24 @@ export default function Globe({
       new THREE.MeshBasicMaterial({ color: 0x3D8EFF, transparent: true, opacity: 0.02, side: THREE.FrontSide }),
     ))
 
-    // ── Éclairage ────────────────────────────────────────────────────────────
-    scene.add(new THREE.AmbientLight(0x0a0a20, 1.0))
-    const greenLight = new THREE.PointLight(0x00E5A0, 1.5)
-    greenLight.position.set(4, 3, 4)
-    scene.add(greenLight)
-    const blueLight = new THREE.PointLight(0x3D8EFF, 0.8)
-    blueLight.position.set(-4, -2, 3)
-    scene.add(blueLight)
-    const whiteLight = new THREE.PointLight(0xffffff, 0.3)
-    whiteLight.position.set(0, 5, 0)
-    scene.add(whiteLight)
+    // ── Éclairage fort ───────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0x303060, 2.0))
+    const light1 = new THREE.PointLight(0x00E5A0, 3.0)
+    light1.position.set(4, 3, 4)
+    scene.add(light1)
+    const light2 = new THREE.PointLight(0x6040FF, 2.0)
+    light2.position.set(-4, -2, 3)
+    scene.add(light2)
+    const light3 = new THREE.DirectionalLight(0xffffff, 1.5)
+    light3.position.set(2, 5, 3)
+    scene.add(light3)
 
-    // ── Pins (au-dessus des hexagones, r=1.06) ───────────────────────────────
+    // ── Pins (r=1.08, au-dessus des hexagones) ───────────────────────────────
     const pinMeshes: Array<{ mesh: THREE.Mesh; pin: GlobePin; mat: THREE.MeshPhongMaterial }> = []
     const rings: Array<{ mesh: THREE.Mesh; phase: number }> = []
 
     pins.forEach((pin, idx) => {
-      const pos    = toXYZ(pin.lat, pin.lng, 1.06)
+      const pos    = toXYZ(pin.lat, pin.lng, 1.08)
       const radius = Math.min(0.012 + pin.count * 0.003, 0.05)
       const color  = pinColor(pin.label)
 
@@ -228,8 +221,10 @@ export default function Globe({
       if (stateRef.current.isDragging) {
         const dx = e.clientX - stateRef.current.prevMouse.x
         const dy = e.clientY - stateRef.current.prevMouse.y
-        stateRef.current.rotY += dx * 0.005
-        stateRef.current.rotX += dy * 0.005
+        globe.rotation.y    += dx * 0.005
+        globe.rotation.x    += dy * 0.005
+        hexGroup.rotation.y  = globe.rotation.y
+        hexGroup.rotation.x  = globe.rotation.x
         stateRef.current.prevMouse = { x: e.clientX, y: e.clientY }
       }
       if (onHoverRef.current) {
@@ -271,24 +266,25 @@ export default function Globe({
     renderer.domElement.addEventListener('mouseleave', onMouseLeave)
     renderer.domElement.addEventListener('click',      handleClick)
 
-    // Animation loop
+    // ── Animation ────────────────────────────────────────────────────────────
     let rafId: number
     const animate = () => {
       rafId = requestAnimationFrame(animate)
 
-      if (stateRef.current.autoRotate) stateRef.current.rotY += 0.003
-
-      globe.rotation.y    = stateRef.current.rotY
-      globe.rotation.x    = stateRef.current.rotX
-      hexGroup.rotation.y = stateRef.current.rotY
-      hexGroup.rotation.x = stateRef.current.rotX
+      if (stateRef.current.autoRotate) {
+        globe.rotation.y    += 0.003
+        hexGroup.rotation.y += 0.003
+      } else {
+        hexGroup.rotation.y = globe.rotation.y
+        hexGroup.rotation.x = globe.rotation.x
+      }
 
       // Pulse rings
       const t = performance.now() / 1000
       rings.forEach(({ mesh, phase }) => {
-        const s = 0.8 + 0.4 * Math.sin(t * 2 + phase)
-        mesh.scale.setScalar(s)
+        mesh.scale.setScalar(0.8 + 0.4 * Math.sin(t * 2 + phase))
       })
+
       renderer.render(scene, camera)
     }
     animate()
