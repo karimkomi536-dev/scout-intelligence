@@ -16,6 +16,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 async function fetchOnboardingStatus(userId: string): Promise<boolean> {
+  // Fast-path: localStorage avoids a round-trip on every login
+  if (localStorage.getItem('vizion-onboarding-done') === 'true') return false
+
   const { data } = await supabase
     .from('profiles')
     .select('onboarding_completed')
@@ -23,7 +26,9 @@ async function fetchOnboardingStatus(userId: string): Promise<boolean> {
     .maybeSingle()
   // !data means no profile yet → needs onboarding
   // data.onboarding_completed === false → needs onboarding
-  return !(data?.onboarding_completed)
+  const done = !!data?.onboarding_completed
+  if (done) localStorage.setItem('vizion-onboarding-done', 'true')
+  return !done
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

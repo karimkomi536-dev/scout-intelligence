@@ -145,6 +145,7 @@ export default function Onboarding() {
         body: JSON.stringify({ email: user!.email, firstName }),
       }).catch(() => {})
 
+      localStorage.setItem('vizion-onboarding-done', 'true')
       completeOnboarding()
       navigate('/dashboard', { replace: true })
     } catch (e) {
