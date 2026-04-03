@@ -1,7 +1,7 @@
 # VIZION — Todo
 
 ## En cours
-- [ ] SharedShortlist.tsx — vue publique read-only à /shortlist/:token
+_(rien)_
 
 ## Terminé (suite)
 - [x] Scoring personnalisable par org — scoring_profiles table, Settings.tsx (sliders, Pro+ gating), useScoringProfile hook, calculateScore(weights?), Players + PlayerDetail mis à jour
@@ -31,5 +31,15 @@
   (génère les snapshots de progression joueurs
   + notifications automatiques si score changé)
 
+## Terminé (session 2026-04-03)
+- [x] Présentation mode PlayerDetail — fullscreen + bouton "Quitter" flottant
+- [x] Toasts globaux — ToastContext, positions desktop/mobile, max 3, duration:0=persistant
+- [x] Toasts sur toutes les actions — PDF, note, compare, IA, scoring, invite, newsletter, CSV, shadow team
+- [x] Filtres rapides Players — chips En forme/ELITE/U23/Ligue 1/PL/< 5M
+- [x] Filtre valeur marchande — select preset AdvancedSearch (min+max)
+- [x] Recherches sauvegardées — localStorage max 5, restore/delete
+- [x] Bugs résolus — overall_score→scout_score, shortlist_entries fallback, stripe null guard, useOrg retry guard, shortlist silent fallback
+- [x] SharedShortlist.tsx — créer src/pages/SharedShortlist.tsx et route publique dans App.tsx
+
 ## À faire
-- [ ] SharedShortlist.tsx — créer src/pages/SharedShortlist.tsx et route publique dans App.tsx
+_(rien de planifié — attente de la prochaine session)_

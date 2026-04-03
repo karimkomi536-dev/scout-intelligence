@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useContext } from 'react'
+import { SkeletonPlayerHeader, SkeletonRadar } from '../components/Skeleton'
 import { useParams, useNavigate } from 'react-router-dom'
 import { usePlayer } from '../hooks/usePlayer'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -386,9 +387,9 @@ export default function PlayerDetail() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', padding: '48px 0' }}>
-        <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>Chargement…</span>
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <SkeletonPlayerHeader />
+        <SkeletonRadar />
       </div>
     )
   }

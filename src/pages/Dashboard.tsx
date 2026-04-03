@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel } from '../utils/scoring'
 import { useAuth } from '../contexts/AuthContext'
 import { OnboardingChecklist } from '../components/OnboardingChecklist'
+import { SkeletonKPI } from '../components/Skeleton'
 import { ScoreSparkline } from '../components/ScoreSparkline'
 import { getTrend } from '../utils/trend'
 import type { Player } from '../types/player'
@@ -302,7 +303,22 @@ export default function Dashboard() {
       setPlayers((pData ?? []) as unknown as Player[])
       setTopPlayers((topData ?? []) as unknown as Player[])
       setU23Players((u23Data ?? []) as unknown as Player[])
-      setRecent((rData ?? []) as unknown as RecentEntry[])
+
+      // BUG 3 fallback: if FK join returned null players, fetch names separately
+      let recentEntries = (rData ?? []) as unknown as RecentEntry[]
+      const missingNames = recentEntries.filter(e => !e.players)
+      if (missingNames.length > 0) {
+        const ids = missingNames.map(e => e.player_id)
+        const { data: nameData } = await supabase
+          .from('players').select('id, name, primary_position').in('id', ids)
+        if (nameData) {
+          const byId = Object.fromEntries(nameData.map(p => [p.id, p]))
+          recentEntries = recentEntries.map(e =>
+            e.players ? e : { ...e, players: byId[e.player_id] ?? null }
+          )
+        }
+      }
+      setRecent(recentEntries)
       setCronLog(cData as CronLog | null)
       setThisMonth(cThis ?? 0)
       setLastMonth(cLast ?? 0)
@@ -353,8 +369,10 @@ export default function Dashboard() {
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-      <p style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>Chargement…</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+        <SkeletonKPI /><SkeletonKPI /><SkeletonKPI /><SkeletonKPI />
+      </div>
     </div>
   )
 

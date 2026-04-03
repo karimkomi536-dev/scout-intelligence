@@ -15,6 +15,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../hooks/useToast'
+import { SkeletonShortlistGroup } from '../components/Skeleton'
 import { calculateScore, getScoreLabel } from '../utils/scoring'
 import {
   TAG_PALETTE, randomTagColor, generateToken,
@@ -306,6 +308,7 @@ function ShareModal({
 
 export default function Shortlist() {
   const { user } = useAuth()
+  const { showToast } = useToast()
 
   // Ref (pas state) : ne déclenche pas de re-render → pas de boucle infinie
 
@@ -410,12 +413,16 @@ export default function Shortlist() {
     const { data } = await supabase.from('shortlists')
       .insert({ user_id: user.id, player_id: player.id, list_id: activeId, tags: [], position_index: maxPos })
       .select('*, players(*)').single()
-    if (data) setEntries(prev => [...prev, data as ShortlistEntry])
+    if (data) {
+      setEntries(prev => [...prev, data as ShortlistEntry])
+      showToast('Joueur ajouté à la shortlist', 'success')
+    }
   }
 
   async function removeEntry(entryId: string) {
     await supabase.from('shortlists').delete().eq('id', entryId)
     setEntries(prev => prev.filter(e => e.id !== entryId))
+    showToast('Joueur retiré de la shortlist', 'info')
   }
 
   async function updateTags(entryId: string, tags: Tag[]) {
@@ -446,7 +453,13 @@ export default function Shortlist() {
   const playerIds = entries.map(e => e.player_id)
 
 
-  if (loadingGroups) return <p style={{ color: '#6b7280' }}>Chargement…</p>
+  if (loadingGroups) return (
+    <div>
+      <SkeletonShortlistGroup />
+      <SkeletonShortlistGroup />
+      <SkeletonShortlistGroup />
+    </div>
+  )
 
   return (
     <div style={{ color: 'white' }}>
