@@ -21,6 +21,7 @@ import { useSimilarPlayers } from '../hooks/useSimilarPlayers'
 import { useFixtures } from '../hooks/useFixtures'
 import SimilarPlayers from '../components/SimilarPlayers'
 import { useCompare } from '../contexts/CompareContext'
+import { useToast } from '../hooks/useToast'
 import { PresentationContext } from '../components/Layout'
 import { PlayerPDFReport } from '../components/PlayerPDFReport'
 import { exportPlayerPDF } from '../utils/exportPDF'
@@ -278,6 +279,8 @@ export default function PlayerDetail() {
   const { similar, loading: similarLoading } = useSimilarPlayers(player)
   const { fixtures, loading: fixturesLoading, hasTeam } = useFixtures(player?.team)
   const { isPresentation, setPresentation } = useContext(PresentationContext)
+  const { showToast, dismiss: dismissToast } = useToast()
+  const aiToastIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -325,9 +328,10 @@ export default function PlayerDetail() {
     try {
       await new Promise(resolve => setTimeout(resolve, 400))
       await exportPlayerPDF(reportRef.current, player.name)
+      showToast('PDF exporté avec succès', 'success')
     } catch (err) {
       console.error('PDF export failed:', err)
-      alert('Erreur lors de la génération du PDF.')
+      showToast('Erreur export PDF', 'error')
     } finally {
       setPdfLoading(false)
     }
@@ -346,6 +350,7 @@ export default function PlayerDetail() {
       setNotes(prev => [data as ScoutNote, ...prev])
       setNoteText('')
       setShowNoteForm(false)
+      showToast('Note enregistrée', 'success')
     }
   }
 
@@ -365,6 +370,17 @@ export default function PlayerDetail() {
     document.addEventListener('fullscreenchange', handler)
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [setPresentation])
+
+  useEffect(() => {
+    if (aiStatus === 'success') {
+      if (aiToastIdRef.current) { dismissToast(aiToastIdRef.current); aiToastIdRef.current = null }
+      showToast('Rapport IA généré', 'success')
+    }
+    if (aiStatus === 'error') {
+      if (aiToastIdRef.current) { dismissToast(aiToastIdRef.current); aiToastIdRef.current = null }
+      showToast('Erreur lors de la génération du rapport IA', 'error')
+    }
+  }, [aiStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── States ─────────────────────────────────────────────────────────────────
 
@@ -626,7 +642,13 @@ export default function PlayerDetail() {
 
               {/* Comparer */}
               <button
-                onClick={() => player && (compareIds.length < 3 || isSelected(player.id)) && toggle(player.id)}
+                onClick={() => {
+                  if (!player) return
+                  if (compareIds.length < 3 || isSelected(player.id)) {
+                    if (!isSelected(player.id)) showToast('Joueur ajouté au comparateur', 'success')
+                    toggle(player.id)
+                  }
+                }}
                 disabled={compareIds.length >= 3 && !isSelected(player?.id ?? '')}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
@@ -1473,7 +1495,11 @@ export default function PlayerDetail() {
 
                 {aiStatus !== 'success' && (
                   <button
-                    onClick={() => limits.canAIReport ? generateReport(player) : setShowAiUpgrade(true)}
+                    onClick={() => {
+                      if (!limits.canAIReport) { setShowAiUpgrade(true); return }
+                      aiToastIdRef.current = showToast('Rapport IA en cours de génération…', 'info', 0)
+                      generateReport(player)
+                    }}
                     disabled={aiStatus === 'loading'}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '8px',

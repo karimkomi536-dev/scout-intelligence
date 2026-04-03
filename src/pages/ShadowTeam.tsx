@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lock, Download, X, Search, ChevronDown, Loader2, Sparkles, CheckCircle } from 'lucide-react'
+import { Lock, Download, X, Search, ChevronDown, Loader2, Sparkles } from 'lucide-react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { supabase } from '../lib/supabase'
 import { getScoreLabel } from '../utils/scoring'
 import { useScoringProfile } from '../hooks/useScoringProfile'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useToast } from '../hooks/useToast'
 import type { Player } from '../types/player'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -456,7 +457,7 @@ export default function ShadowTeam() {
   const [suggestions,        setSuggestions]        = useState<Player[]>([])
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [autoBuilding,       setAutoBuilding]       = useState(false)
-  const [toast,              setToast]              = useState<string | null>(null)
+  const { showToast } = useToast()
 
   // ── Load / save localStorage ──────────────────────────────────────────────
 
@@ -540,8 +541,7 @@ export default function ShadowTeam() {
     }
     setAssignments(newAssignments)
     setAutoBuilding(false)
-    setToast('Équipe construite automatiquement')
-    setTimeout(() => setToast(null), 3000)
+    showToast('Équipe construite automatiquement', 'success')
   }, [assignments, formation])
 
   // ── Export PDF ────────────────────────────────────────────────────────────
@@ -563,6 +563,10 @@ export default function ShadowTeam() {
       if (imgAspect < pdfAspect) { h = pdfH; w = pdfH * imgAspect }
       pdf.addImage(imgData, 'PNG', (pdfW - w) / 2, (pdfH - h) / 2, w, h)
       pdf.save(`VIZION_ShadowTeam_${new Date().toISOString().slice(0,10)}.pdf`)
+      showToast('PDF exporté avec succès', 'success')
+    } catch (err) {
+      console.error('Shadow team PDF export failed:', err)
+      showToast('Erreur export PDF', 'error')
     } finally {
       setExporting(false)
     }
@@ -1011,22 +1015,6 @@ export default function ShadowTeam() {
         />
       )}
 
-      {/* Toast */}
-      {toast && (
-        <div style={{
-          position:'fixed', bottom:'32px', left:'50%', transform:'translateX(-50%)',
-          zIndex:500, display:'flex', alignItems:'center', gap:'8px',
-          background:'#0D1525', border:'1px solid rgba(0,200,150,0.35)',
-          borderRadius:'12px', padding:'12px 20px',
-          boxShadow:'0 8px 32px rgba(0,0,0,0.50)',
-          animation:'fadeIn 0.20s ease',
-          fontSize:'13px', fontWeight:600, color:'var(--text-primary)',
-          whiteSpace:'nowrap',
-        }}>
-          <CheckCircle size={16} color="#00C896" />
-          {toast}
-        </div>
-      )}
     </div>
   )
 }

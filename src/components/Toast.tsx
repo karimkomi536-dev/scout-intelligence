@@ -1,4 +1,9 @@
-import type { ToastItem } from '../hooks/useToast'
+export interface ToastItem {
+  id:       string
+  message:  string
+  type:     'success' | 'error' | 'info'
+  duration: number
+}
 
 const TYPE_STYLES: Record<ToastItem['type'], React.CSSProperties> = {
   success: {
@@ -57,9 +62,11 @@ function ToastBubble({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => 
 export function ToastContainer({
   toasts,
   onDismiss,
+  isMobile = false,
 }: {
-  toasts: ToastItem[]
+  toasts:    ToastItem[]
   onDismiss: (id: string) => void
+  isMobile?: boolean
 }) {
   if (toasts.length === 0) return null
   return (
@@ -68,9 +75,10 @@ export function ToastContainer({
       <div
         style={{
           position: 'fixed',
-          top: 'calc(70px + env(safe-area-inset-top, 0px))',
-          left: '16px',
-          right: '16px',
+          ...(isMobile
+            ? { left: '16px', right: '16px', top: 'calc(70px + env(safe-area-inset-top, 0px))' }
+            : { right: '24px', top: '80px', width: '320px' }
+          ),
           zIndex: 9999,
           display: 'flex',
           flexDirection: 'column',

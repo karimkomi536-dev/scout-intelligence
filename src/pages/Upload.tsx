@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Upload as UploadIcon, FileText, CheckCircle, AlertCircle, Download, Loader2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../hooks/useToast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ export default function Upload() {
   const [csvFile,    setCsvFile]    = useState<File | null>(null)
   const [preview,    setPreview]    = useState<{ headers: string[]; rows: Record<string, string>[] } | null>(null)
   const [importing,  setImporting]  = useState(false)
+  const { showToast } = useToast()
   const [results,    setResults]    = useState<ImportResults | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -105,6 +107,7 @@ export default function Upload() {
 
     setResults({ inserted, updated, errors })
     setImporting(false)
+    showToast(`Import CSV terminé : ${inserted} insérés, ${updated} mis à jour`, 'success')
   }
 
   // ── Template download ───────────────────────────────────────────────────────

@@ -14,9 +14,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { usePlan } from '../hooks/usePlan'
 import { UpgradeBanner } from '../components/UpgradeBanner'
 import { useToast } from '../hooks/useToast'
+// ToastContainer is now rendered globally via ToastProvider
 import { usePressable } from '../hooks/usePressable'
 import { SkeletonCard } from '../components/Skeleton'
-import { ToastContainer } from '../components/Toast'
 import AdvancedSearch from '../components/AdvancedSearch'
 import { TrendBadge } from '../components/TrendBadge'
 import { ScoreSparkline } from '../components/ScoreSparkline'
@@ -402,7 +402,7 @@ export default function Players() {
   const { weights: scoringWeights } = useScoringProfile()
   const { user } = useAuth()
   const { limits } = usePlan()
-  const { toasts, showToast, dismiss } = useToast()
+  const { showToast } = useToast()
 
   const queryClient = useQueryClient()
   const [totalPlayerCount, setTotalPlayerCount] = useState(0)
@@ -779,7 +779,6 @@ export default function Players() {
         onTouchMove={onPullTouchMove}
         onTouchEnd={onPullTouchEnd}
       >
-        <ToastContainer toasts={toasts} onDismiss={dismiss} />
 
         {/* Pull-to-refresh indicator */}
         {(pullY > 0 || isPullRefreshing) && (
@@ -1334,7 +1333,12 @@ export default function Players() {
                     <Heart size={10} fill="#00C896" /> + Shortlist
                   </button>
                   <button
-                    onClick={() => (compareIds.length < 3 || inComp) && toggle(player.id)}
+                    onClick={() => {
+                      if (compareIds.length < 3 || inComp) {
+                        if (!inComp) showToast('Joueur ajouté au comparateur', 'success')
+                        toggle(player.id)
+                      }
+                    }}
                     disabled={compareIds.length >= 3 && !inComp}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '5px',

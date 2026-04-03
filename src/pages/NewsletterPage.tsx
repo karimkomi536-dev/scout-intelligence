@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Loader2, Copy, Check, Newspaper, RefreshCw, Star, Zap } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../hooks/useToast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ export default function NewsletterPage() {
   const [loading, setLoading] = useState(false)
   const [copied,  setCopied]  = useState(false)
   const [error,   setError]   = useState<string | null>(null)
+  const { showToast } = useToast()
 
   const generate = async () => {
     setLoading(true)
@@ -96,6 +98,7 @@ export default function NewsletterPage() {
           weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
         }),
       })
+      showToast('Newsletter générée', 'success')
     } catch (e) {
       console.error('Newsletter generation failed:', e)
       setError('Erreur lors de la génération. Vérifiez la connexion Supabase.')

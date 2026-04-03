@@ -15,6 +15,7 @@ import type { Player } from '../types/player'
 import { useAlertPrefs } from '../hooks/useAlertPrefs'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '../hooks/useToast'
 
 // ── Scoring types & helpers ───────────────────────────────────────────────────
 
@@ -196,6 +197,7 @@ export default function Settings() {
   const { weights: orgWeights, isProPlan, orgId, loading } = useScoringProfile()
   const { organization, role: currentUserRole } = useOrganization()
   const { prefs: alertPrefs, toggle: toggleAlert } = useAlertPrefs()
+  const { showToast } = useToast()
 
   const isEnterprise = organization?.plan === 'enterprise'
   const isAdmin = currentUserRole === 'admin'
@@ -263,6 +265,7 @@ export default function Settings() {
         .upsert(payload, { onConflict: 'organization_id,position_group' })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+      showToast('Profil de scoring sauvegardé', 'success')
     } finally {
       setSaving(false)
     }
@@ -344,6 +347,7 @@ export default function Settings() {
         }),
       }).catch(console.warn)
 
+      showToast('Invitation envoyée', 'success')
       setInviteSuccess(true)
       setTimeout(() => {
         setInviteModal(false)

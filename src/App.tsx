@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import ErrorFallback from './components/ErrorFallback'
 import { CompareProvider } from './contexts/CompareContext'
+import { ToastProvider } from './contexts/ToastContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import Layout from './components/Layout'
@@ -53,6 +54,7 @@ function App() {
         />
       )}
 
+      <ToastProvider>
       <CompareProvider>
       <AuthProvider>
         <BrowserRouter>
@@ -114,6 +116,7 @@ function App() {
         </BrowserRouter>
       </AuthProvider>
       </CompareProvider>
+      </ToastProvider>
     </>
   )
 }
