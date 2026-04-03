@@ -205,8 +205,8 @@ export default function WorldMap() {
                   <HexMap
                     pins={pins}
                     onCountryClick={country => { setSelectedCountry(country); setTooltip(null) }}
-                    width={isMobile ? globeSize : 800}
-                    height={isMobile ? 300 : 450}
+                    width={isMobile ? 360 : 900}
+                    height={isMobile ? 220 : 480}
                   />
                 )}
               </Suspense>

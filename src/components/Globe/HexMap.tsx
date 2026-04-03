@@ -12,38 +12,49 @@ interface Props {
   height?: number
 }
 
-// Coordonnées des masses terrestres (polygones simplifiés)
-// Chaque zone est définie par [latMin, latMax, lngMin, lngMax]
-const LAND_ZONES = [
+// Points terrestres précalculés (lat, lng) pour les zones clés
+const LAND_POINTS: [number, number][] = [
   // Europe
-  { lat: [35, 71], lng: [-10, 40], density: 0.9 },
+  [48, 2], [51, 0], [52, 13], [48, 16], [41, 12], [40, -3],
+  [38, -9], [51, 4], [56, 10], [60, 11], [64, 26], [59, 18],
+  [47, 8], [46, 14], [42, 23], [38, 22], [37, 14], [37, 25],
+  [53, 18], [50, 20], [47, 19], [44, 26], [42, 43], [41, 44],
+  [55, 37], [59, 30], [56, 24], [54, 25], [52, 21], [48, 35],
   // Afrique
-  { lat: [-35, 37], lng: [-18, 52], density: 0.85 },
+  [36, 3], [33, -5], [14, -14], [12, -2], [5, -1], [-4, 15],
+  [-26, 28], [-30, 31], [-4, 40], [15, 32], [9, 38], [0, 37],
+  [-19, 47], [-13, 16], [7, 2], [4, 18], [-11, 17], [20, 13],
+  [30, 31], [24, 15], [16, 43], [11, 8], [6, -4], [-29, 26],
   // Amérique du Nord
-  { lat: [24, 72], lng: [-168, -52], density: 0.85 },
-  // Amérique Centrale + Caraïbes
-  { lat: [7, 24], lng: [-92, -60], density: 0.7 },
+  [40, -74], [38, -77], [42, -83], [45, -73], [37, -122],
+  [34, -118], [47, -122], [29, -95], [43, -79], [39, -105],
+  [35, -90], [33, -84], [25, -80], [48, -98], [51, -114],
+  [54, -124], [19, -99], [21, -102], [44, -76], [46, -64],
   // Amérique du Sud
-  { lat: [-56, 12], lng: [-82, -34], density: 0.85 },
-  // Russie / Asie du Nord
-  { lat: [50, 75], lng: [40, 180], density: 0.8 },
-  // Asie Centrale + Moyen Orient
-  { lat: [15, 50], lng: [40, 100], density: 0.85 },
-  // Asie du Sud + Inde
-  { lat: [5, 35], lng: [68, 100], density: 0.9 },
-  // Asie du Sud-Est
-  { lat: [-10, 25], lng: [95, 140], density: 0.75 },
-  // Chine + Japon
-  { lat: [20, 55], lng: [100, 145], density: 0.9 },
-  // Australie
-  { lat: [-45, -10], lng: [113, 155], density: 0.85 },
-  // Groenland
-  { lat: [60, 83], lng: [-58, -17], density: 0.6 },
-  // Scandinavie
-  { lat: [55, 71], lng: [5, 32], density: 0.9 },
-  // Îles britanniques
-  { lat: [50, 61], lng: [-10, 2], density: 0.9 },
+  [-23, -46], [-34, -58], [-12, -77], [-16, -68], [-4, -39],
+  [-8, -35], [-15, -47], [-3, -60], [5, -52], [-33, -71],
+  [-38, -63], [7, -66], [4, -74], [10, -67], [-1, -78],
+  // Asie
+  [35, 139], [34, 108], [39, 116], [55, 82], [43, 76],
+  [51, 71], [23, 113], [13, 100], [1, 103], [14, 120],
+  [22, 88], [28, 77], [19, 73], [17, 82], [31, 121],
+  [37, 127], [35, 136], [33, 130], [24, 121], [10, 77],
+  [60, 30], [56, 44], [52, 55], [48, 68], [43, 51],
+  // Australie + Océanie
+  [-33, 151], [-37, 145], [-27, 153], [-35, 138],
+  [-31, 116], [-23, 133], [-43, 172],
+  // Asie centrale / Moyen orient
+  [41, 69], [38, 35], [33, 44], [36, 52], [32, 53],
+  [25, 55], [24, 46], [21, 39], [15, 44], [12, 42],
 ]
+
+function isLandPoint(lat: number, lng: number): boolean {
+  return LAND_POINTS.some(([pLat, pLng]) => {
+    const dLat = lat - pLat
+    const dLng = lng - pLng
+    return Math.sqrt(dLat * dLat + dLng * dLng) < 6
+  })
+}
 
 export default function HexMap({ pins, onCountryClick, width = 900, height = 480 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -51,43 +62,33 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
   const [hoveredPin, setHoveredPin] = useState<Pin | null>(null)
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null)
 
-  // Conversion coordonnées géographiques → pixels
   const toXY = useCallback((lat: number, lng: number) => ({
     x: (lng + 180) / 360 * width,
     y: (90 - lat) / 180 * height,
   }), [width, height])
 
-  // Vérifie si un point est dans une zone terrestre
-  const isLand = useCallback((lat: number, lng: number) => {
-    return LAND_ZONES.some(zone =>
-      lat >= zone.lat[0] && lat <= zone.lat[1] &&
-      lng >= zone.lng[0] && lng <= zone.lng[1] &&
-      Math.random() < zone.density
-    )
-  }, [])
-
   // Précalcule la grille d'hexagones (une seule fois)
   const hexGridRef = useRef<Array<{ x: number; y: number; isLand: boolean }>>([])
 
   useEffect(() => {
-    const HEX_R = 7 // rayon hexagone
+    const HEX_R = 8
     const HEX_W = HEX_R * Math.sqrt(3)
-    const HEX_H = HEX_R * 2
+    const HEX_H = HEX_R * 2 * 0.75
     const grid: Array<{ x: number; y: number; isLand: boolean }> = []
 
     let row = 0
-    for (let y = HEX_R; y < height + HEX_R; y += HEX_H * 0.75) {
-      const offset = row % 2 === 0 ? 0 : HEX_W / 2
-      for (let x = offset; x < width + HEX_W; x += HEX_W) {
+    for (let y = HEX_R; y < height; y += HEX_H) {
+      const offset = row % 2 === 1 ? HEX_W / 2 : 0
+      for (let x = offset + HEX_R; x < width; x += HEX_W) {
         const lng = (x / width) * 360 - 180
         const lat = 90 - (y / height) * 180
-        const land = isLand(lat, lng)
+        const land = isLandPoint(lat, lng)
         grid.push({ x, y, isLand: land })
       }
       row++
     }
     hexGridRef.current = grid
-  }, [width, height, isLand])
+  }, [width, height])
 
   // Dessin
   const draw = useCallback((time: number) => {
@@ -96,21 +97,21 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const HEX_R = 7
+    const HEX_R = 8
 
     // Fond
     ctx.fillStyle = '#07090F'
     ctx.fillRect(0, 0, width, height)
 
-    // Dessine la grille hexagonale
+    // Grille hexagonale
     hexGridRef.current.forEach(({ x, y, isLand }) => {
-      drawHexagon(ctx, x, y, HEX_R - 0.8, isLand)
+      drawHexagon(ctx, x, y, HEX_R - 1, isLand)
     })
 
-    // Arcs de connexion (animés)
+    // Arcs animés
     drawArcs(ctx, pins, time)
 
-    // Pins pays
+    // Pins
     pins.forEach(pin => {
       const { x, y } = toXY(pin.lat, pin.lng)
       const isHovered = hoveredPin?.country === pin.country
@@ -129,15 +130,15 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
     ctx.closePath()
 
     if (land) {
-      ctx.fillStyle = '#1a1040'
+      ctx.fillStyle = '#1C1050'
       ctx.fill()
-      ctx.strokeStyle = 'rgba(100,80,200,0.35)'
+      ctx.strokeStyle = 'rgba(120,80,220,0.4)'
       ctx.lineWidth = 0.6
       ctx.stroke()
     } else {
-      ctx.fillStyle = '#0a0d1a'
+      ctx.fillStyle = '#080B18'
       ctx.fill()
-      ctx.strokeStyle = 'rgba(30,40,80,0.3)'
+      ctx.strokeStyle = 'rgba(20,30,70,0.5)'
       ctx.lineWidth = 0.4
       ctx.stroke()
     }
@@ -177,7 +178,7 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
     ctx.fill()
     ctx.shadowBlur = 0
 
-    // Label flottant style Orion (bulle avec ligne de connexion)
+    // Label flottant (bulle + ligne de connexion)
     if (pin.count > 8 || isHovered) {
       const label = pin.country
       const countLabel = pin.count.toString()
@@ -187,14 +188,12 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
       const totalW = labelW + 40
       const totalH = 24
 
-      // Position bulle (évite les bords)
       let bx = x + r + 10
       let by = y - totalH / 2
       if (bx + totalW > width - 10) bx = x - totalW - r - 10
       if (by < 5) by = 5
       if (by + totalH > height - 5) by = height - totalH - 5
 
-      // Fond bulle
       ctx.fillStyle = 'rgba(8,10,25,0.92)'
       ctx.strokeStyle = color + 'AA'
       ctx.lineWidth = 1
@@ -203,12 +202,10 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
       ctx.fill()
       ctx.stroke()
 
-      // Texte pays
       ctx.fillStyle = '#E2EAF4'
       ctx.font = 'bold 10px JetBrains Mono, monospace'
       ctx.fillText(label, bx + 8, by + 15)
 
-      // Badge count
       const badgeX = bx + totalW - 26
       ctx.fillStyle = color + '30'
       ctx.beginPath()
@@ -218,7 +215,6 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
       ctx.font = 'bold 9px JetBrains Mono, monospace'
       ctx.fillText(countLabel, badgeX + 11 - ctx.measureText(countLabel).width / 2, by + 14)
 
-      // Ligne de connexion
       const lineEndX = bx > x ? bx : bx + totalW
       ctx.beginPath()
       ctx.moveTo(x, y)
@@ -245,7 +241,6 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
 
         const progress = ((time * 0.0005 + i * 0.3 + j * 0.1) % 1)
 
-        // Trace l'arc en gradient
         const steps = 40
         for (let s = 0; s < steps; s++) {
           const t1 = s / steps
@@ -266,7 +261,7 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
           ctx.stroke()
         }
 
-        // Point lumineux qui se déplace le long de l'arc
+        // Point lumineux animé
         const px = (1 - progress) ** 2 * from.x + 2 * (1 - progress) * progress * cpX + progress ** 2 * to.x
         const py = (1 - progress) ** 2 * from.y + 2 * (1 - progress) * progress * cpY + progress ** 2 * to.y
         ctx.shadowColor = '#00E5A0'

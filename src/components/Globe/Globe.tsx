@@ -78,17 +78,52 @@ export default function Globe({
     renderer.setPixelRatio(window.devicePixelRatio)
     mount.appendChild(renderer.domElement)
 
-    // Globe mesh — dark night texture
+    // Globe mesh — custom canvas texture (no external URL)
     const globeGeo = new THREE.SphereGeometry(1, 64, 64)
-    const loader   = new THREE.TextureLoader()
-    const texture  = loader.load(
-      'https://unpkg.com/three-globe/example/img/earth-night.jpg',
-      () => renderer.render(scene, camera),
-    )
+
+    const canvas2d = document.createElement('canvas')
+    canvas2d.width = 2048; canvas2d.height = 1024
+    const ctx2d = canvas2d.getContext('2d')!
+
+    // Fond océan très sombre
+    const oceanGrad = ctx2d.createLinearGradient(0, 0, 0, 1024)
+    oceanGrad.addColorStop(0, '#010810')
+    oceanGrad.addColorStop(0.5, '#020C18')
+    oceanGrad.addColorStop(1, '#010810')
+    ctx2d.fillStyle = oceanGrad
+    ctx2d.fillRect(0, 0, 2048, 1024)
+
+    // Dessine les continents approximatifs
+    ctx2d.fillStyle = '#0D1F14'
+    // Europe + Asie
+    ctx2d.fillRect(750, 100, 900, 400)
+    // Afrique
+    ctx2d.fillRect(820, 350, 350, 450)
+    // Amérique du Nord
+    ctx2d.fillRect(50, 80, 500, 400)
+    // Amérique du Sud
+    ctx2d.fillRect(150, 450, 350, 420)
+    // Australie
+    ctx2d.fillRect(1600, 450, 300, 250)
+
+    // Grille de coordonnées néon
+    ctx2d.strokeStyle = 'rgba(0,229,160,0.06)'
+    ctx2d.lineWidth = 1
+    for (let i = 0; i <= 12; i++) {
+      const x = i * (2048 / 12)
+      ctx2d.beginPath(); ctx2d.moveTo(x, 0); ctx2d.lineTo(x, 1024); ctx2d.stroke()
+    }
+    for (let i = 0; i <= 6; i++) {
+      const y = i * (1024 / 6)
+      ctx2d.beginPath(); ctx2d.moveTo(0, y); ctx2d.lineTo(2048, y); ctx2d.stroke()
+    }
+
+    const texture = new THREE.CanvasTexture(canvas2d)
     const globeMat = new THREE.MeshPhongMaterial({
       map:               texture,
-      emissive:          new THREE.Color(0x002210),
-      emissiveIntensity: 0.15,
+      emissive:          new THREE.Color(0x001508),
+      emissiveIntensity: 0.3,
+      shininess:         5,
     })
     const globe = new THREE.Mesh(globeGeo, globeMat)
     scene.add(globe)
@@ -105,11 +140,11 @@ export default function Globe({
     ))
 
     // Lights — neon scheme
-    scene.add(new THREE.AmbientLight(0x0a1520, 0.3))
-    const greenLight = new THREE.PointLight(0x00e5a0, 0.4)
+    scene.add(new THREE.AmbientLight(0x0a1520, 0.8))
+    const greenLight = new THREE.PointLight(0x00e5a0, 0.6)
     greenLight.position.set(3, 2, 3)
     scene.add(greenLight)
-    const blueLight = new THREE.PointLight(0x3d8eff, 0.2)
+    const blueLight = new THREE.PointLight(0x3d8eff, 0.3)
     blueLight.position.set(-3, -1, 2)
     scene.add(blueLight)
 
