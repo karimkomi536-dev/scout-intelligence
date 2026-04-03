@@ -34,7 +34,8 @@ export function useOrganization(): OrganizationState {
   const [error, setError]               = useState<string | null>(null)
 
   // Guard: fetch exactly once per user session — never re-run on TOKEN_REFRESHED
-  const fetchedRef = useRef(false)
+  const fetchedRef  = useRef(false)
+  const retryCount  = useRef(0)
 
   useEffect(() => {
     // User logged out — reset everything so next login triggers a fresh fetch
@@ -53,6 +54,8 @@ export function useOrganization(): OrganizationState {
   }, [user?.id]) // ← stable primitive: won't re-run on TOKEN_REFRESHED
 
   async function fetchOrganization(userId: string) {
+    if (retryCount.current > 3) { setLoading(false); return }
+    retryCount.current++
     setLoading(true)
     setError(null)
 

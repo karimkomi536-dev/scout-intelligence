@@ -1,13 +1,13 @@
 import { loadStripe } from '@stripe/stripe-js'
 
-const key = import.meta.env.VITE_STRIPE_PUBLIC_KEY as string
+const key = import.meta.env.VITE_STRIPE_PUBLIC_KEY as string | undefined
 
 if (!key) {
-  console.warn('[stripe] VITE_STRIPE_PUBLIC_KEY is not set')
+  console.warn('[stripe] VITE_STRIPE_PUBLIC_KEY not set')
 }
 
-// Singleton — loadStripe deduplicates by key
-export const stripePromise = loadStripe(key ?? '')
+// Singleton — returns null if key is absent so callers can gate on it
+export const stripePromise = key ? loadStripe(key) : Promise.resolve(null)
 
 /** Redirect the current browser tab to a Stripe Checkout session. */
 export async function redirectToCheckout(priceId: string, orgId: string): Promise<void> {

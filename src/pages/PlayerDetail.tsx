@@ -331,7 +331,7 @@ export default function PlayerDetail() {
       showToast('PDF exporté avec succès', 'success')
     } catch (err) {
       console.error('PDF export failed:', err)
-      showToast('Erreur export PDF', 'error')
+      showToast('Export PDF échoué — réessaye', 'error')
     } finally {
       setPdfLoading(false)
     }

@@ -308,8 +308,6 @@ export default function Shortlist() {
   const { user } = useAuth()
 
   // Ref (pas state) : ne déclenche pas de re-render → pas de boucle infinie
-  const hasError = useRef(false)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const [groups, setGroups] = useState<ShortlistGroup[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -330,15 +328,12 @@ export default function Shortlist() {
 
   useEffect(() => {
     if (!user) return
-    if (hasError.current) return
     supabase.from('shortlist_groups').select('*')
       .eq('user_id', user.id).order('created_at')
       .then(({ data, error }) => {
         if (error) {
-          console.error('shortlist_groups:', error.message, error.code)
-          if (hasError.current) return
-          hasError.current = true
-          setErrorMsg('Erreur de chargement des listes. Rechargez la page.')
+          console.warn('Shortlist fetch error:', error)
+          setGroups([])
           setLoadingGroups(false)
           return
         }
@@ -354,7 +349,6 @@ export default function Shortlist() {
 
   useEffect(() => {
     if (!activeId) { setEntries([]); return }
-    if (hasError.current) return
     setLoadingEntries(true)
     supabase.from('shortlists')
       .select('*, players(*)')
@@ -362,10 +356,8 @@ export default function Shortlist() {
       .order('position_index')
       .then(({ data, error }) => {
         if (error) {
-          console.error('shortlists:', error.message, error.code)
-          if (hasError.current) return
-          hasError.current = true
-          setErrorMsg('Erreur de chargement des joueurs.')
+          console.warn('Shortlist fetch error:', error)
+          setEntries([])
           setLoadingEntries(false)
           return
         }
@@ -453,14 +445,6 @@ export default function Shortlist() {
   const activeGroup = groups.find(g => g.id === activeId)
   const playerIds = entries.map(e => e.player_id)
 
-  if (errorMsg) return (
-    <div style={{ background: '#1f1515', border: '1px solid #7f1d1d', borderRadius: '12px', padding: '24px', color: '#fca5a5' }}>
-      <strong>{errorMsg}</strong>{' '}
-      <button onClick={() => window.location.reload()} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit' }}>
-        Rechargez la page
-      </button>
-    </div>
-  )
 
   if (loadingGroups) return <p style={{ color: '#6b7280' }}>Chargement…</p>
 
