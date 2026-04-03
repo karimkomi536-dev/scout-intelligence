@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePlayers } from '../hooks/usePlayers'
-import { Search, X, Heart, Scale, RotateCcw, Users, SlidersHorizontal } from 'lucide-react'
+import { Search, X, Heart, RotateCcw, Users, SlidersHorizontal } from 'lucide-react'
 import { useSwipeable } from 'react-swipeable'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { supabase } from '../lib/supabase'
@@ -1366,7 +1366,7 @@ export default function Players() {
           {/* Table header */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '48px 1fr 90px 80px 100px 120px 1fr 90px 72px',
+            gridTemplateColumns: '48px 1fr 90px 80px 100px 120px 1fr 90px 100px',
             background: 'var(--bg-sidebar)',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
             padding: '0 16px',
@@ -1402,12 +1402,11 @@ export default function Players() {
                 onMouseLeave={() => setHoveredId(null)}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '48px 1fr 90px 80px 100px 120px 1fr 90px 72px',
+                  gridTemplateColumns: '48px 1fr 90px 80px 100px 120px 1fr 90px 100px',
                   alignItems: 'center',
                   padding: '0 16px',
                   borderBottom: '1px solid rgba(255,255,255,0.04)',
                   cursor: 'pointer',
-                  position: 'relative',
                   background: isHov ? 'rgba(255,255,255,0.025)' : 'transparent',
                   transition: 'background 120ms ease',
                   boxShadow: isHov ? 'inset 2px 0 0 #4D7FFF' : 'none',
@@ -1482,26 +1481,26 @@ export default function Players() {
                     <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '11px' }}>—</span>
                   )}
                 </div>
-                <div />
                 <div
                   onClick={e => e.stopPropagation()}
                   style={{
-                    position: 'absolute', right: 12,
-                    top: '50%', transform: 'translateY(-50%)',
-                    display: isHov ? 'flex' : 'none',
-                    gap: 6, alignItems: 'center',
+                    display: 'flex',
+                    gap: 4,
+                    justifyContent: 'flex-end',
+                    flexShrink: 0,
+                    opacity: isHov ? 1 : 0,
+                    transition: 'opacity 0.15s ease',
                   }}
                 >
                   <button
                     onClick={() => handleQuickShortlist(player)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '5px',
-                      padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
-                      background: 'rgba(0,200,150,0.12)', border: '1px solid rgba(0,200,150,0.35)',
-                      color: '#00C896', cursor: 'pointer',
+                      fontSize: 10, padding: '3px 7px', borderRadius: 4, cursor: 'pointer',
+                      background: 'rgba(0,229,160,0.1)', border: '1px solid rgba(0,229,160,0.3)',
+                      color: '#00E5A0', fontFamily: 'JetBrains Mono,monospace', whiteSpace: 'nowrap',
                     }}
                   >
-                    <Heart size={10} fill="#00C896" /> + Shortlist
+                    + SL
                   </button>
                   <button
                     onClick={() => {
@@ -1512,16 +1511,15 @@ export default function Players() {
                     }}
                     disabled={compareIds.length >= 3 && !inComp}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '5px',
-                      padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
-                      background: inComp ? 'rgba(77,127,255,0.18)' : 'rgba(77,127,255,0.10)',
-                      border: `1px solid ${inComp ? 'rgba(77,127,255,0.5)' : 'rgba(77,127,255,0.30)'}`,
-                      color: '#4D7FFF',
+                      fontSize: 10, padding: '3px 7px', borderRadius: 4,
                       cursor: compareIds.length >= 3 && !inComp ? 'not-allowed' : 'pointer',
+                      background: inComp ? 'rgba(61,142,255,0.2)' : 'rgba(61,142,255,0.1)',
+                      border: `1px solid ${inComp ? 'rgba(61,142,255,0.5)' : 'rgba(61,142,255,0.3)'}`,
+                      color: '#7DB5FF', fontFamily: 'JetBrains Mono,monospace', whiteSpace: 'nowrap',
                       opacity: compareIds.length >= 3 && !inComp ? 0.4 : 1,
                     }}
                   >
-                    <Scale size={10} /> Comparer
+                    ⟺
                   </button>
                 </div>
               </div>

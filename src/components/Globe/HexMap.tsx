@@ -1,247 +1,351 @@
-import { useRef, useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
-interface HexMapPin {
-  lat:     number
-  lng:     number
-  count:   number
-  country: string
-  label:   string
+interface Pin {
+  lat: number; lng: number; count: number
+  country: string; label: string
 }
 
-interface HexMapProps {
-  pins:            HexMapPin[]
+interface Props {
+  pins: Pin[]
   onCountryClick?: (country: string) => void
-  width?:          number
-  height?:         number
+  width?: number
+  height?: number
 }
 
-type XY = { x: number; y: number }
+// Coordonnées des masses terrestres (polygones simplifiés)
+// Chaque zone est définie par [latMin, latMax, lngMin, lngMax]
+const LAND_ZONES = [
+  // Europe
+  { lat: [35, 71], lng: [-10, 40], density: 0.9 },
+  // Afrique
+  { lat: [-35, 37], lng: [-18, 52], density: 0.85 },
+  // Amérique du Nord
+  { lat: [24, 72], lng: [-168, -52], density: 0.85 },
+  // Amérique Centrale + Caraïbes
+  { lat: [7, 24], lng: [-92, -60], density: 0.7 },
+  // Amérique du Sud
+  { lat: [-56, 12], lng: [-82, -34], density: 0.85 },
+  // Russie / Asie du Nord
+  { lat: [50, 75], lng: [40, 180], density: 0.8 },
+  // Asie Centrale + Moyen Orient
+  { lat: [15, 50], lng: [40, 100], density: 0.85 },
+  // Asie du Sud + Inde
+  { lat: [5, 35], lng: [68, 100], density: 0.9 },
+  // Asie du Sud-Est
+  { lat: [-10, 25], lng: [95, 140], density: 0.75 },
+  // Chine + Japon
+  { lat: [20, 55], lng: [100, 145], density: 0.9 },
+  // Australie
+  { lat: [-45, -10], lng: [113, 155], density: 0.85 },
+  // Groenland
+  { lat: [60, 83], lng: [-58, -17], density: 0.6 },
+  // Scandinavie
+  { lat: [55, 71], lng: [5, 32], density: 0.9 },
+  // Îles britanniques
+  { lat: [50, 61], lng: [-10, 2], density: 0.9 },
+]
 
-export default function HexMap({ pins, onCountryClick, width = 800, height = 450 }: HexMapProps) {
-  const canvasRef                 = useRef<HTMLCanvasElement>(null)
-  const [hoveredCountry, setHoveredCountry] = useState<string | null>(null)
-  const [tooltip, setTooltip]     = useState<{ x: number; y: number; text: string } | null>(null)
+export default function HexMap({ pins, onCountryClick, width = 900, height = 480 }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const animRef = useRef<number>(0)
+  const [hoveredPin, setHoveredPin] = useState<Pin | null>(null)
+  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null)
 
-  // ── Drawing helpers (defined at module level to share between useEffect + events) ──
+  // Conversion coordonnées géographiques → pixels
+  const toXY = useCallback((lat: number, lng: number) => ({
+    x: (lng + 180) / 360 * width,
+    y: (90 - lat) / 180 * height,
+  }), [width, height])
 
-  function drawHex(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, fill: string, stroke: string) {
-    ctx.beginPath()
-    for (let i = 0; i < 6; i++) {
-      const angle = Math.PI / 180 * (60 * i - 30)
-      const hx = x + size * Math.cos(angle)
-      const hy = y + size * Math.sin(angle)
-      i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy)
-    }
-    ctx.closePath()
-    ctx.fillStyle = fill
-    ctx.fill()
-    ctx.strokeStyle = stroke
-    ctx.lineWidth = 0.5
-    ctx.stroke()
-  }
+  // Vérifie si un point est dans une zone terrestre
+  const isLand = useCallback((lat: number, lng: number) => {
+    return LAND_ZONES.some(zone =>
+      lat >= zone.lat[0] && lat <= zone.lat[1] &&
+      lng >= zone.lng[0] && lng <= zone.lng[1] &&
+      Math.random() < zone.density
+    )
+  }, [])
 
-  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-    ctx.beginPath()
-    ctx.moveTo(x + r, y)
-    ctx.lineTo(x + w - r, y)
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-    ctx.lineTo(x + w, y + h - r)
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-    ctx.lineTo(x + r, y + h)
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-    ctx.lineTo(x, y + r)
-    ctx.quadraticCurveTo(x, y, x + r, y)
-    ctx.closePath()
-  }
+  // Précalcule la grille d'hexagones (une seule fois)
+  const hexGridRef = useRef<Array<{ x: number; y: number; isLand: boolean }>>([])
 
-  function latLngToXY(lat: number, lng: number): XY {
-    return {
-      x: (lng + 180) / 360 * width,
-      y: (90 - lat)  / 180 * height,
-    }
-  }
-
-  function fillRegion(
-    ctx: CanvasRenderingContext2D,
-    latMin: number, latMax: number,
-    lngMin: number, lngMax: number,
-    color: string,
-    hexSize: number,
-  ) {
-    const x1   = (lngMin + 180) / 360 * width
-    const x2   = (lngMax + 180) / 360 * width
-    const y1   = (90 - latMax)  / 180 * height
-    const y2   = (90 - latMin)  / 180 * height
-    const HEX_W = hexSize * 1.5
-    const HEX_H = Math.sqrt(3) * hexSize * 0.9
-    const stroke = color.replace(/[\d.]+\)$/, s => String(Math.min(1, parseFloat(s) * 2) + ')'))
-    for (let x = x1; x < x2; x += HEX_W) {
-      for (let y = y1; y < y2; y += HEX_H) {
-        drawHex(ctx, x, y, hexSize * 0.85, color, stroke)
-      }
-    }
-  }
-
-  // ── Render ──────────────────────────────────────────────────────────────────
   useEffect(() => {
+    const HEX_R = 7 // rayon hexagone
+    const HEX_W = HEX_R * Math.sqrt(3)
+    const HEX_H = HEX_R * 2
+    const grid: Array<{ x: number; y: number; isLand: boolean }> = []
+
+    let row = 0
+    for (let y = HEX_R; y < height + HEX_R; y += HEX_H * 0.75) {
+      const offset = row % 2 === 0 ? 0 : HEX_W / 2
+      for (let x = offset; x < width + HEX_W; x += HEX_W) {
+        const lng = (x / width) * 360 - 180
+        const lat = 90 - (y / height) * 180
+        const land = isLand(lat, lng)
+        grid.push({ x, y, isLand: land })
+      }
+      row++
+    }
+    hexGridRef.current = grid
+  }, [width, height, isLand])
+
+  // Dessin
+  const draw = useCallback((time: number) => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    canvas.width  = width
-    canvas.height = height
+    const HEX_R = 7
 
-    // Background
+    // Fond
     ctx.fillStyle = '#07090F'
     ctx.fillRect(0, 0, width, height)
 
-    const HEX_SIZE = 8
-    const HEX_WIDTH  = HEX_SIZE * 2
-    const HEX_HEIGHT = Math.sqrt(3) * HEX_SIZE
-    const COLS = Math.ceil(width  / (HEX_WIDTH  * 0.75)) + 1
-    const ROWS = Math.ceil(height / HEX_HEIGHT)  + 1
+    // Dessine la grille hexagonale
+    hexGridRef.current.forEach(({ x, y, isLand }) => {
+      drawHexagon(ctx, x, y, HEX_R - 0.8, isLand)
+    })
 
-    // Background hex grid
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < COLS; col++) {
-        const x = col * HEX_WIDTH * 0.75
-        const y = row * HEX_HEIGHT + (col % 2 === 0 ? 0 : HEX_HEIGHT / 2)
-        drawHex(ctx, x, y, HEX_SIZE, 'rgba(0,229,160,0.04)', 'rgba(0,229,160,0.08)')
-      }
+    // Arcs de connexion (animés)
+    drawArcs(ctx, pins, time)
+
+    // Pins pays
+    pins.forEach(pin => {
+      const { x, y } = toXY(pin.lat, pin.lng)
+      const isHovered = hoveredPin?.country === pin.country
+      drawPin(ctx, x, y, pin, isHovered, time)
+    })
+  }, [pins, hoveredPin, toXY, width, height])
+
+  function drawHexagon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, land: boolean) {
+    ctx.beginPath()
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i - Math.PI / 6
+      const x = cx + r * Math.cos(angle)
+      const y = cy + r * Math.sin(angle)
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
     }
+    ctx.closePath()
 
-    // Continents
-    fillRegion(ctx, 35,  70,  -10,  40, 'rgba(0,229,160,0.12)', HEX_SIZE) // Europe
-    fillRegion(ctx, -35, 37,  -18,  52, 'rgba(0,229,160,0.10)', HEX_SIZE) // Africa
-    fillRegion(ctx, 25,  70, -170, -50, 'rgba(0,229,160,0.10)', HEX_SIZE) // N America
-    fillRegion(ctx, -55, 15,  -82, -34, 'rgba(0,229,160,0.10)', HEX_SIZE) // S America
-    fillRegion(ctx, 5,   75,   40, 145, 'rgba(0,229,160,0.10)', HEX_SIZE) // Asia
-    fillRegion(ctx, -44,-11,  113, 154, 'rgba(0,229,160,0.10)', HEX_SIZE) // Australia
-
-    // Connection arcs (top 6 pins)
-    const topPins = [...pins].filter(p => p.count > 10).slice(0, 6)
-    for (let i = 0; i < topPins.length - 1; i++) {
-      const from = latLngToXY(topPins[i].lat, topPins[i].lng)
-      const to   = latLngToXY(topPins[i + 1].lat, topPins[i + 1].lng)
-      const cpX  = (from.x + to.x) / 2
-      const cpY  = Math.min(from.y, to.y) - 60
-      const grad = ctx.createLinearGradient(from.x, from.y, to.x, to.y)
-      grad.addColorStop(0,   '#00E5A080')
-      grad.addColorStop(0.5, '#00E5A0FF')
-      grad.addColorStop(1,   '#3D8EFF80')
-      ctx.beginPath()
-      ctx.moveTo(from.x, from.y)
-      ctx.quadraticCurveTo(cpX, cpY, to.x, to.y)
-      ctx.strokeStyle = grad
-      ctx.lineWidth   = 1.5
+    if (land) {
+      ctx.fillStyle = '#1a1040'
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(100,80,200,0.35)'
+      ctx.lineWidth = 0.6
+      ctx.stroke()
+    } else {
+      ctx.fillStyle = '#0a0d1a'
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(30,40,80,0.3)'
+      ctx.lineWidth = 0.4
       ctx.stroke()
     }
-
-    // Pins
-    ctx.font = '10px JetBrains Mono, monospace'
-    pins.forEach(pin => {
-      const { x, y }  = latLngToXY(pin.lat, pin.lng)
-      const isHovered  = pin.country === hoveredCountry
-      const color      = pin.label === 'ELITE' ? '#00E5A0'
-                       : pin.label === 'TOP PROSPECT' ? '#3D8EFF'
-                       : '#FF9F43'
-      const size = Math.min(8 + pin.count * 2, 28)
-
-      // Outer halo
-      ctx.beginPath()
-      ctx.arc(x, y, size + 6, 0, Math.PI * 2)
-      ctx.fillStyle = color + '20'
-      ctx.fill()
-
-      // Main circle
-      ctx.beginPath()
-      ctx.arc(x, y, size, 0, Math.PI * 2)
-      ctx.fillStyle = color + (isHovered ? 'FF' : 'CC')
-      ctx.fill()
-
-      // Inner glow
-      ctx.shadowColor  = color
-      ctx.shadowBlur   = isHovered ? 20 : 10
-      ctx.beginPath()
-      ctx.arc(x, y, size * 0.6, 0, Math.PI * 2)
-      ctx.fillStyle = color
-      ctx.fill()
-      ctx.shadowBlur = 0
-
-      // Floating label for big clusters or hovered
-      if (pin.count > 5 || isHovered) {
-        const labelText  = `${pin.country} · ${pin.count}`
-        const labelWidth = ctx.measureText(labelText).width + 20
-        const labelX     = x + size + 8
-        const labelY     = y - 10
-        ctx.fillStyle   = 'rgba(13,18,32,0.9)'
-        ctx.strokeStyle = color + '80'
-        ctx.lineWidth   = 1
-        roundRect(ctx, labelX, labelY, labelWidth, 22, 4)
-        ctx.fill()
-        ctx.stroke()
-        ctx.fillStyle = '#E2EAF4'
-        ctx.fillText(labelText, labelX + 10, labelY + 14)
-        ctx.beginPath()
-        ctx.moveTo(x + size, y)
-        ctx.lineTo(labelX, labelY + 11)
-        ctx.strokeStyle = color + '60'
-        ctx.lineWidth   = 1
-        ctx.stroke()
-      }
-    })
-  }, [pins, hoveredCountry, width, height])
-
-  // ── Mouse events ────────────────────────────────────────────────────────────
-  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect   = canvas.getBoundingClientRect()
-    const mouseX = (e.clientX - rect.left) * (width  / rect.width)
-    const mouseY = (e.clientY - rect.top)  * (height / rect.height)
-    let found    = false
-    pins.forEach(pin => {
-      const { x, y } = latLngToXY(pin.lat, pin.lng)
-      const dist = Math.hypot(mouseX - x, mouseY - y)
-      if (dist < 20) {
-        setHoveredCountry(pin.country)
-        setTooltip({ x: e.clientX - rect.left + 10, y: e.clientY - rect.top - 30, text: `${pin.country} · ${pin.count} joueurs` })
-        found = true
-      }
-    })
-    if (!found) { setHoveredCountry(null); setTooltip(null) }
   }
 
-  function handleClick() {
-    if (hoveredCountry && onCountryClick) onCountryClick(hoveredCountry)
+  function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, pin: Pin, isHovered: boolean, time: number) {
+    const color = pin.label === 'ELITE' ? '#00E5A0'
+      : pin.label === 'TOP PROSPECT' ? '#3D8EFF'
+      : '#FF9F43'
+
+    const baseR = Math.min(6 + pin.count * 1.5, 18)
+    const pulse = isHovered ? Math.sin(time * 0.003) * 3 : 0
+    const r = baseR + pulse
+
+    // Halo externe pulsant
+    const haloR = r + 10 + Math.sin(time * 0.002 + pin.lat) * 4
+    const haloGrad = ctx.createRadialGradient(x, y, r, x, y, haloR)
+    haloGrad.addColorStop(0, color + '40')
+    haloGrad.addColorStop(1, color + '00')
+    ctx.beginPath()
+    ctx.arc(x, y, haloR, 0, Math.PI * 2)
+    ctx.fillStyle = haloGrad
+    ctx.fill()
+
+    // Cercle glow
+    ctx.shadowColor = color
+    ctx.shadowBlur = isHovered ? 20 : 12
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fillStyle = color + 'CC'
+    ctx.fill()
+
+    // Point central
+    ctx.beginPath()
+    ctx.arc(x, y, r * 0.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fill()
+    ctx.shadowBlur = 0
+
+    // Label flottant style Orion (bulle avec ligne de connexion)
+    if (pin.count > 8 || isHovered) {
+      const label = pin.country
+      const countLabel = pin.count.toString()
+
+      ctx.font = 'bold 10px JetBrains Mono, monospace'
+      const labelW = ctx.measureText(label).width
+      const totalW = labelW + 40
+      const totalH = 24
+
+      // Position bulle (évite les bords)
+      let bx = x + r + 10
+      let by = y - totalH / 2
+      if (bx + totalW > width - 10) bx = x - totalW - r - 10
+      if (by < 5) by = 5
+      if (by + totalH > height - 5) by = height - totalH - 5
+
+      // Fond bulle
+      ctx.fillStyle = 'rgba(8,10,25,0.92)'
+      ctx.strokeStyle = color + 'AA'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.roundRect(bx, by, totalW, totalH, 5)
+      ctx.fill()
+      ctx.stroke()
+
+      // Texte pays
+      ctx.fillStyle = '#E2EAF4'
+      ctx.font = 'bold 10px JetBrains Mono, monospace'
+      ctx.fillText(label, bx + 8, by + 15)
+
+      // Badge count
+      const badgeX = bx + totalW - 26
+      ctx.fillStyle = color + '30'
+      ctx.beginPath()
+      ctx.roundRect(badgeX, by + 4, 22, 16, 3)
+      ctx.fill()
+      ctx.fillStyle = color
+      ctx.font = 'bold 9px JetBrains Mono, monospace'
+      ctx.fillText(countLabel, badgeX + 11 - ctx.measureText(countLabel).width / 2, by + 14)
+
+      // Ligne de connexion
+      const lineEndX = bx > x ? bx : bx + totalW
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.lineTo(lineEndX, by + totalH / 2)
+      ctx.strokeStyle = color + '60'
+      ctx.lineWidth = 1
+      ctx.stroke()
+    }
+  }
+
+  function drawArcs(ctx: CanvasRenderingContext2D, allPins: Pin[], time: number) {
+    const topPins = [...allPins].sort((a, b) => b.count - a.count).slice(0, 8)
+
+    for (let i = 0; i < topPins.length; i++) {
+      for (let j = i + 1; j < Math.min(topPins.length, i + 3); j++) {
+        const from = toXY(topPins[i].lat, topPins[i].lng)
+        const to = toXY(topPins[j].lat, topPins[j].lng)
+
+        const dist = Math.sqrt((to.x - from.x) ** 2 + (to.y - from.y) ** 2)
+        if (dist < 50 || dist > 600) continue
+
+        const cpX = (from.x + to.x) / 2
+        const cpY = Math.min(from.y, to.y) - dist * 0.35
+
+        const progress = ((time * 0.0005 + i * 0.3 + j * 0.1) % 1)
+
+        // Trace l'arc en gradient
+        const steps = 40
+        for (let s = 0; s < steps; s++) {
+          const t1 = s / steps
+          const t2 = (s + 1) / steps
+          const x1 = (1 - t1) ** 2 * from.x + 2 * (1 - t1) * t1 * cpX + t1 ** 2 * to.x
+          const y1 = (1 - t1) ** 2 * from.y + 2 * (1 - t1) * t1 * cpY + t1 ** 2 * to.y
+          const x2 = (1 - t2) ** 2 * from.x + 2 * (1 - t2) * t2 * cpX + t2 ** 2 * to.x
+          const y2 = (1 - t2) ** 2 * from.y + 2 * (1 - t2) * t2 * cpY + t2 ** 2 * to.y
+
+          const distToProgress = Math.abs(t1 - progress)
+          const alpha = Math.max(0, 0.6 - distToProgress * 3)
+
+          ctx.beginPath()
+          ctx.moveTo(x1, y1)
+          ctx.lineTo(x2, y2)
+          ctx.strokeStyle = `rgba(0,229,160,${alpha})`
+          ctx.lineWidth = 1.5
+          ctx.stroke()
+        }
+
+        // Point lumineux qui se déplace le long de l'arc
+        const px = (1 - progress) ** 2 * from.x + 2 * (1 - progress) * progress * cpX + progress ** 2 * to.x
+        const py = (1 - progress) ** 2 * from.y + 2 * (1 - progress) * progress * cpY + progress ** 2 * to.y
+        ctx.shadowColor = '#00E5A0'
+        ctx.shadowBlur = 8
+        ctx.beginPath()
+        ctx.arc(px, py, 2.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#00E5A0'
+        ctx.fill()
+        ctx.shadowBlur = 0
+      }
+    }
+  }
+
+  // Loop d'animation
+  useEffect(() => {
+    const loop = (time: number) => {
+      draw(time)
+      animRef.current = requestAnimationFrame(loop)
+    }
+    animRef.current = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(animRef.current)
+  }, [draw])
+
+  // Gestion hover
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current!.getBoundingClientRect()
+    const scaleX = width / rect.width
+    const scaleY = height / rect.height
+    const mx = (e.clientX - rect.left) * scaleX
+    const my = (e.clientY - rect.top) * scaleY
+
+    let found: Pin | null = null
+    let minDist = Infinity
+    pins.forEach(pin => {
+      const { x, y } = toXY(pin.lat, pin.lng)
+      const d = Math.sqrt((mx - x) ** 2 + (my - y) ** 2)
+      const r = Math.min(6 + pin.count * 1.5, 18) + 10
+      if (d < r && d < minDist) { found = pin; minDist = d }
+    })
+
+    setHoveredPin(found)
+    setTooltip(found ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null)
   }
 
   return (
-    <div style={{ position: 'relative', width, height, cursor: 'crosshair' }}>
+    <div style={{ position: 'relative', width: '100%', maxWidth: width }}>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', borderRadius: 12 }}
+        width={width}
+        height={height}
+        style={{ width: '100%', height: 'auto', borderRadius: 12, cursor: hoveredPin ? 'pointer' : 'default', display: 'block' }}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => { setHoveredCountry(null); setTooltip(null) }}
-        onClick={handleClick}
+        onMouseLeave={() => { setHoveredPin(null); setTooltip(null) }}
+        onClick={() => { if (hoveredPin && onCountryClick) onCountryClick(hoveredPin.country) }}
       />
-      {tooltip && (
+      {hoveredPin && tooltip && (
         <div style={{
-          position:   'absolute',
-          left:       tooltip.x,
-          top:        tooltip.y,
-          background: 'rgba(13,18,32,0.95)',
-          border:     '1px solid rgba(0,229,160,0.3)',
-          borderRadius: 6,
-          padding:    '6px 12px',
+          position: 'absolute',
+          left: tooltip.x + 12,
+          top: tooltip.y - 36,
+          background: 'rgba(7,9,15,0.96)',
+          border: '1px solid rgba(0,229,160,0.4)',
+          borderRadius: 8,
+          padding: '8px 14px',
           fontFamily: 'JetBrains Mono, monospace',
-          fontSize:   11,
-          color:      '#E2EAF4',
+          fontSize: 11,
+          color: '#E2EAF4',
           pointerEvents: 'none',
           whiteSpace: 'nowrap',
+          boxShadow: '0 0 20px rgba(0,229,160,0.15)',
         }}>
-          {tooltip.text}
+          <span style={{ color: '#00E5A0', fontWeight: 700 }}>{hoveredPin.country}</span>
+          <span style={{ color: '#64748B', margin: '0 6px' }}>·</span>
+          {hoveredPin.count} joueurs
+          <span style={{ color: '#64748B', margin: '0 6px' }}>·</span>
+          <span style={{
+            color: hoveredPin.label === 'ELITE' ? '#00E5A0' : hoveredPin.label === 'TOP PROSPECT' ? '#3D8EFF' : '#FF9F43',
+            fontWeight: 700,
+          }}>{hoveredPin.label}</span>
         </div>
       )}
     </div>
