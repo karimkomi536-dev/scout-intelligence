@@ -437,17 +437,18 @@ export default function Players() {
 
   // ── TanStack Query — cached player fetch ──────────────────────────────────
   const queryFilters = {
-    search:     debouncedSearch,
-    positions:  filters.positions,
-    leagues:    filters.leagues,
-    ageMin:     filters.ageMin,
-    ageMax:     filters.ageMax,
-    foot:       filters.foot,
-    minScore:   filters.minScore,
-    maxValueM:  filters.maxValueM,
-    xgMin:      filters.xgMin,
-    minutesMin: filters.minutesMin,
-    labels:     filters.labels,
+    search:      debouncedSearch,
+    positions:   filters.positions,
+    leagues:     filters.leagues,
+    nationality: filters.nationality,
+    ageMin:      filters.ageMin,
+    ageMax:      filters.ageMax,
+    foot:        filters.foot,
+    minScore:    filters.minScore,
+    maxValueM:   filters.maxValueM,
+    xgMin:       filters.xgMin,
+    minutesMin:  filters.minutesMin,
+    labels:      filters.labels,
   }
   const { data: players = [], isLoading: loading } = usePlayers(queryFilters)
 
@@ -867,6 +868,24 @@ export default function Players() {
           </p>
         )}
 
+        {/* Nationality badge (mobile) */}
+        {filters.nationality && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            background: 'rgba(0,200,150,0.10)', border: '1px solid rgba(0,200,150,0.30)',
+            borderRadius: '20px', padding: '4px 10px 4px 12px',
+            fontSize: '12px', fontWeight: 600, color: '#00C896', alignSelf: 'flex-start',
+          }}>
+            <span>Pays : {filters.nationality} ({scored.length})</span>
+            <button
+              onClick={() => set({ nationality: '' })}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C896', display: 'flex', padding: '0 2px' }}
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+
         {/* Plan limit banner */}
         {totalPlayerCount >= limits.maxPlayers && (
           <UpgradeBanner feature="limite joueurs" />
@@ -1008,6 +1027,31 @@ export default function Players() {
           </button>
         )}
       </div>
+
+      {/* Nationality filter badge */}
+      {filters.nationality && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            background: 'rgba(0,200,150,0.10)', border: '1px solid rgba(0,200,150,0.30)',
+            borderRadius: '20px', padding: '4px 10px 4px 12px',
+            fontSize: '12px', fontWeight: 600, color: '#00C896',
+          }}>
+            <span>Pays : {filters.nationality}</span>
+            {!loading && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', opacity: 0.7 }}>
+                ({scored.length})
+              </span>
+            )}
+            <button
+              onClick={() => set({ nationality: '' })}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C896', display: 'flex', padding: '0 2px', lineHeight: 1 }}
+            >
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Plan limit banner */}
       {totalPlayerCount >= limits.maxPlayers && (

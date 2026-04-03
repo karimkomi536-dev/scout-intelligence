@@ -5,17 +5,18 @@ import { useGlobeData } from '../hooks/useGlobeData'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { supabase } from '../lib/supabase'
 import { useQuery } from '@tanstack/react-query'
+import type { GlobePin } from '../components/Globe/Globe'
 
 const Globe = lazy(() => import('../components/Globe/Globe'))
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface CountryPlayer {
-  id:             string
-  name:           string
+  id:               string
+  name:             string
   primary_position: string
-  scout_score:    number | null
-  scout_label:    string | null
+  scout_score:      number | null
+  scout_label:      string | null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -84,14 +85,21 @@ export default function WorldMap() {
   const navigate  = useNavigate()
   const isMobile  = useIsMobile()
 
-  const [labelFilter, setLabelFilter] = useState<string>('all')
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
+  const [labelFilter,      setLabelFilter]      = useState<string>('all')
+  const [selectedCountry,  setSelectedCountry]  = useState<string | null>(null)
+  const [tooltip, setTooltip] = useState<{ pin: GlobePin; x: number; y: number } | null>(null)
 
   const { data: pins = [], isLoading } = useGlobeData(labelFilter === 'all' ? undefined : labelFilter)
   const { data: countryPlayers = [] }  = useCountryPlayers(selectedCountry)
 
   const countryCount = pins.length
   const globeSize    = isMobile ? 280 : 480
+
+  // ── Hover tooltip handler ──────────────────────────────────────────────────
+  function handleHover(pin: GlobePin | null, x: number, y: number) {
+    if (pin) setTooltip({ pin, x, y })
+    else setTooltip(null)
+  }
 
   return (
     <div style={{ color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -142,32 +150,66 @@ export default function WorldMap() {
 
         {/* Globe card */}
         <div style={{
-          background:   'var(--surface2)',
-          border:       '1px solid var(--border)',
-          borderRadius: '16px',
-          padding:      '24px',
-          display:      'flex',
+          background:    'var(--surface2)',
+          border:        '1px solid var(--border)',
+          borderRadius:  '16px',
+          padding:       '24px',
+          display:       'flex',
           flexDirection: 'column',
-          alignItems:   'center',
-          gap:          '16px',
+          alignItems:    'center',
+          gap:           '16px',
         }}>
           {isLoading ? (
             <div style={{ width: globeSize, height: globeSize, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <p style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>Chargement…</p>
             </div>
           ) : (
-            <Suspense fallback={
-              <div style={{ width: globeSize, height: globeSize, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <p style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>Initialisation…</p>
-              </div>
-            }>
-              <Globe
-                pins={pins}
-                onCountryClick={setSelectedCountry}
-                width={globeSize}
-                height={globeSize}
-              />
-            </Suspense>
+            <div style={{ position: 'relative' }}>
+              <Suspense fallback={
+                <div style={{ width: globeSize, height: globeSize, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <p style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>Initialisation…</p>
+                </div>
+              }>
+                <Globe
+                  pins={pins}
+                  onCountryClick={country => { setSelectedCountry(country); setTooltip(null) }}
+                  onHover={handleHover}
+                  selectedCountry={selectedCountry}
+                  width={globeSize}
+                  height={globeSize}
+                />
+              </Suspense>
+
+              {/* Tooltip */}
+              {tooltip && (
+                <div style={{
+                  position:     'absolute',
+                  left:         Math.min(tooltip.x + 12, globeSize - 160),
+                  top:          Math.max(tooltip.y - 48, 0),
+                  background:   'rgba(13,21,37,0.95)',
+                  border:       '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '8px',
+                  padding:      '7px 12px',
+                  pointerEvents: 'none',
+                  whiteSpace:   'nowrap',
+                  zIndex:        10,
+                  backdropFilter: 'blur(8px)',
+                  boxShadow:    '0 4px 16px rgba(0,0,0,0.5)',
+                }}>
+                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {countryFlag(tooltip.pin.country)} {tooltip.pin.country}
+                  </p>
+                  <p style={{ margin: '3px 0 0', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {tooltip.pin.count} joueur{tooltip.pin.count !== 1 ? 's' : ''}
+                    {tooltip.pin.labelCounts?.['ELITE']
+                      ? ` · ${tooltip.pin.labelCounts['ELITE']} ELITE`
+                      : tooltip.pin.labelCounts?.['TOP PROSPECT']
+                        ? ` · ${tooltip.pin.labelCounts['TOP PROSPECT']} TOP PROSPECT`
+                        : ''}
+                  </p>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Legend */}
@@ -219,7 +261,7 @@ export default function WorldMap() {
               {countryPlayers.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>Aucun joueur trouvé.</p>
               ) : countryPlayers.map(p => {
-                const color = LABEL_COLORS[p.scout_label ?? ''] ?? LABEL_COLORS['LOW PRIORITY']
+                const color   = LABEL_COLORS[p.scout_label ?? ''] ?? LABEL_COLORS['LOW PRIORITY']
                 const initials = p.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
                 return (
                   <div

@@ -32,9 +32,13 @@ export function useGlobeData(labelFilter?: string) {
       if (error) throw error
 
       // Group by nationality
-      const byCountry = new Map<string, { count: number; bestLabel: string }>()
+      const byCountry = new Map<string, {
+        count:       number
+        bestLabel:   string
+        labelCounts: Partial<Record<string, number>>
+      }>()
 
-      for (const row of (data ?? []) as Array<{ nationality: string; scout_label: string | null; is_u23: boolean | null }>) {
+      for (const row of (data ?? []) as Array<{ nationality: string; scout_label: string | null }>) {
         const nat = row.nationality
         if (!nat || !COUNTRY_COORDS[nat]) continue
 
@@ -42,9 +46,14 @@ export function useGlobeData(labelFilter?: string) {
         const existing = byCountry.get(nat)
 
         if (!existing) {
-          byCountry.set(nat, { count: 1, bestLabel: rowLabel })
+          byCountry.set(nat, {
+            count:       1,
+            bestLabel:   rowLabel,
+            labelCounts: { [rowLabel]: 1 },
+          })
         } else {
           existing.count++
+          existing.labelCounts[rowLabel] = (existing.labelCounts[rowLabel] ?? 0) + 1
           if ((LABEL_RANK[rowLabel] ?? 0) > (LABEL_RANK[existing.bestLabel] ?? 0)) {
             existing.bestLabel = rowLabel
           }
@@ -52,10 +61,17 @@ export function useGlobeData(labelFilter?: string) {
       }
 
       const pins: GlobePin[] = []
-      for (const [country, { count, bestLabel }] of byCountry) {
+      for (const [country, { count, bestLabel, labelCounts }] of byCountry) {
         const coords = COUNTRY_COORDS[country]
         if (!coords) continue
-        pins.push({ country, lat: coords.lat, lng: coords.lng, count, label: bestLabel })
+        pins.push({
+          country,
+          lat:         coords.lat,
+          lng:         coords.lng,
+          count,
+          label:       bestLabel,
+          labelCounts,
+        })
       }
 
       return pins

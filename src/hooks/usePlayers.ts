@@ -6,6 +6,7 @@ export interface PlayerQueryFilters {
   search?:      string
   positions?:   string[]
   leagues?:     string[]
+  nationality?: string
   ageMin?:      number
   ageMax?:      number
   foot?:        string
@@ -23,6 +24,7 @@ export function usePlayers(filters: PlayerQueryFilters) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let q: any = supabase.from('players').select('*')
 
+      if (filters.nationality)                       q = q.eq('nationality', filters.nationality)
       if (filters.search)                          q = q.ilike('name', `%${filters.search}%`)
       if (filters.positions?.length)               q = q.in('primary_position', filters.positions)
       if (filters.leagues?.length)                 q = q.in('competition', filters.leagues)
