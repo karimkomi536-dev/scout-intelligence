@@ -43,6 +43,10 @@ Vérifier compatibilité plugins avec version Vite avant npm install (vite-plugi
 Utiliser Write au lieu de Edit pour les fichiers volumineux ou lorsqu'un Edit échoue.
 Tester npm run build avant de pusher — les warnings @tailwind dans VS Code CSS sont normaux (pas des erreurs de build).
 
+[2026-04-03] | useEffect après return conditionnel → React error #310 "Rendered more hooks than during previous render" |
+TOUS les hooks (useState, useEffect, useCallback, useMemo) doivent être déclarés AVANT tout return conditionnel.
+Les variables dérivées (completedCount, allDone, etc.) peuvent être calculées entre les hooks et les returns.
+
 [2026-03-28] | commits locaux jamais poussés → bug "inexistant" en prod pendant plusieurs sessions |
 Avant tout debug d'un problème prod (404, asset manquant, feature absente) : vérifier git log origin/main..HEAD.
 Si des commits sont en avance → git push D'ABORD, attendre le deploy, PUIS diagnostiquer.
