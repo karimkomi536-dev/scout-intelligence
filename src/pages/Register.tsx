@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import VizionLogo from '../components/VizionLogo'
 
 export default function Register() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromDemo = searchParams.get('source') === 'demo'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -55,6 +57,23 @@ export default function Register() {
         borderRadius: '16px',
         border: '1px solid #1f2937',
       }}>
+        {/* Demo source banner */}
+        {fromDemo && (
+          <div style={{
+            marginBottom: '24px',
+            padding: '12px 16px',
+            background: 'rgba(0,200,150,0.10)',
+            border: '1px solid rgba(0,200,150,0.30)',
+            borderRadius: '10px',
+            textAlign: 'center',
+            fontSize: '13px',
+            color: '#00C896',
+            fontWeight: 600,
+          }}>
+            Bienvenue ! 14 jours d'essai gratuit.
+          </div>
+        )}
+
         {/* Logo */}
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>

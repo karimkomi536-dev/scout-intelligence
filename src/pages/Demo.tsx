@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Legend,
 } from 'recharts'
@@ -179,7 +180,7 @@ function DemoUpgradeModal({ feature, onClose }: { feature: string; onClose: () =
         </p>
 
         <Link
-          to="/register"
+          to="/register?source=demo"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
             background: '#00C896', color: '#0A0E1B',
@@ -188,7 +189,7 @@ function DemoUpgradeModal({ feature, onClose }: { feature: string; onClose: () =
           }}
         >
           <UserPlus size={16} />
-          Créer un compte gratuit
+          Commencer gratuitement
         </Link>
       </div>
     </div>
@@ -784,7 +785,16 @@ function DemoPlayerDetail({ player, onBack }: { player: Player; onBack: () => vo
 // ── DemoInner ─────────────────────────────────────────────────────────────────
 
 function DemoInner() {
+  const navigate = useNavigate()
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
+
+  // ── Conversion tracking ──────────────────────────────────────────────────
+  useEffect(() => {
+    supabase.from('waitlist').insert({
+      email: 'demo_view_' + Date.now(),
+      source: 'demo',
+    }).then(null, () => {})
+  }, [])
 
   return (
     <div style={{ minHeight: '100vh', background: '#0A0E1B', color: '#E2EAF4' }}>
@@ -798,16 +808,17 @@ function DemoInner() {
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
       }}>
         <span>👁 Mode démo · Données fictives · Créez un compte gratuit</span>
-        <Link
-          to="/register"
+        <button
+          onClick={() => navigate('/register?source=demo')}
           style={{
-            color: '#0A0E1B', fontWeight: 800, textDecoration: 'none',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: '#0A0E1B', fontWeight: 800, fontSize: 'inherit', fontFamily: 'inherit',
             borderBottom: '1.5px solid rgba(10,14,27,0.40)',
-            marginLeft: '4px',
+            marginLeft: '4px', padding: 0,
           }}
         >
           →
-        </Link>
+        </button>
       </div>
 
       {/* App header */}
@@ -829,18 +840,33 @@ function DemoInner() {
           </span>
         </div>
 
-        <Link
-          to="/register"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            background: '#00C896', color: '#0A0E1B',
-            padding: '8px 18px', borderRadius: '8px',
-            fontWeight: 700, fontSize: '13px', textDecoration: 'none',
-          }}
-        >
-          <UserPlus size={14} />
-          Créer un compte
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => navigate('/?section=pricing')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              background: 'rgba(255,255,255,0.07)', color: 'rgba(226,234,244,0.75)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              padding: '8px 16px', borderRadius: '8px',
+              fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Voir les tarifs
+          </button>
+          <button
+            onClick={() => navigate('/register?source=demo')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              background: '#00C896', color: '#0A0E1B',
+              border: 'none',
+              padding: '8px 18px', borderRadius: '8px',
+              fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <UserPlus size={14} />
+            Commencer gratuitement
+          </button>
+        </div>
       </header>
 
       {/* Content */}
