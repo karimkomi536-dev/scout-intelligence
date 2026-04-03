@@ -28,6 +28,7 @@ const Billing         = lazy(() => import('./pages/Billing'))
 const ShadowTeam      = lazy(() => import('./pages/ShadowTeam'))
 const AcceptInvitation = lazy(() => import('./pages/AcceptInvitation'))
 const Onboarding      = lazy(() => import('./pages/Onboarding'))
+const WorldMap        = lazy(() => import('./pages/WorldMap'))
 const Demo            = lazy(() => import('./pages/Demo'))
 const Privacy         = lazy(() => import('./pages/Privacy'))
 const Terms           = lazy(() => import('./pages/Terms'))
@@ -100,6 +101,7 @@ function App() {
                 <Route path="upload"           element={<Upload />} />
                 <Route path="settings"         element={<Settings />} />
                 <Route path="settings/billing" element={<Billing />} />
+                <Route path="map"              element={<WorldMap />} />
                 <Route path="shadow-team"      element={<ShadowTeam />} />
                 <Route path="admin/cron"       element={<CronLogs />} />
                 <Route path="admin/data"       element={<AdminRoute><DataDashboard /></AdminRoute>} />

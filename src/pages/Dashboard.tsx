@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense, lazy } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Star, TrendingUp, Eye, ArrowRight, Upload, Bookmark, Zap, Clock, RefreshCw } from 'lucide-react'
+import { useGlobeData } from '../hooks/useGlobeData'
+
+const Globe = lazy(() => import('../components/Globe/Globe'))
 import { useIsMobile } from '../hooks/useIsMobile'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -185,6 +188,42 @@ function PlayerRow({ p, rank, score, label, navigate }: {
       </div>
       <ScoreRing score={score} color={meta.color} />
       <ArrowRight size={12} color="var(--text-muted)" />
+    </div>
+  )
+}
+
+// ── Globe widget ──────────────────────────────────────────────────────────────
+
+function GlobeWidget({ navigate, isMobile }: { navigate: (p: string) => void; isMobile: boolean }) {
+  const { data: pins = [] } = useGlobeData()
+  const size = 200
+
+  return (
+    <div
+      onClick={() => navigate('/map')}
+      style={{
+        background: 'var(--surface2)', border: '1px solid var(--border)',
+        borderRadius: '12px', padding: '22px', cursor: 'pointer',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+        transition: 'border-color 200ms',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(77,127,255,0.35)')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Présence mondiale</h3>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, color: '#00C896' }}>
+          {pins.length} pays
+        </span>
+      </div>
+      {!isMobile && (
+        <Suspense fallback={<div style={{ width: size, height: size }} />}>
+          <Globe pins={pins} width={size} height={size} />
+        </Suspense>
+      )}
+      <p style={{ margin: 0, fontSize: '11px', color: 'var(--accent-blue)', fontWeight: 600 }}>
+        Explorer la carte →
+      </p>
     </div>
   )
 }
@@ -560,8 +599,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Bottom row : Donut + Activity ──────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
+      {/* ── Bottom row : Donut + Activity + Globe ──────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '14px' }}>
 
         {/* Donut */}
         <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px' }}>
@@ -618,6 +657,9 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Globe miniature */}
+        <GlobeWidget navigate={navigate} isMobile={isMobile} />
       </div>
     </div>
   )

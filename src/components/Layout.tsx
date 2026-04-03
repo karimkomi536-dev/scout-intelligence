@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
-  Scale, Settings, Zap, X, Target, Download, Database,
+  Scale, Settings, Zap, X, Target, Download, Database, Globe,
 } from 'lucide-react'
 import VizionLogo from './VizionLogo'
 
@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { to: '/players',    icon: Users,            label: 'Joueurs'   },
   { to: '/compare',    icon: Scale,            label: 'Comparateur' },
   { to: '/shortlist',  icon: Bookmark,         label: 'Shortlist' },
+  { to: '/map',        icon: Globe,            label: 'Carte'     },
   { to: '/newsletter', icon: Newspaper,        label: 'Newsletter' },
   { to: '/upload',     icon: Upload,           label: 'Import'    },
   { to: '/settings',   icon: Settings,         label: 'Paramètres' },
@@ -39,6 +40,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/newsletter': 'Newsletter',
   '/upload':     'Import',
   '/settings':   'Paramètres',
+  '/map':         'Carte mondiale',
   '/shadow-team': 'Shadow Team',
 }
 
