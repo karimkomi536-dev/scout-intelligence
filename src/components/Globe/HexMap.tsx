@@ -91,7 +91,7 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
 
   useEffect(() => {
     if (!geoLoaded) return
-    const HEX_R = 8
+    const HEX_R = 3
     const HEX_W = HEX_R * Math.sqrt(3)
     const HEX_H = HEX_R * 2 * 0.75
     const grid: Array<{ x: number; y: number; isLand: boolean }> = []
@@ -168,7 +168,7 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const HEX_R = 8
+    const HEX_R = 3
     const zoom  = zoomRef.current
     const pan   = panRef.current
 
@@ -388,6 +388,18 @@ export default function HexMap({ pins, onCountryClick, width = 900, height = 480
 
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: width }}>
+      <button
+        onClick={() => { zoomRef.current = 1; panRef.current = { x: 0, y: 0 } }}
+        style={{
+          position: 'absolute', bottom: 12, right: 12, zIndex: 10,
+          background: 'rgba(7,9,15,0.85)', border: '1px solid rgba(0,229,160,0.3)',
+          borderRadius: 6, color: '#00E5A0', fontSize: 11, fontWeight: 600,
+          padding: '5px 10px', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace',
+          letterSpacing: '0.05em',
+        }}
+      >
+        Reset
+      </button>
       <canvas
         ref={canvasRef}
         width={width}

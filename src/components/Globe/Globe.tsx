@@ -77,11 +77,13 @@ export default function Globe({
     camera.position.z = 280
 
     // ── Lighting ───────────────────────────────────────────────────────────────
-    scene.add(new THREE.AmbientLight(0x222244, 4))
-    const light1 = new THREE.DirectionalLight(0x00E5A0, 2)
-    light1.position.set(200, 150, 200); scene.add(light1)
-    const light2 = new THREE.DirectionalLight(0x3D8EFF, 1.5)
-    light2.position.set(-200, -100, 100); scene.add(light2)
+    scene.add(new THREE.AmbientLight(0xffffff, 3.0))
+    const sun = new THREE.DirectionalLight(0xffffff, 4.0)
+    sun.position.set(300, 200, 300); scene.add(sun)
+    const fill = new THREE.DirectionalLight(0x8899ff, 2.0)
+    fill.position.set(-200, 100, -100); scene.add(fill)
+    const rim = new THREE.DirectionalLight(0x00E5A0, 1.5)
+    rim.position.set(0, -200, -200); scene.add(rim)
 
     // ── ThreeGlobe (hexagones GeoJSON sur sphère) ──────────────────────────────
     const globe = new ThreeGlobe({ waitForGlobeReady: false, animateIn: false })
@@ -93,11 +95,13 @@ export default function Globe({
       .showAtmosphere(false)
       .showGraticules(false)
 
-    // Dark ocean base
+    // Ocean material
     const mat = globe.globeMaterial() as THREE.MeshPhongMaterial
-    mat.color     = new THREE.Color(0x060914)
-    mat.specular  = new THREE.Color(0x111122)
-    mat.shininess = 5
+    mat.color            = new THREE.Color(0x0D2137)
+    mat.emissive         = new THREE.Color(0x061018)
+    mat.emissiveIntensity = 0.3
+    mat.specular         = new THREE.Color(0x1a3a5c)
+    mat.shininess        = 15
 
     // Load GeoJSON countries (served from /public)
     fetch('/ne_110m_admin_0_countries.geojson')
@@ -105,7 +109,22 @@ export default function Globe({
       .then((data: { features: object[] }) => {
         globe
           .hexPolygonsData(data.features)
-          .hexPolygonColor(() => '#1C1050')
+          .hexPolygonMargin(0.2)
+          .hexPolygonAltitude(0.02)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .hexPolygonColor((feat: any) => {
+            const c = feat?.properties?.CONTINENT ?? ''
+            switch (c) {
+              case 'Europe':        return 'rgba(61,142,255,0.95)'
+              case 'Africa':        return 'rgba(255,159,67,0.95)'
+              case 'North America': return 'rgba(0,229,160,0.95)'
+              case 'South America': return 'rgba(34,211,238,0.95)'
+              case 'Asia':          return 'rgba(185,127,255,0.95)'
+              case 'Oceania':       return 'rgba(255,90,90,0.95)'
+              case 'Antarctica':    return 'rgba(180,200,220,0.95)'
+              default:              return 'rgba(100,150,255,0.95)'
+            }
+          })
       })
       .catch(console.error)
 
@@ -114,15 +133,15 @@ export default function Globe({
     // ── Atmosphère style Orion (BackSide = halo vu de l'extérieur) ─────────────
     scene.add(new THREE.Mesh(
       new THREE.SphereGeometry(106, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x00E5A0, transparent: true, opacity: 0.07, side: THREE.BackSide }),
+      new THREE.MeshBasicMaterial({ color: 0x00E5A0, transparent: true, opacity: 0.15, side: THREE.BackSide }),
     ))
     scene.add(new THREE.Mesh(
-      new THREE.SphereGeometry(115, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x3D8EFF, transparent: true, opacity: 0.05, side: THREE.BackSide }),
+      new THREE.SphereGeometry(116, 64, 64),
+      new THREE.MeshBasicMaterial({ color: 0x3D8EFF, transparent: true, opacity: 0.10, side: THREE.BackSide }),
     ))
     scene.add(new THREE.Mesh(
-      new THREE.SphereGeometry(130, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x6030CC, transparent: true, opacity: 0.03, side: THREE.BackSide }),
+      new THREE.SphereGeometry(132, 64, 64),
+      new THREE.MeshBasicMaterial({ color: 0x6030CC, transparent: true, opacity: 0.06, side: THREE.BackSide }),
     ))
 
     // Wireframe grille néon (tourne avec le globe)

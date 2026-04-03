@@ -98,7 +98,7 @@ export default function WorldMap() {
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
-        setMapWidth(containerRef.current.clientWidth - 32)
+        setMapWidth(containerRef.current.offsetWidth)
       }
     }
     updateWidth()
