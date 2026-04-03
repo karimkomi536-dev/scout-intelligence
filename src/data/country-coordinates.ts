@@ -276,4 +276,15 @@ export const COUNTRY_COORDS: Record<string, CountryCoords> = {
   'Oman':             { lat:  21.4735, lng:  55.9754 },
 
   'New Zealand':      { lat: -40.9006, lng: 174.8860 },
+
+  // ── Variantes FBref / bases de données football ───────────────────────────
+  'Georgia':             { lat:  42.3154, lng:  43.3569 },
+  'Congo DR':            { lat:  -4.0383, lng:  21.7587 },
+  'Korea Republic':      { lat:  35.9078, lng: 127.7669 },
+  'Republic of Ireland': { lat:  53.4129, lng:  -8.2439 },
+  'Israel':              { lat:  31.0461, lng:  34.8516 },
+  'Gambia':              { lat:  13.4432, lng: -15.3101 },
+  'Northern Ireland':    { lat:  54.6072, lng:  -6.7340 },
+  'Türkiye':             { lat:  38.9637, lng:  35.2433 },
+  'Equatorial Guinea':   { lat:   1.6508, lng:  10.2679 },
 }

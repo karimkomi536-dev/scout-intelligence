@@ -31,9 +31,10 @@ export function useGlobeData(labelFilter?: string) {
       const { data, error } = await q
       if (error) throw error
 
-      // Diagnostic — log distinct nationalities to align country-coordinates keys
-      const distinct = [...new Set((data ?? []).map((p: { nationality: string }) => p.nationality))].sort()
-      console.log('[Globe] Nationalités distinctes en DB:', distinct)
+      // Filter out null / empty / 'Unknown' nationalities
+      const cleaned = (data ?? []).filter((p: { nationality: string }) =>
+        p.nationality && p.nationality !== 'Unknown' && p.nationality.trim() !== ''
+      )
 
       // Group by nationality
       const byCountry = new Map<string, {
@@ -42,13 +43,9 @@ export function useGlobeData(labelFilter?: string) {
         labelCounts: Partial<Record<string, number>>
       }>()
 
-      for (const row of (data ?? []) as Array<{ nationality: string; scout_label: string | null }>) {
+      for (const row of cleaned as Array<{ nationality: string; scout_label: string | null }>) {
         const nat = row.nationality
-        if (!nat) continue
-        if (!COUNTRY_COORDS[nat]) {
-          console.warn('[Globe] Pas de coords pour:', nat)
-          continue
-        }
+        if (!nat || !COUNTRY_COORDS[nat]) continue
 
         const rowLabel = row.scout_label ?? 'LOW PRIORITY'
         const existing = byCountry.get(nat)
