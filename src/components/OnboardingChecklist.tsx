@@ -48,21 +48,27 @@ export function OnboardingChecklist() {
 
   const load = useCallback(async () => {
     if (!user) return
-    const { data } = await supabase
-      .from('profiles')
-      .select('onboarding_checklist, full_name, shortlist:shortlist_groups(id)')
-      .eq('user_id', user.id)
-      .single()
 
-    if (!data) return
+    const [{ data: profile }, { data: groups }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('onboarding_checklist, full_name')
+        .eq('user_id', user.id)
+        .single(),
+      supabase
+        .from('shortlist_groups')
+        .select('id')
+        .eq('user_id', user.id),
+    ])
 
-    const stored: Checklist = { ...DEFAULT_CHECKLIST, ...(data.onboarding_checklist ?? {}) }
+    if (!profile) return
+
+    const stored: Checklist = { ...DEFAULT_CHECKLIST, ...(profile.onboarding_checklist ?? {}) }
 
     // Auto-detect profile completion
-    stored.profile = !!(data.full_name)
+    stored.profile = !!(profile.full_name)
 
     // Auto-detect shortlist
-    const groups = data.shortlist as { id: string }[] | null
     stored.shortlist = !!(groups && groups.length > 0)
 
     setChecklist(stored)
