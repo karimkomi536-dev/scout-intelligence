@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { CreditCard, CheckCircle, Zap, Crown, Building2, ExternalLink, Loader2 } from 'lucide-react'
 import { useOrganization } from '../hooks/useOrganization'
 import { redirectToCheckout, redirectToPortal } from '../lib/stripe'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 // ── Plan definitions ──────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ const PLANS = [
 export default function Billing() {
   const { organization, loading: orgLoading } = useOrganization()
   const [searchParams] = useSearchParams()
+  const isMobile = useIsMobile()
 
   const [redirecting, setRedirecting]   = useState(false)
   const [error, setError]               = useState<string | null>(null)
@@ -109,7 +111,7 @@ export default function Billing() {
   }
 
   return (
-    <div style={{ padding: '24px 20px 80px', maxWidth: 680, margin: '0 auto' }}>
+    <div style={{ padding: '24px 20px 80px', maxWidth: 900, margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
@@ -210,7 +212,7 @@ export default function Billing() {
       </div>
 
       {/* Plan cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 14, alignItems: 'flex-start' }}>
         {PLANS.map(plan => {
           const isCurrent = currentPlan === plan.id
           const canUpgrade = plan.id === 'pro' && currentPlan === 'free' && plan.priceId
@@ -220,6 +222,7 @@ export default function Billing() {
             <div
               key={plan.id}
               style={{
+                flex:         isMobile ? 'none' : '1',
                 background:   isCurrent ? 'rgba(0,200,150,0.06)' : 'rgba(255,255,255,0.03)',
                 border:       isCurrent
                   ? '1px solid rgba(0,200,150,0.30)'

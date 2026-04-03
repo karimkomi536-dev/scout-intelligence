@@ -13,6 +13,8 @@ import type { PosGroup, ScoringWeights } from '../utils/scoring'
 import type { OrgRole } from '../hooks/useOrganization'
 import type { Player } from '../types/player'
 import { useAlertPrefs } from '../hooks/useAlertPrefs'
+import { useIsMobile } from '../hooks/useIsMobile'
+import { useNavigate } from 'react-router-dom'
 
 // ── Scoring types & helpers ───────────────────────────────────────────────────
 
@@ -382,6 +384,10 @@ export default function Settings() {
     }
   }
 
+  const isMobile = useIsMobile()
+  const navigate = useNavigate()
+  const [activeSection, setActiveSection] = useState<'scoring' | 'equipe' | 'alertes'>('scoring')
+
   // ── Loading guard ──────────────────────────────────────────────────────────
 
   if (loading) {
@@ -395,17 +401,73 @@ export default function Settings() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto', padding: '32px 24px' }}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '32px 24px' }}>
 
-      <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
-        Paramètres
-      </h1>
-      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '32px' }}>
-        Scoring, équipe et gestion de votre organisation.
-      </p>
+      <div style={{ display: !isMobile ? 'grid' : 'block', gridTemplateColumns: !isMobile ? '200px 1fr' : undefined, gap: !isMobile ? '32px' : undefined, alignItems: 'flex-start' }}>
 
-      {/* ── SCORING SECTION ────────────────────────────────────────────────── */}
-      <SectionCard>
+        {/* ── LEFT NAV (desktop only) ─────────────────────────────────────── */}
+        {!isMobile && (
+          <div style={{ position: 'sticky', top: '24px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', margin: '0 0 8px' }}>
+              Paramètres
+            </p>
+            {([
+              { id: 'scoring' as const, label: 'Scoring', icon: '⚡' },
+              { id: 'equipe' as const, label: 'Organisation', icon: '👥' },
+              { id: 'alertes' as const, label: 'Alertes', icon: '🔔' },
+            ] as const).map(({ id, label, icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveSection(id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  width: '100%', padding: '9px 12px', marginBottom: '2px',
+                  background: activeSection === id ? 'rgba(77,127,255,0.12)' : 'none',
+                  border: `1px solid ${activeSection === id ? 'rgba(77,127,255,0.30)' : 'transparent'}`,
+                  borderRadius: '8px',
+                  color: activeSection === id ? '#4D7FFF' : 'var(--text-muted)',
+                  fontSize: '13px', fontWeight: activeSection === id ? 600 : 400,
+                  cursor: 'pointer', textAlign: 'left',
+                  transition: 'all 150ms ease',
+                }}
+              >
+                <span style={{ fontSize: '14px' }}>{icon}</span>
+                {label}
+              </button>
+            ))}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '8px 0' }} />
+            <button
+              onClick={() => navigate('/settings/billing')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                width: '100%', padding: '9px 12px',
+                background: 'none', border: '1px solid transparent', borderRadius: '8px',
+                color: 'var(--text-muted)', fontSize: '13px', fontWeight: 400,
+                cursor: 'pointer', textAlign: 'left', transition: 'all 150ms ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'none' }}
+            >
+              <span style={{ fontSize: '14px' }}>💳</span>
+              Facturation
+            </button>
+          </div>
+        )}
+
+        {/* ── RIGHT COLUMN ────────────────────────────────────────────────── */}
+        <div>
+
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
+            Paramètres
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '32px' }}>
+            Scoring, équipe et gestion de votre organisation.
+          </p>
+
+          {/* ── SCORING SECTION ──────────────────────────────────────────── */}
+          {(isMobile || activeSection === 'scoring') && (
+          <SectionCard>
+
         <SectionHeader
           title="Pondérations de scoring"
           subtitle="Ajustez l'importance de chaque critère par groupe de position"
@@ -551,9 +613,11 @@ export default function Settings() {
           </div>
         )}
       </SectionCard>
+          )}
 
-      {/* ── TEAM SECTION ───────────────────────────────────────────────────── */}
-      <SectionCard>
+          {/* ── TEAM SECTION ─────────────────────────────────────────────── */}
+          {(isMobile || activeSection === 'equipe') && (
+          <SectionCard>
         <SectionHeader
           title="Équipe"
           subtitle="Gérez les membres et les invitations de votre organisation"
@@ -762,9 +826,11 @@ export default function Settings() {
           </div>
         )}
       </SectionCard>
+          )}
 
-      {/* ── ALERTES MERCATO ────────────────────────────────────────────────── */}
-      <SectionCard>
+          {/* ── ALERTES MERCATO ──────────────────────────────────────────── */}
+          {(isMobile || activeSection === 'alertes') && (
+          <SectionCard>
         <SectionHeader
           title="Alertes mercato"
           subtitle="Recevez des notifications pour les joueurs de votre shortlist"
@@ -850,6 +916,10 @@ export default function Settings() {
           })}
         </div>
       </SectionCard>
+          )}
+
+        </div>{/* end right column */}
+      </div>{/* end grid */}
 
       {/* ── INVITE MODAL ───────────────────────────────────────────────────── */}
       {inviteModalOpen && (

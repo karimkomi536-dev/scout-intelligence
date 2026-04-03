@@ -225,7 +225,7 @@ export default function Compare() {
     : []
 
   return (
-    <div style={{ color: 'white', maxWidth: '1000px', paddingBottom: '48px' }}>
+    <div style={{ color: 'white', maxWidth: '1440px', paddingBottom: '48px' }}>
       {/* Header */}
       <button
         onClick={() => navigate('/players')}
@@ -281,7 +281,7 @@ export default function Compare() {
               {/* ── Overlapping radar ────────────────────────────────────── */}
               <div style={{ background: '#111827', borderRadius: '16px', padding: '24px', marginBottom: '20px' }}>
                 <p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Profil radar comparé</p>
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={400}>
                   <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
                     <PolarGrid stroke="#1f2937" />
                     <PolarAngleAxis dataKey="stat" tick={{ fill: '#9ca3af', fontSize: 12 }} />

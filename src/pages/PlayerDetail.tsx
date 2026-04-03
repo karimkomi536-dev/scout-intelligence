@@ -408,7 +408,7 @@ export default function PlayerDetail() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ color: 'var(--text-primary)', maxWidth: '1000px', animation: 'fadeIn 0.25s ease' }}>
+    <div style={{ color: 'var(--text-primary)', maxWidth: '1280px', animation: 'fadeIn 0.25s ease' }}>
 
       {/* Upgrade modal */}
       {showAiUpgrade && (
@@ -423,7 +423,15 @@ export default function PlayerDetail() {
         aiReport={includeInPDF ? aiReport : null}
       />
 
+      <div style={{
+        display: !isMobile ? 'grid' : 'block',
+        gridTemplateColumns: !isMobile ? '55% 1fr' : undefined,
+        gap: !isMobile ? '24px' : undefined,
+        alignItems: 'flex-start',
+      }}>
+
       {/* ── HERO CARD ─────────────────────────────────────────────────────── */}
+      <div style={{ position: 'sticky', top: '24px' }}>
       <div style={{
         background: `var(--surface2)`,
         backgroundImage: POS_GRADIENT[posGroup],
@@ -689,6 +697,9 @@ export default function PlayerDetail() {
           </div>
         </div>
       </div>
+      </div>{/* end sticky left column */}
+
+      <div>{/* right column: tabs + content */}
 
       {/* ── TABS ─────────────────────────────────────────────────────────────── */}
       <div style={{
@@ -1698,6 +1709,9 @@ export default function PlayerDetail() {
           )}
         </div>
       )}
+
+      </div>{/* end right column */}
+      </div>{/* end 2-col grid */}
 
     </div>
   )
