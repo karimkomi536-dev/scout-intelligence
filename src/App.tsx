@@ -15,7 +15,7 @@ import PlayerDetail from './pages/PlayerDetail'
 import Compare from './pages/Compare'
 import Shortlist from './pages/Shortlist'
 import SharedShortlist from './pages/SharedShortlist'
-import NL from './pages/NL'
+import NewsletterPage from './pages/NewsletterPage'
 import Upload from './pages/Upload'
 import Settings from './pages/Settings'
 import Billing from './pages/Billing'
@@ -89,7 +89,7 @@ function App() {
               <Route path="players/:id" element={<PlayerDetail />} />
               <Route path="compare"     element={<Compare />} />
               <Route path="shortlist"   element={<Shortlist />} />
-              <Route path="newsletter"  element={<NL />} />
+              <Route path="newsletter"  element={<NewsletterPage />} />
               <Route path="upload"      element={<Upload />} />
               <Route path="settings"         element={<Settings />} />
               <Route path="settings/billing" element={<Billing />} />
