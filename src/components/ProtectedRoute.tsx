@@ -50,8 +50,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!user) return <Navigate to="/login" replace />
 
-  // Redirect to onboarding unless already there
-  if (needsOnboarding && location.pathname !== '/onboarding') {
+  // NIVEAU 1 — localStorage bloque le redirect avant même Supabase
+  const localDone = localStorage.getItem('vizion-onboarding-done') === 'true'
+
+  // Redirect to onboarding unless already there or already confirmed done
+  if (needsOnboarding && !localDone && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />
   }
 

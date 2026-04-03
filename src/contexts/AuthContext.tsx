@@ -16,17 +16,26 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 async function fetchOnboardingStatus(userId: string): Promise<boolean> {
-  // Fast-path: localStorage avoids a round-trip on every login
+  // NIVEAU 1 — localStorage instant check (zéro latence)
   if (localStorage.getItem('vizion-onboarding-done') === 'true') return false
 
-  const { data } = await supabase
+  // NIVEAU 2 — Supabase avec gestion explicite de l'erreur
+  const { data, error } = await supabase
     .from('profiles')
     .select('onboarding_completed')
     .eq('user_id', userId)
     .maybeSingle()
-  // !data means no profile yet → needs onboarding
-  // data.onboarding_completed === false → needs onboarding
-  const done = !!data?.onboarding_completed
+
+  // Erreur Supabase (RLS, réseau) → ne pas montrer l'onboarding pour éviter la boucle
+  if (error) {
+    console.warn('fetchOnboardingStatus error:', error.message)
+    return false
+  }
+
+  // Pas de profil encore → nouvel utilisateur
+  if (!data) return true
+
+  const done = data.onboarding_completed === true
   if (done) localStorage.setItem('vizion-onboarding-done', 'true')
   return !done
 }

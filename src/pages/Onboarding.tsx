@@ -55,9 +55,12 @@ export default function Onboarding() {
   const [playerScore, setPlayerScore]   = useState(70)
   const [skipPlayer, setSkipPlayer]     = useState(false)
 
-  // Redirect if already onboarded
+  // NIVEAU 4 — Guard : redirige si pas connecté OU si déjà onboardé
   useEffect(() => {
-    if (!user) navigate('/login', { replace: true })
+    if (!user) { navigate('/login', { replace: true }); return }
+    if (localStorage.getItem('vizion-onboarding-done') === 'true') {
+      navigate('/dashboard', { replace: true })
+    }
   }, [user?.id, navigate])
 
   // ── Step 1 : save profile ──────────────────────────────────────────────────
