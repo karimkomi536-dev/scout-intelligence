@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, createContext } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bookmark, Newspaper, Upload, LogOut,
@@ -17,6 +17,13 @@ import CompareBar from './CompareBar'
 import NotificationBell from './NotificationBell'
 import CommandPalette from './CommandPalette'
 import { useIsMobile } from '../hooks/useIsMobile'
+
+// ── Presentation context ──────────────────────────────────────────────────────
+
+export const PresentationContext = createContext({
+  isPresentation:  false,
+  setPresentation: (_v: boolean) => {},
+})
 
 // ── Nav config ────────────────────────────────────────────────────────────────
 
@@ -420,6 +427,7 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
+  const [isPresentation, setPresentation] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
@@ -501,12 +509,13 @@ export default function Layout() {
   }
 
   return (
+    <PresentationContext.Provider value={{ isPresentation, setPresentation }}>
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: 'var(--bg-base)' }}>
 
       {/* ══════════════════════════════════════════════════════════════════════
           SIDEBAR — desktop only (static)
       ══════════════════════════════════════════════════════════════════════ */}
-      {!isMobile && (
+      {!isMobile && !isPresentation && (
         <aside style={{
           width: '260px',
           minWidth: '260px',
@@ -528,7 +537,7 @@ export default function Layout() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* ── Top bar ────────────────────────────────────────────────────── */}
-        {isMobile ? (
+        {!isPresentation && (isMobile ? (
           /* Mobile top bar — fixed, respects Dynamic Island / notch */
           <header style={{
             position: 'fixed',
@@ -640,14 +649,17 @@ export default function Layout() {
               <NotificationBell />
             </div>
           </header>
-        )}
+        ))}
 
         {/* Content */}
         <main style={{
           flex: 1,
           overflowY: 'auto',
           WebkitOverflowScrolling: 'touch' as const,
-          ...(isMobile ? {
+          ...(isPresentation ? {
+            padding: 0,
+            background: '#050710',
+          } : isMobile ? {
             marginTop: 'calc(56px + env(safe-area-inset-top, 0px))',
             padding: '16px 16px calc(72px + env(safe-area-inset-bottom, 0px))',
           } : {
@@ -938,9 +950,10 @@ export default function Layout() {
         </>
       )}
 
-      <CompareBar />
+      {!isPresentation && <CompareBar />}
 
       {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} />}
     </div>
+    </PresentationContext.Provider>
   )
 }

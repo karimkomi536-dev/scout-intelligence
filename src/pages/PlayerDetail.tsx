@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useContext } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { usePlayer } from '../hooks/usePlayer'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -21,6 +21,7 @@ import { useSimilarPlayers } from '../hooks/useSimilarPlayers'
 import { useFixtures } from '../hooks/useFixtures'
 import SimilarPlayers from '../components/SimilarPlayers'
 import { useCompare } from '../contexts/CompareContext'
+import { PresentationContext } from '../components/Layout'
 import { PlayerPDFReport } from '../components/PlayerPDFReport'
 import { exportPlayerPDF } from '../utils/exportPDF'
 import type { ScoutNote } from '../components/PlayerPDFReport'
@@ -276,6 +277,7 @@ export default function PlayerDetail() {
   const [includeInPDF, setIncludeInPDF] = useState(false)
   const { similar, loading: similarLoading } = useSimilarPlayers(player)
   const { fixtures, loading: fixturesLoading, hasTeam } = useFixtures(player?.team)
+  const { isPresentation, setPresentation } = useContext(PresentationContext)
 
   useEffect(() => {
     if (!id) return
@@ -347,6 +349,23 @@ export default function PlayerDetail() {
     }
   }
 
+  // ── Presentation mode ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'f') { setPresentation(true); document.documentElement.requestFullscreen?.() }
+      if (e.key === 'Escape') setPresentation(false)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [setPresentation])
+
+  useEffect(() => {
+    const handler = () => { if (!document.fullscreenElement) setPresentation(false) }
+    document.addEventListener('fullscreenchange', handler)
+    return () => document.removeEventListener('fullscreenchange', handler)
+  }, [setPresentation])
+
   // ── States ─────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -408,7 +427,12 @@ export default function PlayerDetail() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ color: 'var(--text-primary)', maxWidth: '1280px', animation: 'fadeIn 0.25s ease' }}>
+    <div style={{
+      color:      'var(--text-primary)',
+      maxWidth:   isPresentation ? '100%' : '1280px',
+      padding:    isPresentation ? '40px' : undefined,
+      animation:  'fadeIn 0.25s ease',
+    }}>
 
       {/* Upgrade modal */}
       {showAiUpgrade && (
@@ -660,6 +684,27 @@ export default function PlayerDetail() {
                   : <><FileDown size={13} /> PDF</>
                 }
               </button>
+
+              {/* Présentation */}
+              {!isMobile && (
+                <button
+                  onClick={() => { setPresentation(true); document.documentElement.requestFullscreen?.() }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: isPresentation ? 'rgba(0,200,150,0.12)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${isPresentation ? 'rgba(0,200,150,0.35)' : 'rgba(255,255,255,0.10)'}`,
+                    borderRadius: '8px',
+                    color: isPresentation ? '#00C896' : 'var(--text-secondary)',
+                    fontSize: '12px', fontWeight: 600,
+                    padding: '7px 14px', cursor: 'pointer', transition: 'all 150ms ease',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,150,0.10)'; e.currentTarget.style.borderColor = 'rgba(0,200,150,0.30)'; e.currentTarget.style.color = '#00C896' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = isPresentation ? 'rgba(0,200,150,0.12)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = isPresentation ? 'rgba(0,200,150,0.35)' : 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = isPresentation ? '#00C896' : 'var(--text-secondary)' }}
+                  title="Présentation plein écran (touche F)"
+                >
+                  ⛶ Présentation
+                </button>
+              )}
             </div>
           </div>
 
@@ -1712,6 +1757,22 @@ export default function PlayerDetail() {
 
       </div>{/* end right column */}
       </div>{/* end 2-col grid */}
+
+      {isPresentation && (
+        <button
+          onClick={() => { setPresentation(false); document.exitFullscreen?.() }}
+          style={{
+            position: 'fixed', bottom: '32px', right: '32px',
+            background: 'rgba(239,68,68,0.15)',
+            border: '1px solid rgba(239,68,68,0.35)',
+            color: '#ef4444', borderRadius: '10px',
+            padding: '10px 20px', fontSize: '13px', fontWeight: 700,
+            cursor: 'pointer', zIndex: 1000, backdropFilter: 'blur(8px)',
+          }}
+        >
+          ✕ Quitter
+        </button>
+      )}
 
     </div>
   )
