@@ -5,11 +5,15 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    // Single storage key avoids cross-tab key collisions
-    storageKey: 'vizion-auth',
-    // Let the SDK manage refresh; suppress 429 by not retrying immediately
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    storageKey: 'vizion-auth-v2', // nouvelle clé = reset propre de toute session corrompue
+    flowType: 'pkce',
+  },
+  global: {
+    headers: {
+      'x-client-info': 'vizion/1.0',
+    },
   },
 })
