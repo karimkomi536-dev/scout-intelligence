@@ -3,7 +3,7 @@ snapshot_players.py — Take a daily snapshot of all player scores.
 
 Reads every player from Supabase, writes one row per player into player_history
 with today's date.  Re-running on the same day is safe: the upsert on the unique
-index (player_id, snapshot_date) simply updates the existing row.
+index (player_id, season) simply updates the existing row.
 
 After snapshotting, compares new scores with the previous snapshot. If a player's
 score changed by more than 5 points, inserts a notification for every user who has
@@ -110,9 +110,9 @@ def fetch_shortlist_users(player_ids: list[str]) -> list[dict]:
 # ── Upsert / insert ───────────────────────────────────────────────────────────
 
 def upsert_snapshots(snapshots: list[dict]) -> None:
-    """Upsert a batch of snapshots — idempotent on (player_id, snapshot_date)."""
+    """Upsert a batch of snapshots — idempotent on (player_id, season)."""
     _post(
-        "player_history?on_conflict=player_id,snapshot_date",
+        "player_history?on_conflict=player_id,season",
         snapshots,
         prefer="resolution=merge-duplicates,return=minimal",
     )
@@ -127,9 +127,17 @@ def insert_notifications(notifications: list[dict]) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def current_season() -> str:
+    """Return the football season string for today, e.g. '2025-26'."""
+    d = date.today()
+    start_year = d.year if d.month >= 7 else d.year - 1
+    return f"{start_year}-{str(start_year + 1)[2:]}"
+
+
 def main() -> None:
     today = date.today().isoformat()
-    log.info("Starting snapshot for %s", today)
+    season = current_season()
+    log.info("Starting snapshot for %s (season %s)", today, season)
 
     # ── 1. Fetch players ──────────────────────────────────────────────────────
     players = fetch_players()
@@ -142,6 +150,7 @@ def main() -> None:
             "overall_score":    int(p["scout_score"]),
             "individual_stats": p.get("individual_stats"),
             "snapshot_date":    today,
+            "season":           season,
         }
         for p in players
         if p.get("id") and p.get("scout_score") is not None
