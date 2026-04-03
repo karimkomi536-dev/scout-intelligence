@@ -66,42 +66,52 @@ export default function Globe({
     globeRef.current?.pointsData([...pins])
   }, [pins])
 
-  // ── Hover detection — React synthetic event → single state update ─────────────
+  // ── Hover detection — projection 2D (zéro erreur de rotation) ───────────────
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!rendererRef.current || !cameraRef.current || !globeRef.current) return
+    if (!cameraRef.current || !rendererRef.current || !globeRef.current) return
 
-    const rect    = rendererRef.current.domElement.getBoundingClientRect()
-    const mouseX  = ((e.clientX - rect.left) / rect.width)  * 2 - 1
-    const mouseY  = -((e.clientY - rect.top)  / rect.height) * 2 + 1
+    const rect   = mountRef.current?.getBoundingClientRect()
+    if (!rect) return
 
-    const raycaster = new THREE.Raycaster()
-    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), cameraRef.current)
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
 
-    const surfaceSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 104)
-    const target        = new THREE.Vector3()
-    if (!raycaster.ray.intersectSphere(surfaceSphere, target)) {
-      setTooltip(null)
-      onHoverRef.current?.(null, 0, 0)
-      return
-    }
-
-    // World hit → globe-local → lat/lng (accounts for globe rotation)
-    const localPos = globeRef.current.worldToLocal(target.clone())
-    const r   = localPos.length()
-    const lat = 90 - Math.acos(Math.max(-1, Math.min(1, localPos.y / r))) * 180 / Math.PI
-    const lng = ((Math.atan2(localPos.z, -localPos.x) * 180 / Math.PI - 180 + 540) % 360) - 180
-
-    let nearest: GlobePin | null = null
-    let minDist = 8 // degrees threshold
+    const GLOBE_R  = 100
+    let closest: GlobePin | null = null
+    let minDist    = 30 // pixels — rayon de détection
 
     for (const pin of pinsRef.current) {
-      const dist = Math.sqrt((lat - pin.lat) ** 2 + (lng - pin.lng) ** 2)
-      if (dist < minDist) { minDist = dist; nearest = pin }
+      const altitude = 0.02 + pin.count * 0.004
+      const r        = GLOBE_R * (1 + altitude)
+      const phi      = (90 - pin.lat)  * Math.PI / 180
+      const theta    = (pin.lng + 180) * Math.PI / 180
+
+      // Position locale sur le globe (avant rotation)
+      const localPos = new THREE.Vector3(
+        -r * Math.sin(phi) * Math.cos(theta),
+         r * Math.cos(phi),
+         r * Math.sin(phi) * Math.sin(theta),
+      )
+
+      // Applique la rotation actuelle du globe → position monde
+      const worldPos = localPos.clone().applyQuaternion(globeRef.current.quaternion)
+
+      // Projette en NDC puis en pixels écran
+      const projected = worldPos.clone().project(cameraRef.current)
+
+      // Ignore les pins derrière le globe
+      if (projected.z > 1) continue
+
+      const screenX = (projected.x  + 1) / 2 * rect.width
+      const screenY = (-projected.y + 1) / 2 * rect.height
+      const dist    = Math.sqrt((screenX - mouseX) ** 2 + (screenY - mouseY) ** 2)
+
+      if (dist < minDist) { minDist = dist; closest = pin }
     }
 
-    if (nearest) {
-      setTooltip({ x: e.clientX, y: e.clientY, country: nearest.country, count: nearest.count, label: nearest.label })
-      onHoverRef.current?.(nearest, e.clientX, e.clientY)
+    if (closest) {
+      setTooltip({ x: e.clientX, y: e.clientY, country: closest.country, count: closest.count, label: closest.label })
+      onHoverRef.current?.(closest, e.clientX, e.clientY)
     } else {
       setTooltip(null)
       onHoverRef.current?.(null, 0, 0)
