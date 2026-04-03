@@ -121,13 +121,18 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
   )
 }
 
-function KpiCard({ label, value, icon: Icon, color, glow, delta }: {
+function KpiCard({ label, value, icon: Icon, color, glow, delta, onClick }: {
   label: string; value: number; icon: React.ElementType
-  color: string; glow: string; delta?: string | null
+  color: string; glow: string; delta?: string | null; onClick?: () => void
 }) {
   const display = useCountUp(value)
   return (
-    <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px 22px', position: 'relative', overflow: 'hidden' }}>
+    <div
+      onClick={onClick}
+      style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px 22px', position: 'relative', overflow: 'hidden', cursor: onClick ? 'pointer' : 'default', transition: 'background 150ms' }}
+      onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)' }}
+      onMouseLeave={e => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface2)' }}
+    >
       <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px', borderRadius: '50%', background: glow, filter: 'blur(28px)', pointerEvents: 'none' }} />
       <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: `${color}18`, border: `1px solid ${color}35`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px', boxShadow: `0 0 14px ${glow}` }}>
         <Icon size={17} color={color} />
@@ -426,17 +431,22 @@ export default function Dashboard() {
 
       {/* ── KPI cards ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: '14px' }}>
-        <KpiCard label="Total Joueurs"  value={players.length}               icon={Users}      color="#4D7FFF" glow="rgba(77,127,255,0.3)"   delta={monthDelta} />
-        <KpiCard label="Elite"          value={countByLabel('ELITE')}        icon={Star}       color="#00C896" glow="rgba(0,200,150,0.3)"    />
-        <KpiCard label="Top Prospect"   value={countByLabel('TOP PROSPECT')} icon={TrendingUp} color="#4D7FFF" glow="rgba(77,127,255,0.25)" />
-        <KpiCard label="À surveiller"   value={countByLabel('TO MONITOR')}   icon={Eye}        color="#9B6DFF" glow="rgba(155,109,255,0.25)" />
+        <KpiCard label="Total Joueurs"  value={players.length}               icon={Users}      color="#4D7FFF" glow="rgba(77,127,255,0.3)"   delta={monthDelta} onClick={() => navigate('/players')} />
+        <KpiCard label="Elite"          value={countByLabel('ELITE')}        icon={Star}       color="#00C896" glow="rgba(0,200,150,0.3)"    onClick={() => navigate('/players?label=ELITE')} />
+        <KpiCard label="Top Prospect"   value={countByLabel('TOP PROSPECT')} icon={TrendingUp} color="#4D7FFF" glow="rgba(77,127,255,0.25)"  onClick={() => navigate('/players?label=TOP+PROSPECT')} />
+        <KpiCard label="À surveiller"   value={countByLabel('TO MONITOR')}   icon={Eye}        color="#9B6DFF" glow="rgba(155,109,255,0.25)" onClick={() => navigate('/players?label=TO+MONITOR')} />
       </div>
 
       {/* ── Stats rapides ─────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '12px' }}>
 
         {/* Elite + Prospect */}
-        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div
+          onClick={() => navigate('/players?label=ELITE')}
+          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', transition: 'background 150ms' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface2)')}
+        >
           <div style={{ width: 36, height: 36, borderRadius: 9, background: 'rgba(0,200,150,0.12)', border: '1px solid rgba(0,200,150,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Star size={16} color="#00C896" />
           </div>
@@ -449,7 +459,12 @@ export default function Dashboard() {
         </div>
 
         {/* U23 count */}
-        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div
+          onClick={() => navigate('/players?is_u23=true')}
+          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', transition: 'background 150ms' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface2)')}
+        >
           <div style={{ width: 36, height: 36, borderRadius: 9, background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Zap size={16} color="#F5A623" />
           </div>
@@ -462,7 +477,12 @@ export default function Dashboard() {
         </div>
 
         {/* Last sync */}
-        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div
+          onClick={() => navigate('/admin/cron')}
+          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', transition: 'background 150ms' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface2)')}
+        >
           <div style={{ width: 36, height: 36, borderRadius: 9, background: cronLog?.status === 'success' ? 'rgba(0,200,150,0.12)' : 'rgba(255,255,255,0.06)', border: `1px solid ${cronLog?.status === 'success' ? 'rgba(0,200,150,0.25)' : 'rgba(255,255,255,0.10)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <RefreshCw size={16} color={cronLog?.status === 'success' ? '#00C896' : 'var(--text-muted)'} />
           </div>

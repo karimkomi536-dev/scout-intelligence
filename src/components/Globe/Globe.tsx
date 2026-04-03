@@ -30,8 +30,8 @@ function toXYZ(lat: number, lng: number, r = 1.02): THREE.Vector3 {
 }
 
 function pinColor(label: string): number {
-  if (label === 'ELITE')         return 0x00e5a0
-  if (label === 'TOP PROSPECT')  return 0x3d8eff
+  if (label === 'ELITE')        return 0x00e5a0
+  if (label === 'TOP PROSPECT') return 0x3d8eff
   return 0xff9f43
 }
 
@@ -45,37 +45,32 @@ export default function Globe({
 }: GlobeProps) {
   const mountRef = useRef<HTMLDivElement>(null)
 
-  // Refs for stable callbacks (avoid stale closures in effects)
-  const onHoverRef      = useRef(onHover)
-  const onClickRef      = useRef(onCountryClick)
-  onHoverRef.current    = onHover
-  onClickRef.current    = onCountryClick
+  const onHoverRef   = useRef(onHover)
+  const onClickRef   = useRef(onCountryClick)
+  onHoverRef.current = onHover
+  onClickRef.current = onCountryClick
 
-  // Shared state ref for drag / autoRotate
   const stateRef = useRef({
     autoRotate: true,
     isDragging: false,
     prevMouse:  { x: 0, y: 0 },
   })
 
-  // Exposed pin meshes for the selectedCountry effect below
   const pinMeshesRef = useRef<Array<{
     mesh: THREE.Mesh
     pin:  GlobePin
     mat:  THREE.MeshPhongMaterial
   }>>([])
 
-  // ── Main scene effect ─────────────────────────────────────────────────────
+  // ── Main scene ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mountRef.current) return
     const mount = mountRef.current
-
-    // Reset pin refs
     pinMeshesRef.current = []
 
-    // Scene
-    const scene    = new THREE.Scene()
-    const camera   = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
+    // Scene & camera
+    const scene  = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
     camera.position.z = 2.8
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -83,61 +78,102 @@ export default function Globe({
     renderer.setPixelRatio(window.devicePixelRatio)
     mount.appendChild(renderer.domElement)
 
-    // Globe mesh
+    // Globe mesh — dark night texture
     const globeGeo = new THREE.SphereGeometry(1, 64, 64)
     const loader   = new THREE.TextureLoader()
     const texture  = loader.load(
-      'https://unpkg.com/three-globe/example/img/earth-dark.jpg',
+      'https://unpkg.com/three-globe/example/img/earth-night.jpg',
       () => renderer.render(scene, camera),
     )
-    const globeMat = new THREE.MeshPhongMaterial({ map: texture })
-    const globe    = new THREE.Mesh(globeGeo, globeMat)
+    const globeMat = new THREE.MeshPhongMaterial({
+      map:               texture,
+      emissive:          new THREE.Color(0x002210),
+      emissiveIntensity: 0.15,
+    })
+    const globe = new THREE.Mesh(globeGeo, globeMat)
     scene.add(globe)
 
-    // Atmosphere
+    // Atmosphere — inner green glow
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(1.02, 64, 64),
-      new THREE.MeshPhongMaterial({ color: 0x00e5a0, transparent: true, opacity: 0.04 }),
+      new THREE.MeshPhongMaterial({ color: 0x00e5a0, transparent: true, opacity: 0.08, side: THREE.FrontSide }),
+    ))
+    // Atmosphere — outer blue halo
+    globe.add(new THREE.Mesh(
+      new THREE.SphereGeometry(1.06, 64, 64),
+      new THREE.MeshPhongMaterial({ color: 0x3d8eff, transparent: true, opacity: 0.03, side: THREE.FrontSide }),
     ))
 
-    // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8)
-    dirLight.position.set(5, 3, 5)
-    scene.add(dirLight)
+    // Lights — neon scheme
+    scene.add(new THREE.AmbientLight(0x0a1520, 0.3))
+    const greenLight = new THREE.PointLight(0x00e5a0, 0.4)
+    greenLight.position.set(3, 2, 3)
+    scene.add(greenLight)
+    const blueLight = new THREE.PointLight(0x3d8eff, 0.2)
+    blueLight.position.set(-3, -1, 2)
+    scene.add(blueLight)
 
-    // Pins
+    // Coordinate grid
+    const gridPoints: THREE.Vector3[] = []
+    const GRID_STEPS = 64
+    for (const lat of [-60, -30, 0, 30, 60]) {
+      for (let i = 0; i < GRID_STEPS; i++) {
+        const a1 = (i / GRID_STEPS) * 360 - 180
+        const a2 = ((i + 1) / GRID_STEPS) * 360 - 180
+        gridPoints.push(toXYZ(lat, a1, 1.002), toXYZ(lat, a2, 1.002))
+      }
+    }
+    for (let lng = 0; lng < 360; lng += 30) {
+      const l = lng - 180
+      for (let i = 0; i < GRID_STEPS; i++) {
+        const a1 = (i / GRID_STEPS) * 180 - 90
+        const a2 = ((i + 1) / GRID_STEPS) * 180 - 90
+        gridPoints.push(toXYZ(a1, l, 1.002), toXYZ(a2, l, 1.002))
+      }
+    }
+    const gridGeo = new THREE.BufferGeometry().setFromPoints(gridPoints)
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x00e5a0, transparent: true, opacity: 0.06 })
+    globe.add(new THREE.LineSegments(gridGeo, gridMat))
+
+    // Pins + ring halos
     const pinMeshes: Array<{ mesh: THREE.Mesh; pin: GlobePin; mat: THREE.MeshPhongMaterial }> = []
+    const rings: Array<{ mesh: THREE.Mesh; phase: number }> = []
 
-    pins.forEach(pin => {
+    pins.forEach((pin, idx) => {
       const pos    = toXYZ(pin.lat, pin.lng)
       const radius = Math.min(0.012 + pin.count * 0.003, 0.05)
-      const mat    = new THREE.MeshPhongMaterial({
-        color:             pinColor(pin.label),
-        emissive:          pinColor(pin.label),
-        emissiveIntensity: 0.4,
-      })
+      const color  = pinColor(pin.label)
+
+      // Pin sphere
+      const mat  = new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.6 })
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 16), mat)
       mesh.position.copy(pos)
       globe.add(mesh)
       pinMeshes.push({ mesh, pin, mat })
+
+      // Ring halo
+      const ringGeo = new THREE.RingGeometry(radius * 1.8, radius * 2.8, 32)
+      const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+      const ring    = new THREE.Mesh(ringGeo, ringMat)
+      ring.position.copy(pos)
+      ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), pos.clone().normalize())
+      globe.add(ring)
+      rings.push({ mesh: ring, phase: idx * 0.7 })
     })
+
     pinMeshesRef.current = pinMeshes
 
     // Raycaster
     const raycaster = new THREE.Raycaster()
     const mouse     = new THREE.Vector2()
 
-    // ── Event handlers ──────────────────────────────────────────────────────
-
+    // Events
     const onMouseDown = (e: MouseEvent) => {
       stateRef.current.isDragging = true
       stateRef.current.autoRotate = false
       stateRef.current.prevMouse  = { x: e.clientX, y: e.clientY }
     }
-
     const onMouseMove = (e: MouseEvent) => {
-      // Drag rotation
       if (stateRef.current.isDragging) {
         const dx = e.clientX - stateRef.current.prevMouse.x
         const dy = e.clientY - stateRef.current.prevMouse.y
@@ -145,8 +181,6 @@ export default function Globe({
         globe.rotation.x += dy * 0.005
         stateRef.current.prevMouse = { x: e.clientX, y: e.clientY }
       }
-
-      // Hover tooltip via raycasting
       if (onHoverRef.current) {
         const rect = renderer.domElement.getBoundingClientRect()
         const x    = e.clientX - rect.left
@@ -163,17 +197,9 @@ export default function Globe({
         }
       }
     }
-
-    const onMouseUp = () => {
-      stateRef.current.isDragging = false
-      setTimeout(() => { stateRef.current.autoRotate = true }, 2000)
-    }
-
-    const onMouseLeave = () => {
-      onHoverRef.current?.(null, 0, 0)
-    }
-
-    const handleClick = (e: MouseEvent) => {
+    const onMouseUp    = () => { stateRef.current.isDragging = false; setTimeout(() => { stateRef.current.autoRotate = true }, 2000) }
+    const onMouseLeave = () => { onHoverRef.current?.(null, 0, 0) }
+    const handleClick  = (e: MouseEvent) => {
       if (!onClickRef.current) return
       const rect = renderer.domElement.getBoundingClientRect()
       const x    = e.clientX - rect.left
@@ -199,6 +225,12 @@ export default function Globe({
     const animate = () => {
       rafId = requestAnimationFrame(animate)
       if (stateRef.current.autoRotate) globe.rotation.y += 0.003
+      // Pulse rings
+      const t = performance.now() / 1000
+      rings.forEach(({ mesh, phase }) => {
+        const s = 0.8 + 0.4 * Math.sin(t * 2 + phase)
+        mesh.scale.setScalar(s)
+      })
       renderer.render(scene, camera)
     }
     animate()
@@ -216,12 +248,12 @@ export default function Globe({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, height, pins.length])
 
-  // ── Selected-country glow effect ──────────────────────────────────────────
+  // Selected-country glow
   useEffect(() => {
     pinMeshesRef.current.forEach(({ mesh, pin, mat }) => {
       const isSelected = selectedCountry != null && pin.country === selectedCountry
       mesh.scale.setScalar(isSelected ? 2 : 1)
-      mat.emissiveIntensity = isSelected ? 1.4 : 0.4
+      mat.emissiveIntensity = isSelected ? 1.4 : 0.6
     })
   }, [selectedCountry])
 

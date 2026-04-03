@@ -7,7 +7,8 @@ import { supabase } from '../lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import type { GlobePin } from '../components/Globe/Globe'
 
-const Globe = lazy(() => import('../components/Globe/Globe'))
+const Globe  = lazy(() => import('../components/Globe/Globe'))
+const HexMap = lazy(() => import('../components/Globe/HexMap'))
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,7 @@ export default function WorldMap() {
   const navigate  = useNavigate()
   const isMobile  = useIsMobile()
 
+  const [viewMode,         setViewMode]         = useState<'globe' | 'hex'>('globe')
   const [labelFilter,      setLabelFilter]      = useState<string>('all')
   const [selectedCountry,  setSelectedCountry]  = useState<string | null>(null)
   const [tooltip, setTooltip] = useState<{ pin: GlobePin; x: number; y: number } | null>(null)
@@ -115,6 +117,25 @@ export default function WorldMap() {
         <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
           Répartition géographique des joueurs suivis
         </p>
+      </div>
+
+      {/* ── View toggle ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 8, background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 4, alignSelf: 'flex-start' }}>
+        {(['globe', 'hex'] as const).map(mode => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            style={{
+              padding: '6px 16px', borderRadius: 6, fontSize: 11, cursor: 'pointer', transition: 'all 0.2s',
+              fontFamily: 'JetBrains Mono, monospace',
+              background: viewMode === mode ? 'rgba(0,229,160,0.15)' : 'transparent',
+              border:     viewMode === mode ? '1px solid rgba(0,229,160,0.4)' : '1px solid transparent',
+              color:      viewMode === mode ? '#00E5A0' : '#64748B',
+            }}
+          >
+            {mode === 'globe' ? '🌍 Globe 3D' : '⬡ Hex Map'}
+          </button>
+        ))}
       </div>
 
       {/* ── Filters ─────────────────────────────────────────────────────────── */}
@@ -166,22 +187,32 @@ export default function WorldMap() {
           ) : (
             <div style={{ position: 'relative' }}>
               <Suspense fallback={
-                <div style={{ width: globeSize, height: globeSize, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: viewMode === 'hex' ? 800 : globeSize, height: viewMode === 'hex' ? 450 : globeSize, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <p style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>Initialisation…</p>
                 </div>
               }>
-                <Globe
-                  pins={pins}
-                  onCountryClick={country => { setSelectedCountry(country); setTooltip(null) }}
-                  onHover={handleHover}
-                  selectedCountry={selectedCountry}
-                  width={globeSize}
-                  height={globeSize}
-                />
+                {viewMode === 'globe' && (
+                  <Globe
+                    pins={pins}
+                    onCountryClick={country => { setSelectedCountry(country); setTooltip(null) }}
+                    onHover={handleHover}
+                    selectedCountry={selectedCountry}
+                    width={globeSize}
+                    height={globeSize}
+                  />
+                )}
+                {viewMode === 'hex' && (
+                  <HexMap
+                    pins={pins}
+                    onCountryClick={country => { setSelectedCountry(country); setTooltip(null) }}
+                    width={isMobile ? globeSize : 800}
+                    height={isMobile ? 300 : 450}
+                  />
+                )}
               </Suspense>
 
               {/* Tooltip */}
-              {tooltip && (
+              {viewMode === 'globe' && tooltip && (
                 <div style={{
                   position:     'absolute',
                   left:         Math.min(tooltip.x + 12, globeSize - 160),
