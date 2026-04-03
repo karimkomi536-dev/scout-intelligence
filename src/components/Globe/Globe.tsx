@@ -35,6 +35,41 @@ function pinColor(label: string): number {
   return 0xff9f43
 }
 
+// Points terrestres précalculés pour la détection continent/océan
+const LAND_LATLNG: [number, number][] = [
+  // Europe
+  [48,2],[51,0],[52,13],[48,16],[41,12],[40,-3],[38,-9],
+  [51,4],[56,10],[60,11],[64,26],[59,18],[47,8],[46,14],
+  [42,23],[38,22],[37,14],[53,18],[50,20],[47,19],[44,26],
+  [55,37],[59,30],[56,24],[54,25],[52,21],[48,35],
+  // Afrique
+  [36,3],[33,-5],[14,-14],[12,-2],[5,-1],[-4,15],
+  [-26,28],[-30,31],[-4,40],[15,32],[9,38],[0,37],
+  [7,2],[4,18],[-11,17],[20,13],[30,31],[24,15],
+  // Amérique du Nord
+  [40,-74],[38,-77],[42,-83],[45,-73],[37,-122],[34,-118],
+  [47,-122],[29,-95],[43,-79],[39,-105],[35,-90],[33,-84],
+  [25,-80],[48,-98],[51,-114],[54,-124],[19,-99],[21,-102],
+  // Amérique du Sud
+  [-23,-46],[-34,-58],[-12,-77],[-16,-68],[-4,-39],
+  [-8,-35],[-15,-47],[-3,-60],[5,-52],[-33,-71],[-38,-63],
+  // Asie
+  [35,139],[34,108],[39,116],[55,82],[43,76],[51,71],
+  [23,113],[13,100],[1,103],[14,120],[22,88],[28,77],
+  [19,73],[17,82],[31,121],[37,127],[35,136],[33,130],
+  [60,30],[56,44],[52,55],[48,68],[43,51],[41,69],
+  [38,35],[33,44],[36,52],[32,53],[25,55],[24,46],
+  // Australie
+  [-33,151],[-37,145],[-27,153],[-35,138],[-31,116],[-23,133],
+]
+
+function isLand(lat: number, lng: number): boolean {
+  return LAND_LATLNG.some(([pLat, pLng]) => {
+    const d = Math.sqrt((lat - pLat) ** 2 + (lng - pLng) ** 2)
+    return d < 7
+  })
+}
+
 export default function Globe({
   pins,
   onCountryClick,
@@ -54,6 +89,8 @@ export default function Globe({
     autoRotate: true,
     isDragging: false,
     prevMouse:  { x: 0, y: 0 },
+    rotX: 0,
+    rotY: 0,
   })
 
   const pinMeshesRef = useRef<Array<{
@@ -78,108 +115,87 @@ export default function Globe({
     renderer.setPixelRatio(window.devicePixelRatio)
     mount.appendChild(renderer.domElement)
 
-    // Globe mesh — custom canvas texture (no external URL)
+    // Globe base sphere — très sombre
     const globeGeo = new THREE.SphereGeometry(1, 64, 64)
-
-    const canvas2d = document.createElement('canvas')
-    canvas2d.width = 2048; canvas2d.height = 1024
-    const ctx2d = canvas2d.getContext('2d')!
-
-    // Fond océan très sombre
-    const oceanGrad = ctx2d.createLinearGradient(0, 0, 0, 1024)
-    oceanGrad.addColorStop(0, '#010810')
-    oceanGrad.addColorStop(0.5, '#020C18')
-    oceanGrad.addColorStop(1, '#010810')
-    ctx2d.fillStyle = oceanGrad
-    ctx2d.fillRect(0, 0, 2048, 1024)
-
-    // Dessine les continents approximatifs
-    ctx2d.fillStyle = '#0D1F14'
-    // Europe + Asie
-    ctx2d.fillRect(750, 100, 900, 400)
-    // Afrique
-    ctx2d.fillRect(820, 350, 350, 450)
-    // Amérique du Nord
-    ctx2d.fillRect(50, 80, 500, 400)
-    // Amérique du Sud
-    ctx2d.fillRect(150, 450, 350, 420)
-    // Australie
-    ctx2d.fillRect(1600, 450, 300, 250)
-
-    // Grille de coordonnées néon
-    ctx2d.strokeStyle = 'rgba(0,229,160,0.06)'
-    ctx2d.lineWidth = 1
-    for (let i = 0; i <= 12; i++) {
-      const x = i * (2048 / 12)
-      ctx2d.beginPath(); ctx2d.moveTo(x, 0); ctx2d.lineTo(x, 1024); ctx2d.stroke()
-    }
-    for (let i = 0; i <= 6; i++) {
-      const y = i * (1024 / 6)
-      ctx2d.beginPath(); ctx2d.moveTo(0, y); ctx2d.lineTo(2048, y); ctx2d.stroke()
-    }
-
-    const texture = new THREE.CanvasTexture(canvas2d)
     const globeMat = new THREE.MeshPhongMaterial({
-      map:               texture,
-      emissive:          new THREE.Color(0x001508),
-      emissiveIntensity: 0.3,
-      shininess:         5,
+      color:     0x040812,
+      emissive:  new THREE.Color(0x010408),
+      shininess: 10,
     })
     const globe = new THREE.Mesh(globeGeo, globeMat)
     scene.add(globe)
 
-    // Atmosphere — inner green glow
-    globe.add(new THREE.Mesh(
-      new THREE.SphereGeometry(1.02, 64, 64),
-      new THREE.MeshPhongMaterial({ color: 0x00e5a0, transparent: true, opacity: 0.08, side: THREE.FrontSide }),
+    // ── Hexagonal surface grid ───────────────────────────────────────────────
+    const hexGroup = new THREE.Group()
+    const STEP_LAT = 8
+    const STEP_LNG = 10
+
+    for (let lat = -80; lat <= 80; lat += STEP_LAT) {
+      for (let lng = -180; lng < 180; lng += STEP_LNG) {
+        const land   = isLand(lat, lng)
+        const center = toXYZ(lat, lng, 1.001)
+
+        // Hexagone plat
+        const hexGeo = new THREE.CircleGeometry(0.035, 6)
+        const hexMat = new THREE.MeshBasicMaterial({
+          color:       land ? 0x2A1870 : 0x0A0D20,
+          transparent: true,
+          opacity:     land ? 0.9 : 0.4,
+          side:        THREE.DoubleSide,
+        })
+        const hex = new THREE.Mesh(hexGeo, hexMat)
+        hex.position.copy(center)
+        hex.lookAt(new THREE.Vector3(0, 0, 0))
+        hex.rotateX(Math.PI)
+        hexGroup.add(hex)
+
+        // Contour hexagone
+        const edgeGeo = new THREE.EdgesGeometry(hexGeo)
+        const edgeMat = new THREE.LineBasicMaterial({
+          color:       land ? 0x6040E0 : 0x101828,
+          transparent: true,
+          opacity:     land ? 0.6 : 0.2,
+        })
+        const edge = new THREE.LineSegments(edgeGeo, edgeMat)
+        edge.position.copy(center)
+        edge.lookAt(new THREE.Vector3(0, 0, 0))
+        edge.rotateX(Math.PI)
+        hexGroup.add(edge)
+      }
+    }
+    scene.add(hexGroup)
+
+    // ── Atmosphère néon ──────────────────────────────────────────────────────
+    scene.add(new THREE.Mesh(
+      new THREE.SphereGeometry(1.05, 64, 64),
+      new THREE.MeshBasicMaterial({ color: 0x00E5A0, transparent: true, opacity: 0.04, side: THREE.FrontSide }),
     ))
-    // Atmosphere — outer blue halo
-    globe.add(new THREE.Mesh(
-      new THREE.SphereGeometry(1.06, 64, 64),
-      new THREE.MeshPhongMaterial({ color: 0x3d8eff, transparent: true, opacity: 0.03, side: THREE.FrontSide }),
+    scene.add(new THREE.Mesh(
+      new THREE.SphereGeometry(1.08, 64, 64),
+      new THREE.MeshBasicMaterial({ color: 0x3D8EFF, transparent: true, opacity: 0.02, side: THREE.FrontSide }),
     ))
 
-    // Lights — neon scheme
-    scene.add(new THREE.AmbientLight(0x0a1520, 0.8))
-    const greenLight = new THREE.PointLight(0x00e5a0, 0.6)
-    greenLight.position.set(3, 2, 3)
+    // ── Éclairage ────────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0x0a0a20, 1.0))
+    const greenLight = new THREE.PointLight(0x00E5A0, 1.5)
+    greenLight.position.set(4, 3, 4)
     scene.add(greenLight)
-    const blueLight = new THREE.PointLight(0x3d8eff, 0.3)
-    blueLight.position.set(-3, -1, 2)
+    const blueLight = new THREE.PointLight(0x3D8EFF, 0.8)
+    blueLight.position.set(-4, -2, 3)
     scene.add(blueLight)
+    const whiteLight = new THREE.PointLight(0xffffff, 0.3)
+    whiteLight.position.set(0, 5, 0)
+    scene.add(whiteLight)
 
-    // Coordinate grid
-    const gridPoints: THREE.Vector3[] = []
-    const GRID_STEPS = 64
-    for (const lat of [-60, -30, 0, 30, 60]) {
-      for (let i = 0; i < GRID_STEPS; i++) {
-        const a1 = (i / GRID_STEPS) * 360 - 180
-        const a2 = ((i + 1) / GRID_STEPS) * 360 - 180
-        gridPoints.push(toXYZ(lat, a1, 1.002), toXYZ(lat, a2, 1.002))
-      }
-    }
-    for (let lng = 0; lng < 360; lng += 30) {
-      const l = lng - 180
-      for (let i = 0; i < GRID_STEPS; i++) {
-        const a1 = (i / GRID_STEPS) * 180 - 90
-        const a2 = ((i + 1) / GRID_STEPS) * 180 - 90
-        gridPoints.push(toXYZ(a1, l, 1.002), toXYZ(a2, l, 1.002))
-      }
-    }
-    const gridGeo = new THREE.BufferGeometry().setFromPoints(gridPoints)
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x00e5a0, transparent: true, opacity: 0.06 })
-    globe.add(new THREE.LineSegments(gridGeo, gridMat))
-
-    // Pins + ring halos
+    // ── Pins (au-dessus des hexagones, r=1.06) ───────────────────────────────
     const pinMeshes: Array<{ mesh: THREE.Mesh; pin: GlobePin; mat: THREE.MeshPhongMaterial }> = []
     const rings: Array<{ mesh: THREE.Mesh; phase: number }> = []
 
     pins.forEach((pin, idx) => {
-      const pos    = toXYZ(pin.lat, pin.lng)
+      const pos    = toXYZ(pin.lat, pin.lng, 1.06)
       const radius = Math.min(0.012 + pin.count * 0.003, 0.05)
       const color  = pinColor(pin.label)
 
-      // Pin sphere
       const mat  = new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.6 })
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 16), mat)
       mesh.position.copy(pos)
@@ -212,8 +228,8 @@ export default function Globe({
       if (stateRef.current.isDragging) {
         const dx = e.clientX - stateRef.current.prevMouse.x
         const dy = e.clientY - stateRef.current.prevMouse.y
-        globe.rotation.y += dx * 0.005
-        globe.rotation.x += dy * 0.005
+        stateRef.current.rotY += dx * 0.005
+        stateRef.current.rotX += dy * 0.005
         stateRef.current.prevMouse = { x: e.clientX, y: e.clientY }
       }
       if (onHoverRef.current) {
@@ -259,7 +275,14 @@ export default function Globe({
     let rafId: number
     const animate = () => {
       rafId = requestAnimationFrame(animate)
-      if (stateRef.current.autoRotate) globe.rotation.y += 0.003
+
+      if (stateRef.current.autoRotate) stateRef.current.rotY += 0.003
+
+      globe.rotation.y    = stateRef.current.rotY
+      globe.rotation.x    = stateRef.current.rotX
+      hexGroup.rotation.y = stateRef.current.rotY
+      hexGroup.rotation.x = stateRef.current.rotX
+
       // Pulse rings
       const t = performance.now() / 1000
       rings.forEach(({ mesh, phase }) => {
@@ -286,9 +309,9 @@ export default function Globe({
   // Selected-country glow
   useEffect(() => {
     pinMeshesRef.current.forEach(({ mesh, pin, mat }) => {
-      const isSelected = selectedCountry != null && pin.country === selectedCountry
-      mesh.scale.setScalar(isSelected ? 2 : 1)
-      mat.emissiveIntensity = isSelected ? 1.4 : 0.6
+      const sel = selectedCountry != null && pin.country === selectedCountry
+      mesh.scale.setScalar(sel ? 2 : 1)
+      mat.emissiveIntensity = sel ? 1.4 : 0.6
     })
   }, [selectedCountry])
 
