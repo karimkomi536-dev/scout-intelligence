@@ -173,7 +173,7 @@ export default function AdvancedSearch({
       qs:      serialize(),
       savedAt: new Date().toISOString(),
     }
-    const next = [entry, ...saved].slice(0, 10) // keep max 10
+    const next = [entry, ...saved].slice(0, 5) // keep max 5
     saveSaved(next)
     setSaved(next)
     onSave(entry.name)
@@ -393,15 +393,42 @@ export default function AdvancedSearch({
               </p>
             </div>
 
-            {/* Valeur marchande max */}
+            {/* Valeur marchande */}
             <div>
-              <Label>Valeur marchande max</Label>
-              <NumInput
-                value={filters.maxValueM}
-                onChange={v => onSet({ maxValueM: v })}
-                placeholder="∞"
-                suffix="M €"
-              />
+              <Label>Valeur marchande</Label>
+              <select
+                value={
+                  filters.minValueM === 0  && filters.maxValueM === 1  ? '<1'  :
+                  filters.minValueM === 1  && filters.maxValueM === 5  ? '1-5' :
+                  filters.minValueM === 5  && filters.maxValueM === 20 ? '5-20':
+                  filters.minValueM === 20 && filters.maxValueM === 0  ? '>20' : ''
+                }
+                onChange={e => {
+                  const v = e.target.value
+                  if (v === '')     onSet({ minValueM: 0,  maxValueM: 0  })
+                  else if (v === '<1')   onSet({ minValueM: 0,  maxValueM: 1  })
+                  else if (v === '1-5')  onSet({ minValueM: 1,  maxValueM: 5  })
+                  else if (v === '5-20') onSet({ minValueM: 5,  maxValueM: 20 })
+                  else if (v === '>20')  onSet({ minValueM: 20, maxValueM: 0  })
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${T.border}`,
+                  color: T.text,
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  width: '100%',
+                }}
+              >
+                <option value="">Toutes</option>
+                <option value="<1">moins de 1M €</option>
+                <option value="1-5">1M – 5M €</option>
+                <option value="5-20">5M – 20M €</option>
+                <option value=">20">plus de 20M €</option>
+              </select>
             </div>
 
             {/* Minutes min */}

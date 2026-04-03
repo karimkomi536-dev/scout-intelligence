@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import { calculateScore, getScoreLabel, getPosGroup } from '../utils/scoring'
 import { useScoringProfile } from '../hooks/useScoringProfile'
 import { usePlayerFilters } from '../hooks/usePlayerFilters'
+import type { PlayerFilters } from '../hooks/usePlayerFilters'
 import { useCompare } from '../contexts/CompareContext'
 import { useAuth } from '../contexts/AuthContext'
 import { usePlan } from '../hooks/usePlan'
@@ -68,6 +69,26 @@ const FOOT_OPTIONS = [
 ]
 
 const PAGE_SIZE = 50
+
+// ── Saved searches (localStorage) ─────────────────────────────────────────────
+
+const LS_KEY = 'vizion_saved_searches'
+interface SavedSearch { id: string; name: string; qs: string; savedAt: string }
+function loadSaved(): SavedSearch[] {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]') }
+  catch { return [] }
+}
+
+// ── Quick filters ─────────────────────────────────────────────────────────────
+
+const QUICK_FILTERS = [
+  { label: 'En forme',       emoji: '🔥', isActive: (f: PlayerFilters) => f.trends.includes('hot'),                    toggle: (f: PlayerFilters) => ({ trends:   f.trends.includes('hot')             ? f.trends.filter(t => t !== 'hot')            : [...f.trends, 'hot'] }) },
+  { label: 'ELITE',          emoji: '⭐', isActive: (f: PlayerFilters) => f.labels.includes('ELITE'),                  toggle: (f: PlayerFilters) => ({ labels:   f.labels.includes('ELITE')           ? f.labels.filter(l => l !== 'ELITE')          : [...f.labels, 'ELITE'] }) },
+  { label: 'U23',            emoji: '🌟', isActive: (f: PlayerFilters) => f.ageMax <= 23,                              toggle: (f: PlayerFilters) => f.ageMax <= 23 ? { ageMax: 40 } : { ageMax: 23 } },
+  { label: 'Ligue 1',        emoji: '🇫🇷', isActive: (f: PlayerFilters) => f.leagues.includes('Ligue 1'),             toggle: (f: PlayerFilters) => ({ leagues:  f.leagues.includes('Ligue 1')         ? f.leagues.filter(l => l !== 'Ligue 1')       : [...f.leagues, 'Ligue 1'] }) },
+  { label: 'Premier League', emoji: '🏴', isActive: (f: PlayerFilters) => f.leagues.includes('Premier League'),        toggle: (f: PlayerFilters) => ({ leagues:  f.leagues.includes('Premier League')  ? f.leagues.filter(l => l !== 'Premier League'): [...f.leagues, 'Premier League'] }) },
+  { label: '< 5M',           emoji: '💶', isActive: (f: PlayerFilters) => f.maxValueM === 5 && f.minValueM === 0,      toggle: (f: PlayerFilters) => f.maxValueM === 5 && f.minValueM === 0 ? { maxValueM: 0 } : { minValueM: 0, maxValueM: 5 } },
+]
 
 function getPageNumbers(current: number, total: number): (number | '...')[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
@@ -412,6 +433,10 @@ export default function Players() {
   const [showFiltersDrawer, setShowFiltersDrawer]       = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch]     = useState(false)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [savedSearches, setSavedSearches]               = useState<SavedSearch[]>(loadSaved)
+  const [showSaveInput, setShowSaveInput]               = useState(false)
+  const [saveName, setSaveName]                         = useState('')
+  const [showSavedDropdown, setShowSavedDropdown]       = useState(false)
 
   // Pull-to-refresh
   const pullStartY  = useRef(0)
@@ -445,6 +470,7 @@ export default function Players() {
     ageMax:      filters.ageMax,
     foot:        filters.foot,
     minScore:    filters.minScore,
+    minValueM:   filters.minValueM,
     maxValueM:   filters.maxValueM,
     xgMin:       filters.xgMin,
     minutesMin:  filters.minutesMin,
@@ -461,6 +487,28 @@ export default function Players() {
 
   function toggleValue(list: string[], value: string) {
     return list.includes(value) ? list.filter(x => x !== value) : [...list, value]
+  }
+
+  // ── Saved searches ─────────────────────────────────────────────────────────
+
+  function handleSaveSearch() {
+    if (!saveName.trim()) return
+    const entry: SavedSearch = {
+      id: crypto.randomUUID(), name: saveName.trim(),
+      qs: serialize(), savedAt: new Date().toISOString(),
+    }
+    const next = [entry, ...savedSearches].slice(0, 5)
+    localStorage.setItem(LS_KEY, JSON.stringify(next))
+    setSavedSearches(next)
+    setSaveName('')
+    setShowSaveInput(false)
+    showToast('Recherche sauvegardée', 'success')
+  }
+
+  function handleDeleteSearch(id: string) {
+    const next = savedSearches.filter(s => s.id !== id)
+    localStorage.setItem(LS_KEY, JSON.stringify(next))
+    setSavedSearches(next)
   }
 
   // ── Quick-add to shortlist (mobile card button) ────────────────────────────
@@ -767,6 +815,37 @@ export default function Players() {
     </div>
   )
 
+  // ── Quick filters bar ────────────────────────────────────────────────────
+
+  const quickFiltersBar = (
+    <div style={{
+      display: 'flex', gap: '6px', overflowX: 'auto',
+      scrollbarWidth: 'none', msOverflowStyle: 'none',
+    }}>
+      {QUICK_FILTERS.map(qf => {
+        const active = qf.isActive(filters)
+        return (
+          <button
+            key={qf.label}
+            onClick={() => set(qf.toggle(filters))}
+            style={{
+              flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: '5px',
+              padding: '5px 12px', borderRadius: '20px',
+              background: active ? 'rgba(0,200,150,0.15)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${active ? 'rgba(0,200,150,0.40)' : 'rgba(255,255,255,0.08)'}`,
+              color: active ? '#00C896' : 'var(--text-muted)',
+              fontSize: '12px', fontWeight: active ? 600 : 400,
+              cursor: 'pointer', transition: 'all 150ms', whiteSpace: 'nowrap',
+            }}
+          >
+            {qf.emoji} {qf.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
   // ─────────────────────────────────────────────────────────────────────────
   // MOBILE LAYOUT
   // ─────────────────────────────────────────────────────────────────────────
@@ -859,6 +938,9 @@ export default function Players() {
             )}
           </button>
         </div>
+
+        {/* Quick filters */}
+        {quickFiltersBar}
 
         {/* Result count */}
         {!loading && (
@@ -1011,20 +1093,6 @@ export default function Players() {
             </span>
           )}
         </div>
-        {hasActiveFilters && (
-          <button onClick={reset} style={{
-            display: 'flex', alignItems: 'center', gap: '5px',
-            background: 'none', border: '1px solid rgba(255,255,255,0.10)',
-            borderRadius: '8px', color: 'var(--text-muted)',
-            fontSize: '12px', padding: '6px 12px', cursor: 'pointer',
-            transition: 'all 150ms',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-          >
-            <RotateCcw size={12} /> Réinitialiser
-          </button>
-        )}
       </div>
 
       {/* Nationality filter badge */}
@@ -1063,35 +1131,135 @@ export default function Players() {
         borderRadius: '12px', padding: '18px 20px',
         display: 'flex', flexDirection: 'column', gap: '14px',
       }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ flex: 1 }}>{searchBar}</div>
+
+          {/* Filtres avancés button with red badge */}
           <button
             onClick={() => setShowAdvancedSearch(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0,
-              background: activeFilterCount > 0 ? 'rgba(77,127,255,0.15)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${activeFilterCount > 0 ? 'rgba(77,127,255,0.40)' : 'rgba(255,255,255,0.10)'}`,
+              background: activeFilterCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${activeFilterCount > 0 ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.10)'}`,
               borderRadius: '8px', padding: '9px 14px',
-              color: activeFilterCount > 0 ? '#4D7FFF' : 'var(--text-muted)',
+              color: activeFilterCount > 0 ? '#ef4444' : 'var(--text-muted)',
               fontSize: '13px', fontWeight: 600, cursor: 'pointer',
               position: 'relative',
             }}
           >
             <SlidersHorizontal size={14} />
-            Recherche avancée
-            {activeFilterCount > 0 && (
-              <span style={{
-                position: 'absolute', top: '-7px', right: '-7px',
-                width: '17px', height: '17px', borderRadius: '50%',
-                background: '#4D7FFF', color: 'white',
-                fontSize: '9px', fontWeight: 700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '1.5px solid var(--bg-base)',
-              }}>
-                {activeFilterCount}
-              </span>
-            )}
+            Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </button>
+
+          {/* Clear all */}
+          {hasActiveFilters && (
+            <button onClick={reset} style={{
+              display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0,
+              background: 'none', border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: '8px', color: 'var(--text-muted)',
+              fontSize: '12px', padding: '9px 12px', cursor: 'pointer',
+            }}>
+              <RotateCcw size={12} /> Tout effacer
+            </button>
+          )}
+
+          {/* Save search */}
+          {showSaveInput ? (
+            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              <input
+                autoFocus
+                type="text"
+                placeholder="Nom de la recherche…"
+                value={saveName}
+                onChange={e => setSaveName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSaveSearch(); if (e.key === 'Escape') setShowSaveInput(false) }}
+                style={{
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(77,127,255,0.40)',
+                  borderRadius: '8px', color: 'var(--text-primary)',
+                  fontSize: '13px', padding: '8px 12px', outline: 'none', width: '160px',
+                }}
+              />
+              <button onClick={handleSaveSearch} style={{
+                background: '#4D7FFF', border: 'none', borderRadius: '8px',
+                color: 'white', fontSize: '12px', fontWeight: 700, padding: '8px 12px', cursor: 'pointer',
+              }}>OK</button>
+              <button onClick={() => setShowSaveInput(false)} style={{
+                background: 'none', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '8px',
+                color: 'var(--text-muted)', fontSize: '12px', padding: '8px 10px', cursor: 'pointer',
+              }}>✕</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { if (activeFilterCount > 0) setShowSaveInput(true) }}
+              disabled={activeFilterCount === 0}
+              title="Sauvegarder cette recherche"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0,
+                background: 'rgba(77,127,255,0.10)', border: '1px solid rgba(77,127,255,0.25)',
+                borderRadius: '8px', color: activeFilterCount > 0 ? '#4D7FFF' : 'var(--text-muted)',
+                fontSize: '12px', fontWeight: 600, padding: '9px 12px', cursor: activeFilterCount > 0 ? 'pointer' : 'not-allowed',
+                opacity: activeFilterCount > 0 ? 1 : 0.45,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Sauvegarder
+            </button>
+          )}
+
+          {/* Saved searches dropdown */}
+          {savedSearches.length > 0 && (
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button
+                onClick={() => setShowSavedDropdown(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: '8px', color: 'var(--text-muted)',
+                  fontSize: '12px', fontWeight: 600, padding: '9px 12px', cursor: 'pointer',
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+                Mes recherches
+              </button>
+              {showSavedDropdown && (
+                <>
+                  <div onClick={() => setShowSavedDropdown(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                  <div style={{
+                    position: 'absolute', top: '100%', right: 0, marginTop: '6px',
+                    background: '#0D1525', border: '1px solid rgba(255,255,255,0.10)',
+                    borderRadius: '10px', zIndex: 50, minWidth: '200px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.40)',
+                    overflow: 'hidden',
+                  }}>
+                    {savedSearches.map(s => (
+                      <div key={s.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '10px 14px',
+                        borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      }}>
+                        <button
+                          onClick={() => { restore(s.qs); setShowSavedDropdown(false) }}
+                          style={{
+                            flex: 1, background: 'none', border: 'none',
+                            color: 'var(--text-primary)', fontSize: '13px',
+                            textAlign: 'left', cursor: 'pointer', padding: 0,
+                          }}
+                        >
+                          {s.name}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSearch(s.id)}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: '2px', flexShrink: 0 }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {/* Positions */}
@@ -1184,6 +1352,9 @@ export default function Players() {
           </div>
         )}
       </div>
+
+      {/* ── Quick filters ─────────────────────────────────────────────────── */}
+      {quickFiltersBar}
 
       {/* ── Table ─────────────────────────────────────────────────────────── */}
       {loading ? (

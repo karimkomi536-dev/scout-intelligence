@@ -11,6 +11,7 @@ export interface PlayerQueryFilters {
   ageMax?:      number
   foot?:        string
   minScore?:    number
+  minValueM?:   number
   maxValueM?:   number
   xgMin?:       number
   minutesMin?:  number
@@ -32,8 +33,9 @@ export function usePlayers(filters: PlayerQueryFilters) {
       if (filters.ageMax && filters.ageMax < 40)   q = q.lte('age', filters.ageMax)
       if (filters.foot === 'Left')                 q = q.ilike('foot', '%left%')
       if (filters.foot === 'Right')                q = q.ilike('foot', '%right%')
-      if (filters.minScore && filters.minScore > 0)    q = q.gte('scout_score', filters.minScore)
-      if (filters.maxValueM && filters.maxValueM > 0)  q = q.lte('market_value_eur', filters.maxValueM * 1_000_000)
+      if (filters.minScore && filters.minScore > 0)      q = q.gte('scout_score', filters.minScore)
+      if (filters.minValueM && filters.minValueM > 0)   q = q.gte('market_value_eur', filters.minValueM * 1_000_000)
+      if (filters.maxValueM && filters.maxValueM > 0)   q = q.lte('market_value_eur', filters.maxValueM * 1_000_000)
       if (filters.xgMin && filters.xgMin > 0)          q = q.gte('xg', filters.xgMin)
       if (filters.minutesMin && filters.minutesMin > 0) q = q.gte('minutes_played', filters.minutesMin)
       if (filters.labels?.length)                  q = q.in('scout_label', filters.labels)
