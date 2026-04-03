@@ -19,7 +19,7 @@ export function useGlobeData(labelFilter?: string) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let q: any = supabase
         .from('players')
-        .select('nationality, scout_label, overall_score, is_u23')
+        .select('nationality, scout_label, is_u23')
         .not('nationality', 'is', null)
 
       if (labelFilter === 'U23') {

@@ -247,7 +247,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function load() {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
       const now       = new Date()
       const startThis = new Date(now.getFullYear(), now.getMonth(),     1).toISOString()
       const startLast = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
@@ -278,12 +277,8 @@ export default function Dashboard() {
           .order('scout_score', { ascending: false })
           .limit(3),
 
-        // Recent shortlist activity (7 days)
-        supabase.from('shortlist_entries')
-          .select('id, created_at, player_id')
-          .gte('created_at', sevenDaysAgo)
-          .order('created_at', { ascending: false })
-          .limit(8),
+        // Recent shortlist activity — table not available, fallback to empty
+        Promise.resolve({ data: [] as { id: string; created_at: string; player_id: string }[], error: null }),
 
         // Last cron log
         supabase.from('cron_logs')
