@@ -67,7 +67,17 @@ const FOOT_OPTIONS = [
   { label: 'Les deux', value: ''      },
 ]
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 50
+
+function getPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages: (number | '...')[] = [1]
+  if (current > 3) pages.push('...')
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) pages.push(p)
+  if (current < total - 2) pages.push('...')
+  pages.push(total)
+  return pages
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -664,20 +674,68 @@ export default function Players() {
 
   // ── Pagination ────────────────────────────────────────────────────────────
 
-  const pagination = totalPages > 1 && (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', paddingTop: '4px' }}>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-        <button key={p} onClick={() => setPage(p)} style={{
-          width: 30, height: 30, borderRadius: '6px',
-          background: p === page ? 'rgba(77,127,255,0.18)' : 'transparent',
-          border: `1px solid ${p === page ? '#4D7FFF' : 'rgba(255,255,255,0.08)'}`,
-          color: p === page ? '#4D7FFF' : 'var(--text-muted)',
-          fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: p === page ? 600 : 400,
-          cursor: 'pointer', transition: 'all 150ms',
-        }}>
-          {p}
-        </button>
-      ))}
+  const paginationStart = Math.min((page - 1) * PAGE_SIZE + 1, visible.length)
+  const paginationEnd   = Math.min(page * PAGE_SIZE, visible.length)
+
+  const pagination = !loading && visible.length > 0 && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}>
+      {/* Count */}
+      <p style={{ margin: 0, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
+        Affichage {paginationStart}–{paginationEnd} sur {visible.length} joueur{visible.length > 1 ? 's' : ''}
+      </p>
+
+      {/* Page buttons */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+          {/* Previous */}
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{
+              padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: page === 1 ? 'rgba(255,255,255,0.18)' : 'var(--text-muted)',
+              cursor: page === 1 ? 'default' : 'pointer',
+            }}
+          >
+            ← Précédent
+          </button>
+
+          {/* Smart page numbers */}
+          {getPageNumbers(page, totalPages).map((p, i) =>
+            p === '...' ? (
+              <span key={`dots-${i}`} style={{ color: 'var(--text-muted)', fontSize: '12px', padding: '0 4px' }}>…</span>
+            ) : (
+              <button key={p} onClick={() => setPage(p)} style={{
+                width: 30, height: 30, borderRadius: '6px',
+                background: p === page ? 'rgba(77,127,255,0.18)' : 'transparent',
+                border: `1px solid ${p === page ? '#4D7FFF' : 'rgba(255,255,255,0.08)'}`,
+                color: p === page ? '#4D7FFF' : 'var(--text-muted)',
+                fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: p === page ? 600 : 400,
+                cursor: 'pointer', transition: 'all 150ms',
+              }}>
+                {p}
+              </button>
+            )
+          )}
+
+          {/* Next */}
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{
+              padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: page === totalPages ? 'rgba(255,255,255,0.18)' : 'var(--text-muted)',
+              cursor: page === totalPages ? 'default' : 'pointer',
+            }}
+          >
+            Suivant →
+          </button>
+        </div>
+      )}
     </div>
   )
 
@@ -1135,6 +1193,7 @@ export default function Players() {
                   padding: '0 16px',
                   borderBottom: '1px solid rgba(255,255,255,0.04)',
                   cursor: 'pointer',
+                  position: 'relative',
                   background: isHov ? 'rgba(255,255,255,0.025)' : 'transparent',
                   transition: 'background 120ms ease',
                   boxShadow: isHov ? 'inset 2px 0 0 #4D7FFF' : 'none',
@@ -1209,34 +1268,41 @@ export default function Players() {
                     <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '11px' }}>—</span>
                   )}
                 </div>
-                <div style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: '6px', opacity: isHov ? 1 : 0, transition: 'opacity 150ms' }}
-                  onClick={e => e.stopPropagation()}>
+                <div />
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    position: 'absolute', right: 12,
+                    top: '50%', transform: 'translateY(-50%)',
+                    display: isHov ? 'flex' : 'none',
+                    gap: 6, alignItems: 'center',
+                  }}
+                >
                   <button
-                    title={inComp ? 'Retirer du comparateur' : compareIds.length >= 3 ? 'Max 3' : 'Comparer'}
-                    onClick={() => (compareIds.length < 3 || inComp) && toggle(player.id)}
+                    onClick={() => handleQuickShortlist(player)}
                     style={{
-                      width: 28, height: 28, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: inComp ? 'rgba(77,127,255,0.18)' : 'rgba(255,255,255,0.06)',
-                      border: `1px solid ${inComp ? 'rgba(77,127,255,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                      color: inComp ? '#4D7FFF' : 'var(--text-muted)',
-                      cursor: compareIds.length >= 3 && !inComp ? 'not-allowed' : 'pointer',
-                      opacity: compareIds.length >= 3 && !inComp ? 0.4 : 1,
-                    }}>
-                    <Scale size={12} />
+                      display: 'flex', alignItems: 'center', gap: '5px',
+                      padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                      background: 'rgba(0,200,150,0.12)', border: '1px solid rgba(0,200,150,0.35)',
+                      color: '#00C896', cursor: 'pointer',
+                    }}
+                  >
+                    <Heart size={10} fill="#00C896" /> + Shortlist
                   </button>
                   <button
-                    title="Ajouter à la shortlist"
-                    onClick={() => navigate('/shortlist')}
+                    onClick={() => (compareIds.length < 3 || inComp) && toggle(player.id)}
+                    disabled={compareIds.length >= 3 && !inComp}
                     style={{
-                      width: 28, height: 28, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: 'var(--text-muted)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: '5px',
+                      padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                      background: inComp ? 'rgba(77,127,255,0.18)' : 'rgba(77,127,255,0.10)',
+                      border: `1px solid ${inComp ? 'rgba(77,127,255,0.5)' : 'rgba(77,127,255,0.30)'}`,
+                      color: '#4D7FFF',
+                      cursor: compareIds.length >= 3 && !inComp ? 'not-allowed' : 'pointer',
+                      opacity: compareIds.length >= 3 && !inComp ? 0.4 : 1,
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#00C896'; e.currentTarget.style.borderColor = 'rgba(0,200,150,0.35)' }}
-                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
                   >
-                    <Heart size={12} />
+                    <Scale size={10} /> Comparer
                   </button>
                 </div>
               </div>
